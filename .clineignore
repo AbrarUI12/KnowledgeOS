@@ -1,0 +1,52 @@
+# Keep Cline's context focused. Source code and docs stay visible.
+
+# Dependencies
+node_modules/
+.venv/
+venv/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Python caches
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+
+# Coverage
+coverage/
+.coverage
+coverage.xml
+htmlcov/
+
+# Test artifacts
+playwright-report/
+test-results/
+evals/experiments/*/raw/
+
+# Logs and temp
+*.log
+logs/
+tmp/
+temp/
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Generated / large
+*.min.js
+*.map
+apps/web/next-env.d.ts
+infra/terraform/**/.terraform/

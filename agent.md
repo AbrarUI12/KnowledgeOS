@@ -1,18 +1,19 @@
 # agent.md — KnowledgeOS Handoff & Progress Log
 
 > **This is the single source of truth for "where are we?"**
-> Any developer or AI agent picking up this project must read this file first, then do the next session from `session.md`, then update this file before stopping.
+> Any developer or AI agent picking up this project reads this file first. Since 2026-10-12 three agents work in parallel (Claude, Codex, Cline): **task assignment and status live in `docs/TASKS.md`**, the working rules in `docs/AGENT_WORKFLOW.md`, and shared context in `docs/AI_CONTEXT.md`.
 
 ---
 
 ## 0. Read order for anyone joining
 
-1. **This file (`agent.md`)**: current status, what's done, what's broken, what's next.
-2. **`session.md`**: find the session listed under *Next session* below. Do only that session.
-3. **`plan.md`**: read only the `§` sections that the session references. `plan.md` is the architecture spec and is never edited during normal work (see §10 for deviations).
-4. **`docs/adr/`** (once it exists): why key decisions were made.
+1. **`docs/AI_CONTEXT.md`**: shared context, rules, commands, definition of done.
+2. **This file (`agent.md`)**: project status, Team status (§1b), gates, setup commands, open issues, env-var register.
+3. **`docs/TASKS.md`**: your board, your next task and its spec. **`docs/AGENT_WORKFLOW.md`**: how the three agents cooperate.
+4. **`session.md`**: the detailed spec of the session your task references.
+5. **`plan.md`**: only the `§` sections that session cites. Never edited; deviations go in `docs/DECISIONS.md`.
 
-**Golden rule:** do one session at a time, never skip a gate, and always leave this file accurate.
+**Golden rule:** one task at a time, inside your owned paths, never skip a gate, and always leave this file and `docs/TASKS.md` accurate.
 
 ---
 
@@ -20,29 +21,61 @@
 
 | Field | Value |
 |---|---|
-| **Project phase** | Building: Sprint 1 (Sprint 0 complete, gate G0 passed) |
+| **Project phase** | Building: Sprint 1, **three-agent mode** (Claude + Codex + Cline, see §1b and `docs/TASKS.md`) |
 | **Current sprint** | Sprint 1: Identity, tenancy & authorization |
 | **Last completed session** | Session 06: Identity & organization schema |
-| **Next session** | **Session 07: OIDC authentication (backend)** |
+| **Next work** | Wave 0 in `docs/TASKS.md`: Claude T1.0 contracts · Codex T2.3 file validation · Cline T4.5 demo corpus + T1.8 get_token |
 | **Sessions done** | 6 / 65 (9%) |
 | **Last gate passed** | **G0** (2026-10-12), next gate: **G1** after Session 11 |
 | **Repository** | https://github.com/AbrarUI12/KnowledgeOS (public, branch `main`) |
 | **Live environments** | none yet (staging planned in Session 33, production in Session 62) |
 | **Blockers** | none |
-| **Last updated** | 2026-10-12, by Claude (Session 06) |
+| **Last updated** | 2026-10-12, by Claude (T0.1 multi-agent bootstrap) |
+
+---
+
+## 1b. Team status (each agent edits only its own block)
+
+> One block per agent so parallel edits never conflict. Keep it short: current task, last finished task, blockers, and newest-first links to your merged PRs (the PR description is the full completion report). Update at the end of every task.
+
+### Claude: architect · security/DB/integration · reviewer
+- **Worktree / ports:** `D:\projects\kos-claude` · API 8000 · web 3000
+- **Current task:** T1.0 contracts (wave 0)
+- **Last finished:** T0.1 multi-agent workflow bootstrap (2026-10-12)
+- **Blockers:** none
+- **Recent:**
+  - 2026-10-12 · T0.1 · docs/AI_CONTEXT, ARCHITECTURE, TASKS, DECISIONS, TESTING, AGENT_WORKFLOW; worktrees; ports
+
+### Codex: libraries · frontend foundation · Ask experience · reviews Claude
+- **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
+- **Current task:** T2.3 file-safety validation & malware scanners (wave 0)
+- **Last finished:** –
+- **Blockers:** none
+- **Recent:**
+  - –
+
+### Cline: UI pages · scripts · local QA
+- **Worktree / ports:** `D:\projects\kos-cline` · API 8200 · web 3200
+- **Current task:** T4.5 demo corpus generator, then T1.8 `get_token.py` (wave 0)
+- **Last finished:** –
+- **Blockers:** none
+- **Recent:**
+  - –
 
 ---
 
 ## 2. Update protocol (mandatory at the end of every session)
 
-Before you stop working, **every time**:
+**Three writers (since 2026-10-12).** Codex and Cline update: their own block in §1b, their rows in `docs/TASKS.md`, and their own new rows in §8 (issues) and §11 (env vars). Claude additionally maintains §1, §5, §6, §7 and marks gates. Decisions go to `docs/DECISIONS.md`. Detailed completion reports go in PR descriptions, not here.
+
+Before you stop working, **every time** (Claude's checklist; Codex/Cline do the subset above):
 
 1. **Status block (§1):** update last completed session, next session, sessions done, last gate, blockers, last-updated date and author.
 2. **Progress tracker (§5):** set the session row to `☑ Done` (or `◐ Partial` with a reason) and fill in date and commit hash.
 3. **Gates tracker (§6):** if the session closed a gate, mark it passed and link the evidence (test run, report, screenshot path).
 4. **Session log (§7):** add a new entry **at the top** using the template. Be specific: list real file paths, real commands, real test results.
 5. **Open issues (§8):** add anything left broken, skipped or deferred. Close items you fixed.
-6. **Decisions (§9) / deviations (§10):** record any choice that differs from `session.md` or `plan.md`, with the reason.
+6. **Decisions and deviations:** record them in `docs/DECISIONS.md` (D-NNN / DV-NNN rows; ADR for architecture).
 7. **How to run (§4):** if setup, run or test commands changed, update them. A newcomer must be able to copy-paste them.
 8. **Accounts register (§11):** if you introduced a new external service or environment variable, add it (**names only, never values**).
 9. Commit with the message suggested by the session (Conventional Commits), e.g. `git commit -m "docs(agent): close session 07"` or as part of the session's final commit.
@@ -122,6 +155,12 @@ make reset         # DELETES all local volumes (fresh DB, realm re-import)
 Dev access token (password grant, dev realm only):
 `curl -s -X POST http://localhost:8080/realms/knowledgeos/protocol/openid-connect/token -d grant_type=password -d client_id=knowledgeos-cli -d username=alice@acme.test -d password=alice-dev-password -d scope=openid`
 
+### 4.3b Three agents on one machine
+- Worktrees: `D:\projects\kos-claude`, `D:\projects\kos-codex`, `D:\projects\kos-cline` (each with its own `.env` copy and `make install`). `D:\projects\KnowledgeOS` is the user's integration checkout on `main`.
+- Ports: Claude `make api` / `make web` (8000/3000) · Codex `make api API_PORT=8100` / `make web WEB_PORT=3100` · Cline `API_PORT=8200` / `WEB_PORT=3200`. Keycloak redirect URIs and MinIO CORS allow all three web ports.
+- The Docker stack is shared; only Claude runs `make reset`. Tests use Testcontainers, so parallel runs are safe.
+- Full rules: `docs/AGENT_WORKFLOW.md`.
+
 ### 4.4 Run the API / web / workers
 - API: `make api` → http://localhost:8000/docs (OpenAPI UI), `/health/live` (process up), `/health/ready` (DB + Redis + object storage; 503 if any is down). Needs `make up` for readiness.
 - Migrations: `make migrate` (alembic upgrade head as `knowledgeos_owner`), new one: `make migration name=<slug>`
@@ -153,76 +192,76 @@ docker build -f infra/docker/web.Dockerfile -t knowledgeos-web:dev .            
 
 ## 5. Progress tracker
 
-Status legend: `☐` not started · `◐` partial / in progress · `☑` done · `⊘` skipped (with reason in §10)
+Status legend: `☐` not started · `◐` partial / in progress · `☑` done · `⊘` skipped (reason in `docs/DECISIONS.md`). From Session 07 on, a session is ☑ when all its tasks in `docs/TASKS.md` are DONE (Claude ticks it).
 
-| # | Session | Sprint | Gate | Status | Date | Commit | Notes |
-|---|---|---|---|---|---|---|---|
-| 00 | Planning: plan.md, session.md, agent.md | – | – | ☑ | 2026-10-11 | – | Docs only |
-| 01 | Repository bootstrap & tooling | 0 | | ☑ | 2026-10-11 | see log | Python 3.12, Next 16, pnpm 12 |
-| 02 | Local infrastructure (Docker Compose) | 0 | | ☑ | 2026-10-12 | see log | PG 5433, Redis 6380, pgsty/minio |
-| 03 | Backend core skeleton | 0 | | ☑ | 2026-10-12 | see log | 16 tests (13 unit, 3 integration) |
-| 04 | CI pipeline, Dockerfiles & ADRs | 0 | | ☑ | 2026-10-12 | PR #1 | CI green; ADR-001…008 |
-| 05 | Design system foundation (FE-0) | 0 | G0 | ☑ | 2026-10-12 | PR #7 | 88 web tests incl. contrast + axe |
-| 06 | Identity & organization schema | 1 | | ☑ | 2026-10-12 | PR #8 | migration 0002, 41 backend tests |
-| 07 | OIDC authentication (backend) | 1 | | ☐ | | | |
-| 08 | Tenant context, RLS & permission engine | 1 | | ☐ | | | |
-| 09 | Organization, member, group & invitation APIs | 1 | | ☐ | | | |
-| 10 | Frontend auth, API client & app shell | 1 | | ☐ | | | |
-| 11 | Shell completion: command palette, evidence rail, access pages | 1 | G1 | ☐ | | | |
-| 12 | Knowledge base & document schema + KB APIs | 2 | | ☐ | | | |
-| 13 | Object storage & secure upload flow | 2 | | ☐ | | | |
-| 14 | File-safety validation & malware scanning | 2 | | ☐ | | | |
-| 15 | Knowledge library & upload UI | 2 | G2 | ☐ | | | |
-| 16 | Outbox dispatcher, Celery & job state machine | 3 | | ☐ | | | |
-| 17 | Validation stages, canonical model & Docling | 3 | | ☐ | | | |
-| 18 | Office/tabular formats, OCR & normalization | 3 | | ☐ | | | |
-| 19 | Content-security scanner & structure-aware chunker | 3 | | ☐ | | | |
-| 20 | Ingestion reliability & recovery | 3 | | ☐ | | | |
-| 21 | Ingestion UI: pipeline, diagnostics, reader/inspect | 3 | G3 | ☐ | | | |
-| 22 | Index generations & embedding providers | 4 | | ☐ | | | |
-| 23 | Chunk indexing, vector/FTS indexes & ACL materialization | 4 | | ☐ | | | |
-| 24 | Permission-aware hybrid search backend | 4 | | ☐ | | | |
-| 25 | Search API, demo corpus & Search UI | 4 | | ☐ | | | |
-| 26 | Retrieval debugger v1 | 4 | G4 | ☐ | | | |
-| 27 | Reranking, RAG profiles & context packing | 5 | | ☐ | | | |
-| 28 | LLM gateway, grounded generation & citation validation | 5 | | ☐ | | | |
-| 29 | SSE streaming, evidence status & conflicts | 5 | | ☐ | | | |
-| 30 | Ask workspace UI | 5 | | ☐ | | | |
-| 31 | Evidence rail, source viewer & feedback | 5 | G5 | ☐ | | | |
-| 32 | Free-tier accounts & deployable backend image | 6 | | ☐ | | | |
-| 33 | MVP staging deployment | 6 | M1 | ☐ | | | |
-| 34 | Conversations, query rewrite & query router | 7 | | ☐ | | | |
-| 35 | Comparison, summary & guarded query paths | 7 | | ☐ | | | |
-| 36 | Conversation UI & Projects | 7 | | ☐ | | | |
-| 37 | Compare / Matrix view | 7 | G6 | ☐ | | | |
-| 38 | Evaluation schema, runner & retrieval metrics | 8 | | ☐ | | | |
-| 39 | Evaluation corpus & golden set part 1 | 8 | | ☐ | | | |
-| 40 | Golden set part 2 (200 cases) | 8 | | ☐ | | | |
-| 41 | Generation metrics, security gates & CI smoke eval | 8 | | ☐ | | | |
-| 42 | Evaluation lab UI & promotion gate | 8 | G7 | ☐ | | | |
-| 43 | OpenTelemetry & Langfuse tracing | 9 | | ☐ | | | |
-| 44 | Metrics, dashboards & alerts | 9 | | ☐ | | | |
-| 45 | Usage ledger, budgets, rate limits & quotas | 9 | | ☐ | | | |
-| 46 | Observe UI, Home page & feedback review | 9 | G8 | ☐ | | | |
-| 47 | Document version replacement & approval | 10 | | ☐ | | | |
-| 48 | Index-generation lifecycle & rollback | 10 | | ☐ | | | |
-| 49 | Deletion cascade, retention & orphan sweeper | 10 | G9 | ☐ | | | |
-| 50 | Connector framework & secure web connector | 11 | | ☐ | | | |
-| 51 | Google Drive connector & permission sync | 11 | | ☐ | | | |
-| 52 | Sources UI & permission editor | 11 | G10 | ☐ | | | |
-| 53 | Local models & policy-enforcing provider router | 12 | | ☐ | | | |
-| 54 | Model-policy UI & zero-external-call proof | 12 | G11 | ☐ | | | |
-| 55 | Threat model, API keys & web security headers | 13 | | ☐ | | | |
-| 56 | Security regression suite & supply-chain scanning | 13 | | ☐ | | | |
-| 57 | Audit log UI, API key UI & onboarding | 13 | G12 | ☐ | | | |
-| 58 | Benchmark dataset & retrieval performance tuning | 14 | | ☐ | | | |
-| 59 | Load tests, chaos tests & benchmark report | 14 | G13 | ☐ | | | |
-| 60 | Production images, Terraform & secrets | 15 | | ☐ | | | |
-| 61 | Full CD pipeline & release process | 15 | | ☐ | | | |
-| 62 | Production launch, backups & runbooks | 15 | G14 | ☐ | | | |
-| 63 | Public landing page (FE-9) | 16 | | ☐ | | | |
-| 64 | Frontend refinement (FE-10) | 16 | | ☐ | | | |
-| 65 | Release evidence & v1.0.0 | 16 | G15 | ☐ | | | |
+| # | Session | Owner(s) · tasks | Sprint | Gate | Status | Date | Commit | Notes |
+|---|---|---|---|---|---|---|---|---|
+| 00 | Planning: plan.md, session.md, agent.md | Claude | – | – | ☑ | 2026-10-11 | – | Docs only |
+| 01 | Repository bootstrap & tooling | Claude | 0 | | ☑ | 2026-10-11 | see log | Python 3.12, Next 16, pnpm 12 |
+| 02 | Local infrastructure (Docker Compose) | Claude | 0 | | ☑ | 2026-10-12 | see log | PG 5433, Redis 6380, pgsty/minio |
+| 03 | Backend core skeleton | Claude | 0 | | ☑ | 2026-10-12 | see log | 16 tests (13 unit, 3 integration) |
+| 04 | CI pipeline, Dockerfiles & ADRs | Claude | 0 | | ☑ | 2026-10-12 | PR #1 | CI green; ADR-001…008 |
+| 05 | Design system foundation (FE-0) | Claude | 0 | G0 | ☑ | 2026-10-12 | PR #7 | 88 web tests incl. contrast + axe |
+| 06 | Identity & organization schema | Claude | 1 | | ☑ | 2026-10-12 | PR #8 | migration 0002, 41 backend tests |
+| 07 | OIDC authentication (backend) | Claude T1.1 · Cline T1.8 | 1 | | ☐ | | | |
+| 08 | Tenant context, RLS & permission engine | Claude T1.2 | 1 | | ☐ | | | |
+| 09 | Organization, member, group & invitation APIs | Claude T1.3 | 1 | | ☐ | | | |
+| 10 | Frontend auth, API client & app shell | Codex T1.4 | 1 | | ☐ | | | |
+| 11 | Shell completion: command palette, evidence rail, access pages | Codex T1.4 · Cline T1.5–T1.7 | 1 | G1 | ☐ | | | |
+| 12 | Knowledge base & document schema + KB APIs | Claude T2.1 | 2 | | ☐ | | | |
+| 13 | Object storage & secure upload flow | Codex T2.2 · Claude T2.4 · Cline T2.6 | 2 | | ☐ | | | |
+| 14 | File-safety validation & malware scanning | Codex T2.3 | 2 | | ☐ | | | |
+| 15 | Knowledge library & upload UI | Cline T2.5 | 2 | G2 | ☐ | | | |
+| 16 | Outbox dispatcher, Celery & job state machine | Claude T3.1 | 3 | | ☐ | | | |
+| 17 | Validation stages, canonical model & Docling | Codex T3.2 · Claude T3.5 | 3 | | ☐ | | | |
+| 18 | Office/tabular formats, OCR & normalization | Codex T3.3 · Claude T3.5 | 3 | | ☐ | | | |
+| 19 | Content-security scanner & structure-aware chunker | Codex T3.4 · Claude T3.5 | 3 | | ☐ | | | |
+| 20 | Ingestion reliability & recovery | Claude T3.6 | 3 | | ☐ | | | |
+| 21 | Ingestion UI: pipeline, diagnostics, reader/inspect | Cline T3.7 | 3 | G3 | ☐ | | | |
+| 22 | Index generations & embedding providers | Codex T4.1 · Claude T4.2 | 4 | | ☐ | | | |
+| 23 | Chunk indexing, vector/FTS indexes & ACL materialization | Claude T4.2 | 4 | | ☐ | | | |
+| 24 | Permission-aware hybrid search backend | Claude T4.4 · Cline T4.3 | 4 | | ☐ | | | |
+| 25 | Search API, demo corpus & Search UI | Claude T4.6 · Cline T4.5, T4.7 | 4 | | ☐ | | | |
+| 26 | Retrieval debugger v1 | Claude T4.6 · Codex T4.8 | 4 | G4 | ☐ | | | |
+| 27 | Reranking, RAG profiles & context packing | Codex T5.1 · Claude T5.3 | 5 | | ☐ | | | |
+| 28 | LLM gateway, grounded generation & citation validation | Codex T5.2 · Claude T5.3 | 5 | | ☐ | | | |
+| 29 | SSE streaming, evidence status & conflicts | Claude T5.4 | 5 | | ☐ | | | |
+| 30 | Ask workspace UI | Codex T5.5 | 5 | | ☐ | | | |
+| 31 | Evidence rail, source viewer & feedback | Codex T5.7 · Cline T5.6 · Claude T5.4 | 5 | G5 | ☐ | | | |
+| 32 | Free-tier accounts & deployable backend image | Claude T6.1 | 6 | | ☐ | | | |
+| 33 | MVP staging deployment | Claude T6.3 · Cline T6.2 | 6 | M1 | ☐ | | | |
+| 34 | Conversations, query rewrite & query router | TBD (after M1) | 7 | | ☐ | | | |
+| 35 | Comparison, summary & guarded query paths | TBD (after M1) | 7 | | ☐ | | | |
+| 36 | Conversation UI & Projects | TBD (after M1) | 7 | | ☐ | | | |
+| 37 | Compare / Matrix view | TBD (after M1) | 7 | G6 | ☐ | | | |
+| 38 | Evaluation schema, runner & retrieval metrics | TBD (after M1) | 8 | | ☐ | | | |
+| 39 | Evaluation corpus & golden set part 1 | TBD (after M1) | 8 | | ☐ | | | |
+| 40 | Golden set part 2 (200 cases) | TBD (after M1) | 8 | | ☐ | | | |
+| 41 | Generation metrics, security gates & CI smoke eval | TBD (after M1) | 8 | | ☐ | | | |
+| 42 | Evaluation lab UI & promotion gate | TBD (after M1) | 8 | G7 | ☐ | | | |
+| 43 | OpenTelemetry & Langfuse tracing | TBD (after M1) | 9 | | ☐ | | | |
+| 44 | Metrics, dashboards & alerts | TBD (after M1) | 9 | | ☐ | | | |
+| 45 | Usage ledger, budgets, rate limits & quotas | TBD (after M1) | 9 | | ☐ | | | |
+| 46 | Observe UI, Home page & feedback review | TBD (after M1) | 9 | G8 | ☐ | | | |
+| 47 | Document version replacement & approval | TBD (after M1) | 10 | | ☐ | | | |
+| 48 | Index-generation lifecycle & rollback | TBD (after M1) | 10 | | ☐ | | | |
+| 49 | Deletion cascade, retention & orphan sweeper | TBD (after M1) | 10 | G9 | ☐ | | | |
+| 50 | Connector framework & secure web connector | TBD (after M1) | 11 | | ☐ | | | |
+| 51 | Google Drive connector & permission sync | TBD (after M1) | 11 | | ☐ | | | |
+| 52 | Sources UI & permission editor | TBD (after M1) | 11 | G10 | ☐ | | | |
+| 53 | Local models & policy-enforcing provider router | TBD (after M1) | 12 | | ☐ | | | |
+| 54 | Model-policy UI & zero-external-call proof | TBD (after M1) | 12 | G11 | ☐ | | | |
+| 55 | Threat model, API keys & web security headers | TBD (after M1) | 13 | | ☐ | | | |
+| 56 | Security regression suite & supply-chain scanning | TBD (after M1) | 13 | | ☐ | | | |
+| 57 | Audit log UI, API key UI & onboarding | TBD (after M1) | 13 | G12 | ☐ | | | |
+| 58 | Benchmark dataset & retrieval performance tuning | TBD (after M1) | 14 | | ☐ | | | |
+| 59 | Load tests, chaos tests & benchmark report | TBD (after M1) | 14 | G13 | ☐ | | | |
+| 60 | Production images, Terraform & secrets | TBD (after M1) | 15 | | ☐ | | | |
+| 61 | Full CD pipeline & release process | TBD (after M1) | 15 | | ☐ | | | |
+| 62 | Production launch, backups & runbooks | TBD (after M1) | 15 | G14 | ☐ | | | |
+| 63 | Public landing page (FE-9) | TBD (after M1) | 16 | | ☐ | | | |
+| 64 | Frontend refinement (FE-10) | TBD (after M1) | 16 | | ☐ | | | |
+| 65 | Release evidence & v1.0.0 | TBD (after M1) | 16 | G15 | ☐ | | | |
 
 ---
 
@@ -280,6 +319,27 @@ A gate is passed only when **every** exit criterion in `session.md` → *Gates &
 **Next steps**
 - <first thing the next person should do>
 ```
+
+---
+
+### T0.1 — Multi-agent workflow bootstrap  ·  2026-10-12  ·  Claude
+**Status:** ☑ Done
+**Commit(s):** `docs: three-agent workflow and M1 task split (T0.1)` (PR in `docs/TASKS.md` Claude board)
+
+**Done**
+- User decision: Sessions 07–33 are built by **three agents in parallel**: Claude (architect, security/DB/integration, reviewer), Codex (libraries, frontend foundation, Ask experience, reviews Claude), Cline (UI pages, scripts, local QA). Incorporates the user's multi-agent workflow guide. D-013 in `docs/DECISIONS.md`.
+- New shared docs: `docs/AI_CONTEXT.md` (shared source of truth), `docs/ARCHITECTURE.md`, `docs/TASKS.md` (**39 tasks T1.0–T6.3** with owner, reviewer, waves 0–9, hard/contract dependencies, owned paths, acceptance criteria; per-agent boards so parallel status edits don't conflict), `docs/DECISIONS.md` (ADR index + D-001…D-013 + DV-001…DV-007 moved here from this file), `docs/TESTING.md`, `docs/AGENT_WORKFLOW.md` (worktrees, branches `ai/<agent>-<task>`, ports, file ownership, contract-first, review format BLOCKER/HIGH/MEDIUM/LOW, merge rule, communication protocol, ready-made prompts).
+- Agent instruction files: `CLAUDE.md` (imports the docs, architect/reviewer role), `AGENTS.md` (Codex), `.clinerules/knowledgeos.md` (Cline), `.clineignore`, `.github/pull_request_template.md` (completion report + review status).
+- This file: §1b Team status (one block per agent), Owner column on the tracker, protocol for three writers, §9/§10 moved to `docs/DECISIONS.md`. `session.md`: note pointing to TASKS.md.
+- Dev setup for parallel agents: Makefile `API_PORT`/`WEB_PORT`; MinIO CORS `WEB_ORIGINS` (3000/3100/3200); Keycloak `knowledgeos-web` redirect URIs + web origins for 3000/3100/3200 (realm JSON + applied live through the admin REST API, no reset). GitHub labels `blocker`, `agent-question`, `contract-change`. Worktrees created.
+
+**Communication model (the user asked for a better channel):** files for long-term knowledge and task state (AI_CONTEXT, TASKS, DECISIONS); PRs for work, completion reports and cross-agent reviews; GitHub Issues only for `blocker` / `agent-question` with `@agent` addressing; this file's §1b for at-a-glance status. No per-task issues or Project board (user choice: single source of truth in TASKS.md).
+
+**Tests**
+- Docs only + dev config. MinIO preflight returns `Access-Control-Allow-Origin` for 3000/3100/3200; Keycloak auth endpoint returns 302 for redirect URIs on 3100/3200 and 400 for an unregistered port; `make infra-check` green; CI on the PR.
+
+**Next steps**
+- Wave 0: Claude T1.0 contracts · Codex T2.3 file validation · Cline T4.5 demo corpus, then T1.8 `get_token.py`.
 
 ---
 
@@ -517,54 +577,15 @@ Types: `Blocker` · `Bug` · `Tech debt` · `Risk` · `Question`
 
 ---
 
-## 9. Decision log
+## 9. Decision log → moved
 
-### 9.1 Architecture Decision Records (ADRs)
-Written in Session 04 under `docs/adr/`. Index:
-
-| ADR | Title | Status |
-|---|---|---|
-| ADR-001 | Modular monolith | Accepted (S04) |
-| ADR-002 | PostgreSQL + pgvector first search | Accepted (S04) |
-| ADR-003 | OIDC identity, app-owned authorization | Accepted (S04) |
-| ADR-004 | Tenant RLS strategy | Accepted (S04) |
-| ADR-005 | Async ingestion + transactional outbox | Accepted (S04) |
-| ADR-006 | Provider abstraction | Accepted (S04) |
-| ADR-007 | Index generations | Accepted (S04) |
-| ADR-008 | Free-tier deployment topology | Accepted (S04) |
-
-### 9.2 Smaller decisions
-
-| ID | Date | Decision | Reason |
-|---|---|---|---|
-| D-001 | 2026-10-11 | Whole project uses free tiers and open models only | No budget |
-| D-002 | 2026-10-11 | Backend deploys to a **Hugging Face Docker Space** instead of Render/Railway | Render free has no background workers and 512 MB RAM (too small for Docling/OCR/models); Railway has no lasting free tier. HF CPU Basic gives 2 vCPU / 16 GB at $0 |
-| D-003 | 2026-10-11 | **Backblaze B2** is the default object store, Cloudflare R2 the alternative | R2 asks for a payment method on file; B2's 10 GB free tier does not. Both are S3-compatible, so switching is a config change |
-| D-004 | 2026-10-11 | Embeddings and reranker run **in-process with open models** (Qwen3-Embedding-0.6B 1024-d; bge-reranker-v2-m3) | $0, no rate limits, data never leaves the deployment (satisfies local-only policy) |
-| D-005 | 2026-10-11 | Generation goes through one **OpenAI-compatible adapter** (Ollama locally; Groq free primary; Gemini free fallback) | One adapter covers many free providers; model IDs stay in config |
-| D-007 | 2026-10-11 | Dev machine: 16 GB RAM + RTX 4060 Laptop (8 GB VRAM). Local dev uses **Ollama on the GPU** for generation (7–8B models at Q4, e.g. `qwen3:8b`) and can run embeddings/reranker on CUDA locally; deployed stays CPU | 8 GB VRAM fits a Q4 8B model; 16 GB system RAM means the Compose `full` profile + Ollama together is tight, so use the `core` profile when running local models |
-| D-008 | 2026-10-12 | Local MinIO uses **`pgsty/minio`** (pinned `RELEASE.2026-08-04T00-00-00Z`) and `pgsty/mc` | The official `minio/minio` and `minio/mc` images no longer exist on Docker Hub. pgsty is the maintained community build of the same server. Only local dev is affected (deployed storage is B2/R2) |
-| D-009 | 2026-10-12 | KnowledgeOS host ports: **Postgres 5433, Redis 6380** | 5432/6379 are used by another local project (`retailops-bd`). Configurable via `POSTGRES_PORT`/`REDIS_PORT` in `.env` |
-| D-010 | 2026-10-12 | Plan §27.3 reference colors adjusted for WCAG AA (light ink-tertiary #676B65, light warning #965C16, dark ink-tertiary #878D84) + new `control-border` token (light #85897A, dark #667066) | The plan's values failed AA (e.g. ink-tertiary 3.7:1). Enforced by `apps/web/tests/contrast.test.ts` |
-| D-011 | 2026-10-12 | UI primitives = shadcn (radix base, nova preset) generated into `components/primitives/` and restyled onto KnowledgeOS tokens (no `dark:` overrides, no `outline-none`, scrim without blur). Theme toggle uses a radio-group `SegmentedControl`, not Tabs | Accessible Radix behaviour + distinct visual identity; axe flagged tabs without panels |
-| D-012 | 2026-10-12 | Schema conventions: text + CHECK instead of PG enums; composite FKs `(x_id, organization_id)` for cross-table tenant integrity; grants written in migrations (guarded, validated identifiers); system roles seeded with deterministic UUIDv5 IDs as a literal snapshot in the migration | Enums are hard to evolve; composite FKs make cross-tenant references impossible at the DB level; migrations work identically on local/Testcontainers/Neon |
-| D-006 | 2026-10-11 | Hosted identity uses **Auth0 Free**; Keycloak stays for local development | Hosting Keycloak needs a paid always-on instance; the app is IdP-agnostic by design |
+All decisions (ADR index, D-001…, the three-agent workflow D-013) now live in **[`docs/DECISIONS.md`](docs/DECISIONS.md)**. Add new decisions there.
 
 ---
 
-## 10. Deviations from plan.md
+## 10. Deviations from plan.md → moved
 
-`plan.md` is the target architecture. Record every intentional difference here.
-
-| ID | plan.md reference | Deviation | Reason | Reversible? |
-|---|---|---|---|---|
-| DV-001 | §4.1, §38.2 | Demo deployment runs api/worker/dispatcher/scheduler in **one container** (supervisord) instead of separate units | Free hosting allows one container; same image and commands, so it splits back out on paid infrastructure | Yes |
-| DV-002 | §38.2 | Render/Railway replaced by Hugging Face Spaces | See D-002 | Yes |
-| DV-003 | §5.4 | No paid cloud embedding/reranker. Local open models are the default for all KBs | See D-004 | Yes (add provider) |
-| DV-004 | §35 | Real spend is $0. The cost ledger records tokens plus **list-price estimates** from a versioned pricing table | Keeps cost analytics meaningful on free tiers | n/a |
-| DV-005 | §36.1 | The 100k+ chunk benchmark runs locally, not on hosted Neon (1 GB free storage limit) | Free-tier storage | Yes |
-| DV-007 | §27.3 | Some reference color tokens changed and `control-border` added | WCAG AA (plan itself requires validating and adjusting contrast); see D-010 | Yes |
-| DV-006 | §38.2 | Redis in the deployed demo runs inside the backend container (ephemeral) | Upstash free quotas can't absorb Celery polling; Redis is non-authoritative per §34.5 | Yes |
+All deviations (DV-001…) now live in **[`docs/DECISIONS.md`](docs/DECISIONS.md) §3**.
 
 ---
 

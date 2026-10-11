@@ -20,11 +20,11 @@
       "directAccessGrantsEnabled": false,
       "implicitFlowEnabled": false,
       "serviceAccountsEnabled": false,
-      "redirectUris": ["http://localhost:3000/*"],
-      "webOrigins": ["http://localhost:3000"],
+      "redirectUris": ["http://localhost:3000/*", "http://localhost:3100/*", "http://localhost:3200/*"],
+      "webOrigins": ["http://localhost:3000", "http://localhost:3100", "http://localhost:3200"],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:3000/*"
+        "post.logout.redirect.uris": "http://localhost:3000/*##http://localhost:3100/*##http://localhost:3200/*"
       },
       "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "email", "basic"],
       "protocolMappers": [
