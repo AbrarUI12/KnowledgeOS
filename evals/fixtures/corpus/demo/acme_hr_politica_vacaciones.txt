@@ -1,0 +1,8 @@
+Politica de Vacaciones
+======================
+
+Los empleados tienen derecho a 20 dias de vacaciones pagadas por ano.
+
+Las vacaciones deben solicitarse con al menos 2 semanas de anticipacion.
+
+Los dias no utilizados se acumulan hasta un maximo de 10 dias.
