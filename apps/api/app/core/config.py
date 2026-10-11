@@ -3,6 +3,7 @@
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -21,6 +22,10 @@ class Environment(StrEnum):
     TEST = "test"
     STAGING = "staging"
     PRODUCTION = "production"
+
+
+def _malware_scan_required(data: dict[str, Any]) -> bool:
+    return data.get("environment") in {Environment.STAGING, Environment.PRODUCTION}
 
 
 class Settings(BaseSettings):
@@ -58,6 +63,12 @@ class Settings(BaseSettings):
     s3_bucket_quarantine: str = "kos-quarantine"
     s3_bucket_trusted: str = "kos-trusted"
     s3_bucket_artifacts: str = "kos-artifacts"
+
+    clamav_host: str = "localhost"
+    clamav_port: int = 3310
+    clamav_timeout_seconds: float = 30.0
+    clamav_max_stream_bytes: int = 50 * 1024 * 1024
+    require_malware_scan: bool = Field(default_factory=_malware_scan_required)
 
     readiness_timeout_seconds: float = 2.0
 
