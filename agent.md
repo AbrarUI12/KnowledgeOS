@@ -20,16 +20,16 @@
 
 | Field | Value |
 |---|---|
-| **Project phase** | Building: Sprint 0 |
-| **Current sprint** | Sprint 0: Foundation |
-| **Last completed session** | Session 04: CI pipeline, Dockerfiles & ADRs |
-| **Next session** | **Session 05: Design system foundation (FE-0)** → closes gate G0 |
-| **Sessions done** | 4 / 65 (6%) |
-| **Last gate passed** | none (next gate: **G0**, after Session 05) |
+| **Project phase** | Building: Sprint 1 (Sprint 0 complete, gate G0 passed) |
+| **Current sprint** | Sprint 1: Identity, tenancy & authorization |
+| **Last completed session** | Session 05: Design system foundation (FE-0) |
+| **Next session** | **Session 06: Identity & organization schema** |
+| **Sessions done** | 5 / 65 (8%) |
+| **Last gate passed** | **G0** (2026-10-12), next gate: **G1** after Session 11 |
 | **Repository** | https://github.com/AbrarUI12/KnowledgeOS (public, branch `main`) |
 | **Live environments** | none yet (staging planned in Session 33, production in Session 62) |
 | **Blockers** | none |
-| **Last updated** | 2026-10-12, by Claude (Session 04) |
+| **Last updated** | 2026-10-12, by Claude (Session 05) |
 
 ---
 
@@ -125,7 +125,7 @@ Dev access token (password grant, dev realm only):
 ### 4.4 Run the API / web / workers
 - API: `make api` → http://localhost:8000/docs (OpenAPI UI), `/health/live` (process up), `/health/ready` (DB + Redis + object storage; 503 if any is down). Needs `make up` for readiness.
 - Migrations: `make migrate` (alembic upgrade head as `knowledgeos_owner`), new one: `make migration name=<slug>`
-- Web: `make web` → http://localhost:3000
+- Web: `make web` → http://localhost:3000; design-system preview at http://localhost:3000/dev/primitives (dev only, 404 in production builds)
 - *(workers added in Session 16)*
 
 ### 4.4b Build container images
@@ -162,7 +162,7 @@ Status legend: `☐` not started · `◐` partial / in progress · `☑` done ·
 | 02 | Local infrastructure (Docker Compose) | 0 | | ☑ | 2026-10-12 | see log | PG 5433, Redis 6380, pgsty/minio |
 | 03 | Backend core skeleton | 0 | | ☑ | 2026-10-12 | see log | 16 tests (13 unit, 3 integration) |
 | 04 | CI pipeline, Dockerfiles & ADRs | 0 | | ☑ | 2026-10-12 | PR #1 | CI green; ADR-001…008 |
-| 05 | Design system foundation (FE-0) | 0 | G0 | ☐ | | | |
+| 05 | Design system foundation (FE-0) | 0 | G0 | ☑ | 2026-10-12 | PR #2 | 88 web tests incl. contrast + axe |
 | 06 | Identity & organization schema | 1 | | ☐ | | | |
 | 07 | OIDC authentication (backend) | 1 | | ☐ | | | |
 | 08 | Tenant context, RLS & permission engine | 1 | | ☐ | | | |
@@ -232,7 +232,7 @@ A gate is passed only when **every** exit criterion in `session.md` → *Gates &
 
 | Gate | Meaning (short) | After session | Status | Date | Evidence |
 |---|---|---|---|---|---|
-| G0 | Local stack runs, CI green, first migration reproducible, design foundation done | 05 | ☐ | | |
+| G0 | Local stack runs, CI green, first migration reproducible, design foundation done | 05 | ☑ | 2026-10-12 | `make infra-check` (S02); CI green on PR #1/#2; migration up/down/up test (S03); `/dev/primitives` screenshots + contrast/axe tests (S05); tag `gate-G0` |
 | G1 | Two orgs cannot read each other (API + repository), shell usable by keyboard | 11 | ☐ | | |
 | G2 | Valid upload → durable version + queued job; malicious fixtures fail safely | 15 | ☐ | | |
 | G3 | All core formats → canonical artifacts; worker restart no duplicates; failures retryable | 21 | ☐ | | |
@@ -280,6 +280,40 @@ A gate is passed only when **every** exit criterion in `session.md` → *Gates &
 **Next steps**
 - <first thing the next person should do>
 ```
+
+---
+
+### Session 05 — Design system foundation (FE-0)  ·  2026-10-12  ·  Claude
+**Status:** ☑ Done → **gate G0 passed**
+**Commit(s):** `feat(web): design tokens, motion system and core primitives (FE-0, session 05)` via PR #2
+
+**Done**
+- `apps/web/styles/tokens.css`: every plan §27.28 token group: colors (light/dark via `[data-theme]`), typography scale, spacing, radius (control 8px / panel 11px / pill), borders, elevation (transient surfaces only), z-index layers, pane dimensions, control heights 28/34/40, motion durations/easings (zeroed under `prefers-reduced-motion`), density (`[data-density=compact]`). Source token names avoid collisions with Tailwind theme names (`--fs-*`, `--r-*`, `--elevation-*`, `--easing-*`), which would otherwise create self-referencing variables.
+- `app/globals.css`: Tailwind 4 `@theme inline` mapping (KnowledgeOS names + shadcn names → same tokens), `dark` variant bound to `[data-theme=dark]`, one global `:focus-visible` outline, `.tabular` and `.prose-reading` utilities.
+- Fonts via `next/font/google` (self-hosted at build time): Instrument Sans (UI), Source Serif 4 (reading), IBM Plex Mono (IDs/scores), with system fallbacks.
+- Motion: `lib/motion/tokens.ts` (plan §27.20.2), `components/motion/presets.tsx` (`FadeIn` ≤ 8px + reduced-motion fade, `Presence`), root `<MotionConfig reducedMotion="user">` in `components/providers.tsx` (with next-themes `attribute="data-theme"`, TooltipProvider, Toaster).
+- shadcn (radix base) initialised; 19 primitives generated into `components/primitives/` and restyled with a codemod + hand edits: Button (primary/secondary/ghost/danger/link, sizes sm/md/lg/icon), `IconButton` (required `aria-label`), Input, Textarea, Select, Checkbox, Switch, Label, Tabs (Motion `layoutId` sliding indicator, default + line variants), Dialog/Sheet (scrim, no blur), Popover, Tooltip, DropdownMenu (accent-soft highlight), Badge, Skeleton, Sonner, Table, Kbd, Separator. New: `StatusBadge` (icon + label + semantic color), `SegmentedControl` (radio group with sliding indicator).
+- `components/shell/skip-link.tsx`, `components/theme-toggle.tsx` (light/dark/system, persisted), `/dev/primitives` showcase (both themes, both densities; `notFound()` in production unless `ENABLE_DEV_ROUTES=true`).
+- `scripts/check-raw-colors.mjs` (fails on raw hex/rgb/hsl/oklch outside `tokens.css`), now part of `pnpm lint`.
+- `docs/architecture/frontend-design.md`: token rules, accessibility guarantees, icon policy, motion rules, anti-patterns.
+- Dev deps: `@playwright/test` (+ Chromium headless shell, used for the visual check; E2E harness comes in S11), `axe-core`, `@testing-library/user-event`. Runtime: `motion`, `radix-ui`, `next-themes`, `lucide-react`, `sonner`, `class-variance-authority`, `cn` (shadcn's official class merger, verified maintainer/repo), `tw-animate-css`, `shadcn` (for its Tailwind CSS variants).
+
+**Tests**
+- `pnpm test` → **88 passed**: 76 contrast assertions parsed from `tokens.css` (text tokens on all 4 surfaces, status on soft backgrounds, on-accent, control border/focus ≥ 3:1, both themes), Button/IconButton (variants, control radius, no outline suppression, aria-label enforced via `@ts-expect-error`), Tabs (arrow/End keyboard navigation, single active indicator), motion reduced-motion variants, showcase renders every section, **axe-core: 0 violations** (contrast covered by the token test since jsdom has no layout).
+- `make lint typecheck test` all green (backend unchanged, 16 passed).
+- Visual check: Playwright screenshots of `/dev/primitives` in light and dark, dialog open, skip link focused. Reviewed: warm-paper/ultramarine identity, no stock shadcn look. Fixed from review: blurred overlay → scrim; form-row alignment.
+- Production build: `/` → 200, `/dev/primitives` → **404**.
+
+**Decisions & deviations**
+- D-010 (contrast-adjusted colors) and D-011 (restyled shadcn primitives, SegmentedControl) in §9.2; DV-007 in §10.
+- `vitest-axe` dropped (stale since 2022); tests call `axe-core` directly.
+
+**Known issues / tech debt**
+- The Next.js dev-tools "N" badge shows in dev screenshots (dev only).
+- Storybook not added (session.md allows the `/dev/primitives` route instead).
+
+**Next steps**
+- Session 06: identity & organization schema (users, organizations, roles, role_permissions, memberships, groups, group_memberships, audit_events append-only, api_keys, invitations) + seeded default roles/permissions.
 
 ---
 
@@ -480,6 +514,8 @@ Written in Session 04 under `docs/adr/`. Index:
 | D-007 | 2026-10-11 | Dev machine: 16 GB RAM + RTX 4060 Laptop (8 GB VRAM). Local dev uses **Ollama on the GPU** for generation (7–8B models at Q4, e.g. `qwen3:8b`) and can run embeddings/reranker on CUDA locally; deployed stays CPU | 8 GB VRAM fits a Q4 8B model; 16 GB system RAM means the Compose `full` profile + Ollama together is tight, so use the `core` profile when running local models |
 | D-008 | 2026-10-12 | Local MinIO uses **`pgsty/minio`** (pinned `RELEASE.2026-08-04T00-00-00Z`) and `pgsty/mc` | The official `minio/minio` and `minio/mc` images no longer exist on Docker Hub. pgsty is the maintained community build of the same server. Only local dev is affected (deployed storage is B2/R2) |
 | D-009 | 2026-10-12 | KnowledgeOS host ports: **Postgres 5433, Redis 6380** | 5432/6379 are used by another local project (`retailops-bd`). Configurable via `POSTGRES_PORT`/`REDIS_PORT` in `.env` |
+| D-010 | 2026-10-12 | Plan §27.3 reference colors adjusted for WCAG AA (light ink-tertiary #676B65, light warning #965C16, dark ink-tertiary #878D84) + new `control-border` token (light #85897A, dark #667066) | The plan's values failed AA (e.g. ink-tertiary 3.7:1). Enforced by `apps/web/tests/contrast.test.ts` |
+| D-011 | 2026-10-12 | UI primitives = shadcn (radix base, nova preset) generated into `components/primitives/` and restyled onto KnowledgeOS tokens (no `dark:` overrides, no `outline-none`, scrim without blur). Theme toggle uses a radio-group `SegmentedControl`, not Tabs | Accessible Radix behaviour + distinct visual identity; axe flagged tabs without panels |
 | D-006 | 2026-10-11 | Hosted identity uses **Auth0 Free**; Keycloak stays for local development | Hosting Keycloak needs a paid always-on instance; the app is IdP-agnostic by design |
 
 ---
@@ -495,6 +531,7 @@ Written in Session 04 under `docs/adr/`. Index:
 | DV-003 | §5.4 | No paid cloud embedding/reranker. Local open models are the default for all KBs | See D-004 | Yes (add provider) |
 | DV-004 | §35 | Real spend is $0. The cost ledger records tokens plus **list-price estimates** from a versioned pricing table | Keeps cost analytics meaningful on free tiers | n/a |
 | DV-005 | §36.1 | The 100k+ chunk benchmark runs locally, not on hosted Neon (1 GB free storage limit) | Free-tier storage | Yes |
+| DV-007 | §27.3 | Some reference color tokens changed and `control-border` added | WCAG AA (plan itself requires validating and adjusting contrast); see D-010 | Yes |
 | DV-006 | §38.2 | Redis in the deployed demo runs inside the backend container (ephemeral) | Upstash free quotas can't absorb Celery polling; Redis is non-authoritative per §34.5 | Yes |
 
 ---
