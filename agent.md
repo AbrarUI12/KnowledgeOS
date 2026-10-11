@@ -163,7 +163,7 @@ Status legend: `☐` not started · `◐` partial / in progress · `☑` done ·
 | 03 | Backend core skeleton | 0 | | ☑ | 2026-10-12 | see log | 16 tests (13 unit, 3 integration) |
 | 04 | CI pipeline, Dockerfiles & ADRs | 0 | | ☑ | 2026-10-12 | PR #1 | CI green; ADR-001…008 |
 | 05 | Design system foundation (FE-0) | 0 | G0 | ☑ | 2026-10-12 | PR #7 | 88 web tests incl. contrast + axe |
-| 06 | Identity & organization schema | 1 | | ☑ | 2026-10-12 | see log | migration 0002, 41 backend tests |
+| 06 | Identity & organization schema | 1 | | ☑ | 2026-10-12 | PR #8 | migration 0002, 41 backend tests |
 | 07 | OIDC authentication (backend) | 1 | | ☐ | | | |
 | 08 | Tenant context, RLS & permission engine | 1 | | ☐ | | | |
 | 09 | Organization, member, group & invitation APIs | 1 | | ☐ | | | |
@@ -285,7 +285,7 @@ A gate is passed only when **every** exit criterion in `session.md` → *Gates &
 
 ### Session 06 — Identity & organization schema  ·  2026-10-12  ·  Claude
 **Status:** ☑ Done
-**Commit(s):** `feat(api): identity and organization schema (session 06)` via PR (see tracker)
+**Commit(s):** `feat(api): identity and organization schema (session 06)` via PR #8
 
 **Done**
 - `app/auth/permissions.py`: `Permission` catalogue (the 14 strings from plan §7.2), `SystemRole` (owner, admin, knowledge_manager, member, viewer), `SYSTEM_ROLE_PERMISSIONS` (owner = all; admin = all except `org.manage` and `model_policy.manage`; knowledge_manager = document upload/publish/delete + query; member and viewer = query, to diverge when workspace features arrive), deterministic `system_role_id()` (UUIDv5).
