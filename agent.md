@@ -20,16 +20,16 @@
 
 | Field | Value |
 |---|---|
-| **Project phase** | Planning complete, no code written yet |
+| **Project phase** | Building: Sprint 0 |
 | **Current sprint** | Sprint 0: Foundation |
-| **Last completed session** | Session 00: Planning (`plan.md`, `session.md`, `agent.md` written) |
-| **Next session** | **Session 01: Repository bootstrap & tooling** |
-| **Sessions done** | 0 / 65 (0%) |
+| **Last completed session** | Session 01: Repository bootstrap & tooling |
+| **Next session** | **Session 02: Local infrastructure (Docker Compose)** |
+| **Sessions done** | 1 / 65 (2%) |
 | **Last gate passed** | none (next gate: **G0**, after Session 05) |
 | **Repository** | https://github.com/AbrarUI12/KnowledgeOS (public, branch `main`) |
 | **Live environments** | none yet (staging planned in Session 33, production in Session 62) |
 | **Blockers** | none |
-| **Last updated** | 2026-10-11, by Claude (planning session) |
+| **Last updated** | 2026-10-11, by Claude (Session 01) |
 
 ---
 
@@ -86,20 +86,34 @@ Full detail is in `session.md` → *Locked decisions*. Constraint: **the whole p
 
 ### 4.1 Prerequisites
 - Windows 11 + **Docker Desktop (WSL2 backend)**. Celery, Docling, OCR and ClamAV run only inside Linux containers.
-- Git, Python 3.12+, `uv`, Node.js LTS, `pnpm`. Exact versions are pinned in Session 01.
-- *(filled in Session 01)*
+- Tested versions (Session 01): Git, **uv 0.12** (it downloads Python **3.12**, pinned in `apps/api/.python-version`), **Node.js 24**, **pnpm 12.11** (pinned via `packageManager` in root `package.json`), **GNU make 4.x**, **pre-commit 4.6**.
+- Windows installs used (Session 01):
+  - pnpm: `corepack enable --install-directory "$HOME\.local\bin" pnpm`. Plain `corepack enable` fails with EPERM because it can't write to `C:\Program Files\nodejs`.
+  - make: `winget install ezwinports.make`, then add `%LOCALAPPDATA%\Microsoft\WinGet\Packages\ezwinports.make_Microsoft.Winget.Source_8wekyb3d8bbwe\bin` to the user PATH (winget did not create a link).
+  - pre-commit: `uv tool install pre-commit`, then `uv tool update-shell` (adds `~\.local\bin` to PATH).
+  - **Restart the terminal / VS Code** after these so PATH changes apply.
 
 ### 4.2 First-time setup
-*(filled in Sessions 01–03)*
+```bash
+git clone https://github.com/AbrarUI12/KnowledgeOS.git && cd KnowledgeOS
+make install        # uv sync (apps/api) + pnpm install (workspace) + pre-commit install
+make lint typecheck test
+```
+*(Sessions 02–03 add the Docker stack and `.env` setup.)*
 
 ### 4.3 Start the local stack
 *(filled in Session 02)*
 
 ### 4.4 Run the API / web / workers
-*(filled in Sessions 03, 10, 16)*
+- API: `make api` → http://localhost:8000/health/live returns `{"status":"ok"}`
+- Web: `make web` → http://localhost:3000
+- *(workers added in Session 16)*
 
 ### 4.5 Run tests
-*(filled in Session 03, extended over time)*
+- Everything: `make lint typecheck test`
+- Backend only: `uv --directory apps/api run pytest`. Frontend only: `pnpm web:test`
+- All git hooks: `make hooks` (`pre-commit run --all-files`)
+- Note: the frontend typecheck runs `next typegen` first, because Next 16 generates global types such as `LayoutProps` into `.next/`.
 
 ### 4.6 Seed demo data
 *(filled in Session 25)*
@@ -119,7 +133,7 @@ Status legend: `☐` not started · `◐` partial / in progress · `☑` done ·
 | # | Session | Sprint | Gate | Status | Date | Commit | Notes |
 |---|---|---|---|---|---|---|---|
 | 00 | Planning: plan.md, session.md, agent.md | – | – | ☑ | 2026-10-11 | – | Docs only |
-| 01 | Repository bootstrap & tooling | 0 | | ☐ | | | |
+| 01 | Repository bootstrap & tooling | 0 | | ☑ | 2026-10-11 | see log | Python 3.12, Next 16, pnpm 12 |
 | 02 | Local infrastructure (Docker Compose) | 0 | | ☐ | | | |
 | 03 | Backend core skeleton | 0 | | ☐ | | | |
 | 04 | CI pipeline, Dockerfiles & ADRs | 0 | | ☐ | | | |
@@ -244,6 +258,41 @@ A gate is passed only when **every** exit criterion in `session.md` → *Gates &
 
 ---
 
+### Session 01 — Repository bootstrap & tooling  ·  2026-10-11  ·  Claude
+**Status:** ☑ Done
+**Commit(s):** `chore: bootstrap monorepo, tooling and agent onboarding files (session 01)` on `main`
+
+**Done**
+- Installed missing tools on the dev machine: pnpm 12.11 (corepack, user bin dir), GNU make (winget), pre-commit 4.6 (uv tool). See §4.1 for the Windows workarounds.
+- Created the full plan §6 directory skeleton (`.gitkeep` placeholders), including all `apps/api/app/*` subpackages from §6.
+- Backend `apps/api`: uv project (hatchling, package `app`), Python 3.12 pinned, runtime deps (FastAPI, Pydantic 2, pydantic-settings, SQLAlchemy 2 async, asyncpg, Alembic, structlog, httpx, tenacity) and dev deps (ruff, mypy, pytest, pytest-asyncio, pytest-cov, hypothesis, testcontainers, respx, syrupy). Ruff, mypy strict and pytest (markers `unit/integration/security/slow/llm`) configured. `GET /health/live`.
+- Frontend `apps/web`: Next.js 16.4 + React 19.3 + Tailwind 4 + TypeScript strict, renamed `@knowledgeos/web`. Vitest + Testing Library + jsdom, Prettier. Plan §27.27 folder layout created. Placeholder home page; Next's starter SVGs removed.
+- Root: pnpm workspace (`pnpm-workspace.yaml`, root `package.json` with `web:*` scripts, single root `pnpm-lock.yaml`), `Makefile`, `.pre-commit-config.yaml` (pre-commit-hooks v6, ruff v0.17, gitleaks v8.30), `.editorconfig`, expanded `.gitignore`, `README.md`, `CLAUDE.md` and identical root `AGENTS.md`.
+
+**Files / areas changed**
+- `apps/api/pyproject.toml`, `apps/api/uv.lock`, `apps/api/app/main.py`, `apps/api/tests/test_health.py`
+- `apps/web/*` (scaffold + `vitest.config.mts`, `tests/setup.ts`, `app/page.test.tsx`, `.prettierrc.json`)
+- `Makefile`, `.pre-commit-config.yaml`, `package.json`, `pnpm-workspace.yaml`, `README.md`, `CLAUDE.md`, `AGENTS.md`
+
+**Tests**
+- `make lint typecheck test` → Ruff clean, mypy strict "no issues in 30 source files", pytest 1 passed, ESLint clean, Prettier clean, tsc clean, Vitest 1 passed.
+- `pnpm web:build` → compiled successfully. `uv run uvicorn app.main:app` → `/health/live` returned `{"status":"ok"}`.
+- `pre-commit run --all-files` → all hooks pass, gitleaks finds nothing.
+- Fresh-clone check: see the note below the commit.
+
+**Decisions & deviations**
+- D-007 (hardware → Ollama on the RTX 4060 for local generation) recorded in §9.2.
+- `apps/web/AGENTS.md` is **generated by Next.js 16** (it tells agents to read version-specific docs in `node_modules/next/dist/docs/`). Kept and committed on purpose; Next re-creates it on `next dev`.
+- `check-yaml` uses `--allow-multiple-documents` because the pnpm 12 lockfile is a multi-document YAML file.
+
+**Known issues / tech debt**
+- None new. GitHub Actions CI does not exist yet (Session 04), so nothing enforces checks on push until then.
+
+**Next steps**
+- Start **Session 02**: Docker Compose stack (pgvector Postgres, Redis, MinIO, Keycloak, Mailpit, ClamAV profile). Make sure Docker Desktop is running. With 16 GB RAM, give Docker about 8 GB (I-002).
+
+---
+
 ### Session 00 — Planning  ·  2026-10-11  ·  Claude (planning session)
 **Status:** ☑ Done
 **Commit(s):** none (repository not initialised yet; `git init` happens in Session 01)
@@ -310,6 +359,7 @@ Written in Session 04 under `docs/adr/`. Index:
 | D-003 | 2026-10-11 | **Backblaze B2** is the default object store, Cloudflare R2 the alternative | R2 asks for a payment method on file; B2's 10 GB free tier does not. Both are S3-compatible, so switching is a config change |
 | D-004 | 2026-10-11 | Embeddings and reranker run **in-process with open models** (Qwen3-Embedding-0.6B 1024-d; bge-reranker-v2-m3) | $0, no rate limits, data never leaves the deployment (satisfies local-only policy) |
 | D-005 | 2026-10-11 | Generation goes through one **OpenAI-compatible adapter** (Ollama locally; Groq free primary; Gemini free fallback) | One adapter covers many free providers; model IDs stay in config |
+| D-007 | 2026-10-11 | Dev machine: 16 GB RAM + RTX 4060 Laptop (8 GB VRAM). Local dev uses **Ollama on the GPU** for generation (7–8B models at Q4, e.g. `qwen3:8b`) and can run embeddings/reranker on CUDA locally; deployed stays CPU | 8 GB VRAM fits a Q4 8B model; 16 GB system RAM means the Compose `full` profile + Ollama together is tight, so use the `core` profile when running local models |
 | D-006 | 2026-10-11 | Hosted identity uses **Auth0 Free**; Keycloak stays for local development | Hosting Keycloak needs a paid always-on instance; the app is IdP-agnostic by design |
 
 ---

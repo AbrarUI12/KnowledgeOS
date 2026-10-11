@@ -1,0 +1,12 @@
+{
+  "name": "knowledgeos",
+  "private": true,
+  "packageManager": "pnpm@12.11.2",
+  "scripts": {
+    "web:dev": "pnpm --filter @knowledgeos/web dev",
+    "web:lint": "pnpm --filter @knowledgeos/web lint",
+    "web:typecheck": "pnpm --filter @knowledgeos/web typecheck",
+    "web:test": "pnpm --filter @knowledgeos/web test",
+    "web:build": "pnpm --filter @knowledgeos/web build"
+  }
+}
