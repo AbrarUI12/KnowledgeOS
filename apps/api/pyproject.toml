@@ -7,13 +7,16 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "alembic>=1.20.0",
     "asyncpg>=0.32.0",
+    "boto3>=1.43.111",
     "fastapi>=0.143.0",
     "httpx>=0.28.1",
     "pydantic>=2.14.0",
     "pydantic-settings>=2.15.0",
+    "redis>=8.1.0",
     "sqlalchemy[asyncio]>=2.1.4",
     "structlog>=26.1.0",
     "tenacity>=9.2.1",
+    "uuid-utils>=1.0.0",
     "uvicorn[standard]>=0.54.0",
 ]
 
@@ -33,21 +36,27 @@ extend-exclude = ["migrations"]
 select = [
     "E", "W", "F", "I", "B", "UP", "N", "S", "C4", "SIM", "RUF", "ASYNC", "PT", "TID",
 ]
-ignore = []
+# N818: API error classes use domain names (NotFound, Forbidden), as in session.md.
+ignore = ["N818"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101"]
+"tests/**" = ["S101", "S105", "S106"]
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
-packages = ["app"]
+packages = ["app", "tests"]
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["testcontainers.*", "uuid_utils.*", "asyncpg.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "-ra --strict-markers"
 markers = [
     "unit: fast tests with no external services",
@@ -59,7 +68,7 @@ markers = [
 
 [dependency-groups]
 dev = [
-    "boto3>=1.43.111",
+    "boto3-stubs[s3]>=1.43.111",
     "hypothesis>=6.169.0",
     "mypy>=2.4.0",
     "pytest>=9.1.1",

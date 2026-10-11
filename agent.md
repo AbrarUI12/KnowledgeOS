@@ -22,14 +22,14 @@
 |---|---|
 | **Project phase** | Building: Sprint 0 |
 | **Current sprint** | Sprint 0: Foundation |
-| **Last completed session** | Session 02: Local infrastructure (Docker Compose) |
-| **Next session** | **Session 03: Backend core skeleton** |
-| **Sessions done** | 2 / 65 (3%) |
+| **Last completed session** | Session 03: Backend core skeleton |
+| **Next session** | **Session 04: CI pipeline, Dockerfiles & ADRs** |
+| **Sessions done** | 3 / 65 (5%) |
 | **Last gate passed** | none (next gate: **G0**, after Session 05) |
 | **Repository** | https://github.com/AbrarUI12/KnowledgeOS (public, branch `main`) |
 | **Live environments** | none yet (staging planned in Session 33, production in Session 62) |
 | **Blockers** | none |
-| **Last updated** | 2026-10-12, by Claude (Session 02) |
+| **Last updated** | 2026-10-12, by Claude (Session 03) |
 
 ---
 
@@ -123,13 +123,14 @@ Dev access token (password grant, dev realm only):
 `curl -s -X POST http://localhost:8080/realms/knowledgeos/protocol/openid-connect/token -d grant_type=password -d client_id=knowledgeos-cli -d username=alice@acme.test -d password=alice-dev-password -d scope=openid`
 
 ### 4.4 Run the API / web / workers
-- API: `make api` → http://localhost:8000/health/live returns `{"status":"ok"}`
+- API: `make api` → http://localhost:8000/docs (OpenAPI UI), `/health/live` (process up), `/health/ready` (DB + Redis + object storage; 503 if any is down). Needs `make up` for readiness.
+- Migrations: `make migrate` (alembic upgrade head as `knowledgeos_owner`), new one: `make migration name=<slug>`
 - Web: `make web` → http://localhost:3000
 - *(workers added in Session 16)*
 
 ### 4.5 Run tests
-- Everything: `make lint typecheck test`
-- Backend only: `uv --directory apps/api run pytest`. Frontend only: `pnpm web:test`
+- Everything: `make lint typecheck test` (backend integration tests start their own Postgres/Redis/MinIO containers via Testcontainers, so Docker must be running; they don't use the `make up` stack)
+- Backend unit only (no Docker): `make test-unit`. Integration only: `make test-int`. Frontend only: `pnpm web:test`
 - All git hooks: `make hooks` (`pre-commit run --all-files`)
 - Note: the frontend typecheck runs `next typegen` first, because Next 16 generates global types such as `LayoutProps` into `.next/`.
 
@@ -153,7 +154,7 @@ Status legend: `☐` not started · `◐` partial / in progress · `☑` done ·
 | 00 | Planning: plan.md, session.md, agent.md | – | – | ☑ | 2026-10-11 | – | Docs only |
 | 01 | Repository bootstrap & tooling | 0 | | ☑ | 2026-10-11 | see log | Python 3.12, Next 16, pnpm 12 |
 | 02 | Local infrastructure (Docker Compose) | 0 | | ☑ | 2026-10-12 | see log | PG 5433, Redis 6380, pgsty/minio |
-| 03 | Backend core skeleton | 0 | | ☐ | | | |
+| 03 | Backend core skeleton | 0 | | ☑ | 2026-10-12 | see log | 16 tests (13 unit, 3 integration) |
 | 04 | CI pipeline, Dockerfiles & ADRs | 0 | | ☐ | | | |
 | 05 | Design system foundation (FE-0) | 0 | G0 | ☐ | | | |
 | 06 | Identity & organization schema | 1 | | ☐ | | | |
@@ -273,6 +274,39 @@ A gate is passed only when **every** exit criterion in `session.md` → *Gates &
 **Next steps**
 - <first thing the next person should do>
 ```
+
+---
+
+### Session 03 — Backend core skeleton  ·  2026-10-12  ·  Claude
+**Status:** ☑ Done
+**Commit(s):** `feat(api): core config, logging, errors, database and health checks (session 03)`
+
+**Done**
+- `app/core/config.py`: pydantic-settings `Settings` (environment enum local/test/staging/production, `SecretStr` for DB/Redis/S3 secrets, reads repo-root `.env`), cached `get_settings()`.
+- `app/core/logging.py`: structlog (JSON outside local, console locally), recursive redaction of sensitive keys (authorization/password/secret/token/api_key/cookie/credential/dsn).
+- `app/api/middleware.py`: pure-ASGI `RequestContextMiddleware` (never buffers SSE): accepts `X-Request-ID` only if it's a UUID, else generates one; echoes it; binds it to log context and the ASGI scope; access log with duration.
+- `app/api/errors.py`: error envelope `{error:{code,message,request_id,details}}`, `AppError` hierarchy (`ValidationFailed`, `Unauthorized`, `Forbidden`, `NotFound`, `Conflict`, `RateLimited`, `ServiceUnavailable`), handlers for HTTP errors, validation errors (input never echoed) and unhandled errors (safe 500 that still carries the request ID). Catalogue in `docs/api/errors.md`.
+- `app/db/base.py` (naming conventions, UUIDv7 PK mixin via `uuid-utils`, `timestamptz` mixin), `app/db/session.py` (async engine, sessionmaker `expire_on_commit=False`, `get_db` = one transaction per request), `app/db/models/__init__.py` (model registry for Alembic).
+- `app/core/s3.py` (boto3 client; separate public endpoint for presigning later), `app/services/health.py` + `app/api/health.py`: `/health/live`, `/health/ready` (parallel checks with timeouts; logs error *type* only).
+- `app/main.py`: `create_app(settings)` factory with lifespan-managed engine/Redis/S3, stable OpenAPI operation IDs (`<tag>_<function>`), `/v1` router.
+- Alembic (async template): `migrations/env.py` uses `DATABASE_MIGRATION_URL` (owner role) or an injected URL; file template `<rev>_<slug>`; `0001_extensions` (vector, pg_trgm, `IF NOT EXISTS`; downgrade deliberately keeps extensions).
+- Test harness: `tests/support.py` (`make_settings` uses `Settings.model_validate`, so a dev `.env` can never leak into tests; `alembic_config`), `tests/conftest.py` (unit `client`; session-scoped Testcontainers Postgres **with the Compose init scripts mounted**, Redis, MinIO (pgsty image); `migrated_settings`; `live_client` runs the lifespan).
+- Makefile: `test-unit`, `test-int`, `migrate`, `migration name=…`. Deps added: `redis`, `boto3` (now runtime), `uuid-utils`, dev `boto3-stubs[s3]`.
+
+**Tests**
+- `make lint typecheck test` → Ruff clean, mypy strict clean (49 files incl. tests), **pytest 16 passed** (13 unit: envelope shapes 404/409/422/500, request-ID generate/propagate/reject-invalid, settings parsing + secret masking, log redaction; 3 integration: readiness 200, readiness 503 with unreachable DB and no credential leak, migrations up→down→up).
+- Against the local stack: `alembic upgrade/downgrade/upgrade` OK; running API: `/health/ready` 200 with all checks ok, `/docs` 200, unknown route → envelope + matching `X-Request-ID`.
+
+**Decisions & deviations**
+- Ruff `N818` disabled so API errors keep the session.md names (`NotFound`, not `NotFoundError`).
+- Testcontainers 4.15 imports use `testcontainers.community.*` (old paths are deprecated).
+- Migration `0001` downgrade does **not** drop extensions (would destroy embedding data / affect other objects).
+
+**Known issues / tech debt**
+- uv warns "failed to hardlink" because the uv cache and repo are on different drives (C: vs D:). Harmless; set `UV_LINK_MODE=copy` to silence it.
+
+**Next steps**
+- Session 04: GitHub Actions CI (backend incl. Testcontainers, migration check, frontend, gitleaks, docker build), multi-stage Dockerfiles, Renovate/Dependabot, ADR-001…008, architecture overview.
 
 ---
 

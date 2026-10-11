@@ -6,14 +6,18 @@ UV := uv --directory $(API_DIR)
 
 COMPOSE := docker compose
 
-.PHONY: help install lint format typecheck test api web hooks env up up-full down reset logs ps psql infra-check
+.PHONY: help install lint format typecheck test test-unit test-int migrate migration api web hooks env up up-full down reset logs ps psql infra-check
 
 help:
 	@echo "install    Install backend (uv) and frontend (pnpm) dependencies + git hooks"
 	@echo "lint       Ruff + ESLint + Prettier check"
 	@echo "format     Auto-format backend and frontend"
 	@echo "typecheck  mypy (strict) + tsc"
-	@echo "test       pytest + vitest"
+	@echo "test       pytest (unit + integration, needs Docker) + vitest"
+	@echo "test-unit  Backend unit tests only (no Docker)"
+	@echo "test-int   Backend integration tests (Testcontainers)"
+	@echo "migrate    Apply DB migrations to the local stack (alembic upgrade head)"
+	@echo "migration  Create a migration: make migration name=add_users"
 	@echo "api        Run the API with reload on http://localhost:8000"
 	@echo "web        Run the Next.js dev server on http://localhost:3000"
 	@echo "up         Start core local services (postgres, redis, minio, keycloak, mailpit)"
@@ -45,6 +49,19 @@ typecheck:
 test:
 	$(UV) run pytest
 	pnpm web:test
+
+test-unit:
+	$(UV) run pytest -m unit
+
+test-int:
+	$(UV) run pytest -m integration
+
+migrate:
+	$(UV) run alembic upgrade head
+
+migration:
+	@test -n "$(name)" || (echo "usage: make migration name=<slug>" && exit 1)
+	$(UV) run alembic revision --autogenerate -m "$(name)"
 
 api:
 	$(UV) run uvicorn app.main:app --reload --port 8000
