@@ -162,7 +162,7 @@ Status legend: `☐` not started · `◐` partial / in progress · `☑` done ·
 | 02 | Local infrastructure (Docker Compose) | 0 | | ☑ | 2026-10-12 | see log | PG 5433, Redis 6380, pgsty/minio |
 | 03 | Backend core skeleton | 0 | | ☑ | 2026-10-12 | see log | 16 tests (13 unit, 3 integration) |
 | 04 | CI pipeline, Dockerfiles & ADRs | 0 | | ☑ | 2026-10-12 | PR #1 | CI green; ADR-001…008 |
-| 05 | Design system foundation (FE-0) | 0 | G0 | ☑ | 2026-10-12 | PR #2 | 88 web tests incl. contrast + axe |
+| 05 | Design system foundation (FE-0) | 0 | G0 | ☑ | 2026-10-12 | PR #7 | 88 web tests incl. contrast + axe |
 | 06 | Identity & organization schema | 1 | | ☐ | | | |
 | 07 | OIDC authentication (backend) | 1 | | ☐ | | | |
 | 08 | Tenant context, RLS & permission engine | 1 | | ☐ | | | |
@@ -232,7 +232,7 @@ A gate is passed only when **every** exit criterion in `session.md` → *Gates &
 
 | Gate | Meaning (short) | After session | Status | Date | Evidence |
 |---|---|---|---|---|---|
-| G0 | Local stack runs, CI green, first migration reproducible, design foundation done | 05 | ☑ | 2026-10-12 | `make infra-check` (S02); CI green on PR #1/#2; migration up/down/up test (S03); `/dev/primitives` screenshots + contrast/axe tests (S05); tag `gate-G0` |
+| G0 | Local stack runs, CI green, first migration reproducible, design foundation done | 05 | ☑ | 2026-10-12 | `make infra-check` (S02); CI green on PR #1/#7; migration up/down/up test (S03); `/dev/primitives` screenshots + contrast/axe tests (S05); tag `gate-G0` |
 | G1 | Two orgs cannot read each other (API + repository), shell usable by keyboard | 11 | ☐ | | |
 | G2 | Valid upload → durable version + queued job; malicious fixtures fail safely | 15 | ☐ | | |
 | G3 | All core formats → canonical artifacts; worker restart no duplicates; failures retryable | 21 | ☐ | | |
@@ -285,7 +285,7 @@ A gate is passed only when **every** exit criterion in `session.md` → *Gates &
 
 ### Session 05 — Design system foundation (FE-0)  ·  2026-10-12  ·  Claude
 **Status:** ☑ Done → **gate G0 passed**
-**Commit(s):** `feat(web): design tokens, motion system and core primitives (FE-0, session 05)` via PR #2
+**Commit(s):** `feat(web): design tokens, motion system and core primitives (FE-0, session 05)` via PR #7
 
 **Done**
 - `apps/web/styles/tokens.css`: every plan §27.28 token group: colors (light/dark via `[data-theme]`), typography scale, spacing, radius (control 8px / panel 11px / pill), borders, elevation (transient surfaces only), z-index layers, pane dimensions, control heights 28/34/40, motion durations/easings (zeroed under `prefers-reduced-motion`), density (`[data-density=compact]`). Source token names avoid collisions with Tailwind theme names (`--fs-*`, `--r-*`, `--elevation-*`, `--easing-*`), which would otherwise create self-referencing variables.
@@ -480,6 +480,7 @@ A gate is passed only when **every** exit criterion in `session.md` → *Gates &
 | I-001 | Risk | Free-tier limits change. Re-verify HF Spaces, Neon, Groq, Gemini, B2 and Auth0 terms before deploying | 00 | – | Open, revisit in S32 and S60 |
 | I-002 | Risk | Developer laptop RAM: the full Compose stack (Postgres, Redis, MinIO, Keycloak, ClamAV, worker with models) may need 10+ GB. Use the `core` profile when RAM is tight. **Measured S02:** Docker has 7.4 GB; Keycloak ≈ 1.8 GB, ClamAV ≈ 1.9 GB, the others < 100 MB each; another local project (`retailops-bd`) uses ≈ 1.5 GB. Stop ClamAV (`docker compose stop clamav`) and other projects when running workers/Ollama | 00 | – | Open (measured), revisit in S16/S22 |
 | I-003 | Risk | CPU-only reranking may miss the plan's retrieval P95 < 500 ms target. Measure, then tune (ONNX int8, fewer candidates) or revise the target with evidence | 00 | – | Open, revisit in S27 and S58 |
+| I-005 | Tech debt | Dependabot opened major-version PRs #2–#6 (Redis 8, Node 25 image, ESLint 10, TypeScript 7, @types/node 26). Not merged: review deliberately. Node 25 is not LTS (keep Node 24); @types/node should track Node 24; TS 7 / ESLint 10 need compatibility checks with Next 16 | 05 | – | Open |
 | I-004 | Risk | Windows MAX_PATH: `next typegen` fails when the repo sits in a very deep folder. Keep the clone at a short path such as `D:\projects\KnowledgeOS` | 01 | – | Open (workaround documented) |
 
 Types: `Blocker` · `Bug` · `Tech debt` · `Risk` · `Question`
