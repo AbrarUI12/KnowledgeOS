@@ -46,10 +46,18 @@ class S3ObjectStore:
         access_key_id: str,
         secret_access_key: str,
         force_path_style: bool = False,
+        connect_timeout_seconds: float = 5.0,
+        read_timeout_seconds: float = 30.0,
+        max_attempts: int = 3,
     ) -> None:
+        # Explicit timeouts and bounded standard-mode retries (plan §34.1): a hung storage call
+        # must never hold an API request or ingestion stage for minutes.
         config = BotoConfig(
             signature_version="s3v4",
             s3={"addressing_style": "path" if force_path_style else "auto"},
+            connect_timeout=connect_timeout_seconds,
+            read_timeout=read_timeout_seconds,
+            retries={"total_max_attempts": max_attempts, "mode": "standard"},
         )
         self._client: S3Client = boto3.client(
             "s3",
@@ -77,11 +85,15 @@ class S3ObjectStore:
             access_key_id=settings.s3_access_key_id.get_secret_value(),
             secret_access_key=settings.s3_secret_access_key.get_secret_value(),
             force_path_style=settings.s3_force_path_style,
+            connect_timeout_seconds=settings.s3_connect_timeout_seconds,
+            read_timeout_seconds=settings.s3_read_timeout_seconds,
+            max_attempts=settings.s3_max_attempts,
         )
 
     async def presign_put(
         self, bucket: str, key: str, *, content_type: str, expires_in_seconds: int = 900
     ) -> PresignedUpload:
+        # S3 presigned PUTs can't bind Content-Length; upload completion HEAD-verifies the size.
         _validate_location(bucket, key)
         if not 1 <= expires_in_seconds <= _MAX_PRESIGN_SECONDS:
             raise ValueError("expires_in_seconds must be between 1 and 604800")

@@ -17,6 +17,7 @@ from app.providers.storage import (
     quarantine_original_key,
     trusted_original_key,
 )
+from tests.support import make_settings
 
 
 @pytest.mark.unit
@@ -191,3 +192,17 @@ async def test_s3_store_minio_presign_put_head_get_copy_delete(
 
     assert not await store.exists(integration_settings.s3_bucket_quarantine, source_object_path)
     assert not await store.exists(integration_settings.s3_bucket_trusted, copied_object_path)
+
+
+@pytest.mark.unit
+def test_s3_clients_use_explicit_timeouts_and_bounded_retries() -> None:
+    store = S3ObjectStore.from_settings(
+        make_settings(
+            s3_connect_timeout_seconds=4.0, s3_read_timeout_seconds=25.0, s3_max_attempts=2
+        )
+    )
+    for client in (store._client, store._presign_client):
+        config = client.meta.config  # botocore stubs don't declare these attributes
+        assert getattr(config, "connect_timeout", None) == 4.0
+        assert getattr(config, "read_timeout", None) == 25.0
+        assert getattr(config, "retries", None) == {"total_max_attempts": 2, "mode": "standard"}

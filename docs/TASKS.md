@@ -49,7 +49,7 @@
 | ID | Task | Wave | Session | Status | Branch | PR |
 |---|---|---|---|---|---|---|
 | T2.3 | File-safety validation & malware scanners | 0 | S14 | DONE | ai/codex-t2.3-file-validation | #10 |
-| T2.2 | ObjectStore providers (S3/MinIO/B2 + in-memory) | 1 | S13 | REVIEW | ai/codex-t2.2-object-store | #14 |
+| T2.2 | ObjectStore providers (S3/MinIO/B2 + in-memory) | 1 | S13 | DONE | ai/codex-t2.2-object-store | #14 |
 | T1.4 | Frontend auth, typed API client & app shell | 1 | S10, S11 | TODO | | |
 | T3.2 | Docling parser library (PDF/DOCX/HTML/MD) | 2 | S17 | TODO | | |
 | T3.3 | Office/tabular formats, OCR & normalization library | 3 | S18 | TODO | | |
