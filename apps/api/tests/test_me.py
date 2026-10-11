@@ -20,13 +20,10 @@ pytestmark = pytest.mark.integration
 ISSUER = "https://idp.test/realms/knowledgeos"
 
 
-def _dsn(url: str) -> str:
-    return url.replace("postgresql+asyncpg://", "postgresql://")
-
-
 @pytest.fixture
-async def owner(migrated_settings: Settings) -> AsyncIterator[asyncpg.Connection]:
-    conn = await asyncpg.connect(_dsn(migrated_settings.database_migration_url.get_secret_value()))
+async def admin(admin_dsn: str, migrated_settings: Settings) -> AsyncIterator[asyncpg.Connection]:
+    """Superuser connection for setup/cleanup across organizations (forced RLS binds the admin)."""
+    conn = await asyncpg.connect(admin_dsn)
     try:
         yield conn
     finally:
@@ -51,7 +48,7 @@ def verifier() -> FakeIdentityVerifier:
 
 @pytest.fixture
 async def api(
-    migrated_settings: Settings, verifier: FakeIdentityVerifier, owner: asyncpg.Connection
+    migrated_settings: Settings, verifier: FakeIdentityVerifier, admin: asyncpg.Connection
 ) -> AsyncIterator[AsyncClient]:
     app = create_app(migrated_settings)
     app.dependency_overrides[get_identity_verifier] = lambda: verifier
@@ -82,7 +79,7 @@ async def test_wrong_scheme_and_invalid_token_are_401(api: AsyncClient) -> None:
 
 
 async def test_first_request_provisions_the_user_exactly_once(
-    api: AsyncClient, owner: asyncpg.Connection
+    api: AsyncClient, admin: asyncpg.Connection
 ) -> None:
     first = await api.get("/v1/me", headers=auth("alice-token"))
     second = await api.get("/v1/me", headers=auth("alice-token"))
@@ -93,7 +90,7 @@ async def test_first_request_provisions_the_user_exactly_once(
     assert body["user"]["display_name"] == "Alice"
     assert body["memberships"] == []
     assert second.json()["user"]["id"] == body["user"]["id"]
-    count = await owner.fetchval(
+    count = await admin.fetchval(
         "SELECT count(*) FROM users WHERE issuer = $1 AND external_subject = 'alice-sub'", ISSUER
     )
     assert count == 1
@@ -114,26 +111,26 @@ async def test_profile_follows_the_idp_but_keeps_values_when_claims_are_missing(
 
 
 async def test_memberships_include_role_and_effective_permissions(
-    api: AsyncClient, owner: asyncpg.Connection
+    api: AsyncClient, admin: asyncpg.Connection
 ) -> None:
     user_id = uuid.UUID((await api.get("/v1/me", headers=auth("alice-token"))).json()["user"]["id"])
-    org_id = await owner.fetchval(
+    org_id = await admin.fetchval(
         "INSERT INTO organizations (id, name, slug) VALUES ($1, 'Acme', 'acme') RETURNING id",
         uuid.uuid4(),
     )
-    await owner.execute(
+    await admin.execute(
         "INSERT INTO memberships (id, organization_id, user_id, role_id) VALUES ($1, $2, $3, $4)",
         uuid.uuid4(),
         org_id,
         user_id,
         system_role_id(SystemRole.ADMIN),
     )
-    suspended_org = await owner.fetchval(
+    suspended_org = await admin.fetchval(
         "INSERT INTO organizations (id, name, slug, status) "
         "VALUES ($1, 'Old', 'old', 'suspended') RETURNING id",
         uuid.uuid4(),
     )
-    await owner.execute(
+    await admin.execute(
         "INSERT INTO memberships (id, organization_id, user_id, role_id) VALUES ($1, $2, $3, $4)",
         uuid.uuid4(),
         suspended_org,
@@ -152,14 +149,14 @@ async def test_memberships_include_role_and_effective_permissions(
 
 
 async def test_other_users_memberships_are_not_visible(
-    api: AsyncClient, owner: asyncpg.Connection
+    api: AsyncClient, admin: asyncpg.Connection
 ) -> None:
     alice = uuid.UUID((await api.get("/v1/me", headers=auth("alice-token"))).json()["user"]["id"])
-    org = await owner.fetchval(
+    org = await admin.fetchval(
         "INSERT INTO organizations (id, name, slug) VALUES ($1, 'Acme', 'acme') RETURNING id",
         uuid.uuid4(),
     )
-    await owner.execute(
+    await admin.execute(
         "INSERT INTO memberships (id, organization_id, user_id, role_id) VALUES ($1, $2, $3, $4)",
         uuid.uuid4(),
         org,
@@ -170,9 +167,9 @@ async def test_other_users_memberships_are_not_visible(
     assert (await api.get("/v1/me", headers=auth("bob-token"))).json()["memberships"] == []
 
 
-async def test_disabled_user_is_403(api: AsyncClient, owner: asyncpg.Connection) -> None:
+async def test_disabled_user_is_403(api: AsyncClient, admin: asyncpg.Connection) -> None:
     await api.get("/v1/me", headers=auth("alice-token"))
-    await owner.execute("UPDATE users SET status = 'disabled' WHERE external_subject = 'alice-sub'")
+    await admin.execute("UPDATE users SET status = 'disabled' WHERE external_subject = 'alice-sub'")
 
     response = await api.get("/v1/me", headers=auth("alice-token"))
 
@@ -180,7 +177,7 @@ async def test_disabled_user_is_403(api: AsyncClient, owner: asyncpg.Connection)
 
 
 async def test_identity_provider_outage_is_503(
-    migrated_settings: Settings, owner: asyncpg.Connection
+    migrated_settings: Settings, admin: asyncpg.Connection
 ) -> None:
     class DownVerifier:
         async def verify(self, token: str) -> VerifiedToken:
@@ -198,7 +195,7 @@ async def test_identity_provider_outage_is_503(
 
 
 async def test_real_keycloak_token_when_local_stack_is_running(
-    migrated_settings: Settings, owner: asyncpg.Connection
+    migrated_settings: Settings, admin: asyncpg.Connection
 ) -> None:
     """End-to-end with the real dev Keycloak (`make up`). Skipped when it isn't running (CI)."""
     issuer = "http://localhost:8080/realms/knowledgeos"

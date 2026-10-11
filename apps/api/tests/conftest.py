@@ -118,6 +118,19 @@ def integration_settings(
 
 
 @pytest.fixture(scope="session")
+def admin_dsn(postgres_container: PostgresContainer) -> str:
+    """Superuser DSN (asyncpg format) for test setup and cleanup.
+
+    Forced RLS binds the owner role too, so fixtures that insert rows into several organizations,
+    or purge everything, connect like a DBA would. Never use it to *verify* isolation: that must
+    run as `knowledgeos_app` (docs/TESTING.md).
+    """
+    return _pg_url(postgres_container, "postgres", "postgres").replace(
+        "postgresql+asyncpg://", "postgresql://"
+    )
+
+
+@pytest.fixture(scope="session")
 def migrated_settings(integration_settings: Settings) -> Settings:
     command.upgrade(alembic_config(integration_settings), "head")
     return integration_settings

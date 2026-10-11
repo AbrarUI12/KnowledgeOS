@@ -1,6 +1,6 @@
 """Authentication dependency (T1.1): bearer token → verified identity → provisioned user.
 
-Tenant context and permissions are layered on top in T1.2 (`RequestContext`, `require_permission`).
+Tenant context and permissions are layered on top in `app/api/dependencies/tenancy.py` (T1.2).
 """
 
 from datetime import timedelta
@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.errors import AppError, Forbidden, ServiceUnavailable, Unauthorized
 from app.db.session import get_db
+from app.db.tenant import set_tenant_context
 from app.providers.identity.base import (
     IdentityProviderUnavailableError,
     IdentityVerifier,
@@ -38,15 +39,22 @@ def get_identity_verifier(request: Request) -> IdentityVerifier:
     return verifier
 
 
+def require_bearer_token(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
+) -> str:
+    """Rejects requests without a token before any IdP call or database transaction starts."""
+    if credentials is None or not credentials.credentials.strip():
+        raise BearerUnauthorized("A bearer token is required.")
+    return credentials.credentials.strip()
+
+
 async def get_current_user(
     request: Request,
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
+    # Declared first: FastAPI resolves dependencies in order, so a missing token is a cheap 401.
+    token: Annotated[str, Depends(require_bearer_token)],
     verifier: Annotated[IdentityVerifier, Depends(get_identity_verifier)],
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> AuthenticatedUser:
-    if credentials is None or not credentials.credentials.strip():
-        raise BearerUnauthorized("A bearer token is required.")
-    token = credentials.credentials.strip()
     try:
         verified = await verifier.verify(token)
     except TokenInvalidError as exc:
@@ -58,6 +66,8 @@ async def get_current_user(
     user = await provision_user(session, verified, last_seen_interval=interval)
     if not user.is_active:
         raise Forbidden("This account is disabled.")
+    # RLS user context: the caller's own memberships and organizations become visible.
+    await set_tenant_context(session, None, user.id)
     return user
 
 
