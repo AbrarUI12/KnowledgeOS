@@ -49,10 +49,11 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T2.2 ObjectStore providers (S3/MinIO/B2 + in-memory)
+- **Current task:** T2.2 ObjectStore providers ready for Claude review (PR #14)
 - **Last finished:** T2.3 file-safety validation & malware scanners (2026-10-12, PR #10)
 - **Blockers:** none
 - **Recent:**
+  - 2026-10-12 · T2.2 · S3/MinIO/B2 + in-memory ObjectStore providers and safe key helpers · PR #14 (review)
   - 2026-10-12 · T2.3 · strict file validator, valid-format fixtures, ClamAV/Noop scanners · PR #10
 
 ### Cline: UI pages · scripts · local QA
