@@ -48,7 +48,7 @@
 
 | ID | Task | Wave | Session | Status | Branch | PR |
 |---|---|---|---|---|---|---|
-| T2.3 | File-safety validation & malware scanners | 0 | S14 | IN PROGRESS | ai/codex-t2.3-file-validation | |
+| T2.3 | File-safety validation & malware scanners | 0 | S14 | REVIEW | ai/codex-t2.3-file-validation | #10 |
 | T2.2 | ObjectStore providers (S3/MinIO/B2 + in-memory) | 1 | S13 | TODO | | |
 | T1.4 | Frontend auth, typed API client & app shell | 1 | S10, S11 | TODO | | |
 | T3.2 | Docling parser library (PDF/DOCX/HTML/MD) | 2 | S17 | TODO | | |
