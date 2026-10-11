@@ -293,6 +293,23 @@ def test_accepts_bom_marked_utf16_text() -> None:
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize(
+    ("content", "filename"),
+    [
+        (b"\xef\xbb\xbf<html><body>UTF-8 BOM</body></html>", "bom.html"),
+        ("<html><body>UTF-16 BOM</body></html>".encode("utf-16"), "bom.html"),
+        (b"<!-- exported page --><html><body>Comment</body></html>", "comment.html"),
+        (b"<div>HTML fragment</div>", "fragment.html"),
+    ],
+)
+def test_accepts_html_exports_and_fragments(content: bytes, filename: str) -> None:
+    result = _validate_bytes(content, filename)
+
+    assert result.status is ValidationStatus.ACCEPTED
+    assert result.detected_mime == "text/html"
+
+
+@pytest.mark.unit
 def test_rejects_file_size_limit_but_hashes_entire_stream() -> None:
     content = b"0123456789"
     result = _validate_bytes(content, "large.txt", config=ValidationConfig(max_file_bytes=5))
@@ -311,6 +328,7 @@ def test_duplicate_check_uses_only_caller_supplied_kb_hashes() -> None:
 
     assert ValidationReason.DUPLICATE_IN_KB not in unique.reasons
     assert ValidationReason.DUPLICATE_IN_KB in duplicate.reasons
+    assert duplicate.status is ValidationStatus.FLAGGED
 
 
 @pytest.mark.unit

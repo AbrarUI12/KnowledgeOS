@@ -140,7 +140,9 @@ _EXECUTABLE_MAGICS = (
     b"\xca\xfe\xba\xbe",
 )
 _PDF_ACTIVE_TOKEN = re.compile(rb"/(?:JS|JavaScript|OpenAction|Launch)\b", re.IGNORECASE)
-_HTML_MARKER = re.compile(rb"^\s*(?:<!doctype\s+html|<html\b|<head\b|<body\b)", re.IGNORECASE)
+_HTML_MARKER = re.compile(r"^(?:<!doctype\s+html|<html\b|<head\b|<body\b)", re.IGNORECASE)
+_HTML_COMMENT = re.compile(r"^<!--.*?-->", re.DOTALL)
+_HTML_TAG = re.compile(r"</?[A-Za-z][A-Za-z0-9:-]*(?:\s[^<>]*?)?/?>")
 _OOXML_MIMES = {
     b"wordprocessingml.document.main+xml": _EXPECTED_MIME[".docx"],
     b"presentationml.presentation.main+xml": _EXPECTED_MIME[".pptx"],
@@ -163,6 +165,43 @@ def _read_and_hash(stream: BinaryIO, max_buffer_bytes: int) -> tuple[bytes, str,
 
 def _has_executable_magic(data: bytes) -> bool:
     return any(data.startswith(magic) for magic in _EXECUTABLE_MAGICS)
+
+
+def _decode_text(data: bytes) -> str | None:
+    try:
+        if data.startswith(b"\xef\xbb\xbf"):
+            return data.decode("utf-8-sig")
+        if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+            return data.decode("utf-16")
+    except UnicodeDecodeError:
+        return None
+    match = from_bytes(data).best()
+    return None if match is None else str(match)
+
+
+def _has_binary_controls(data: bytes, text: str) -> bool:
+    unicode_bom = (b"\xff\xfe", b"\xfe\xff", b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff")
+    raw_controls = sum(byte < 32 and byte not in b"\t\n\r\f" for byte in data)
+    if not data.startswith(unicode_bom) and (
+        b"\x00" in data or raw_controls > max(0, len(data) // 100)
+    ):
+        return True
+    disallowed_controls = sum(
+        ord(character) < 32 and character not in "\t\n\r\f" for character in text
+    )
+    return disallowed_controls > max(0, len(text) // 100)
+
+
+def _looks_like_html(data: bytes, extension: str) -> bool:
+    text = _decode_text(data)
+    if text is None or _has_binary_controls(data, text):
+        return False
+    candidate = text.lstrip("\ufeff \t\n\r")
+    while comment := _HTML_COMMENT.match(candidate):
+        candidate = candidate[comment.end() :].lstrip()
+    if _HTML_MARKER.match(candidate):
+        return True
+    return extension in {".htm", ".html"} and _HTML_TAG.search(candidate) is not None
 
 
 def _safe_archive_name(name: str) -> bool:
@@ -259,7 +298,7 @@ def _detect_mime(
         return _inspect_ooxml(data, config)
     if data.startswith(b"%PDF-"):
         return "application/pdf", set()
-    if _HTML_MARKER.search(data[:4096]):
+    if _looks_like_html(data, extension):
         return "text/html", set()
 
     kind = filetype.guess(data[:8192])
@@ -267,8 +306,7 @@ def _detect_mime(
         return kind.mime, set()
 
     if extension in {".csv", ".md", ".markdown", ".txt"}:
-        match = from_bytes(data).best()
-        if match is not None:
+        if _decode_text(data) is not None:
             return _EXPECTED_MIME[extension], set()
         return None, {ValidationReason.TEXT_DECODE_FAILED}
     return None, set()
@@ -319,28 +357,18 @@ def _validate_image(data: bytes, extension: str, config: ValidationConfig) -> se
 
 def _validate_text(data: bytes, config: ValidationConfig) -> set[ValidationReason]:
     reasons: set[ValidationReason] = set()
-    unicode_bom = (b"\xff\xfe", b"\xfe\xff", b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff")
-    raw_controls = sum(byte < 32 and byte not in b"\t\n\r\f" for byte in data)
-    if not data.startswith(unicode_bom) and (
-        b"\x00" in data or raw_controls > max(0, len(data) // 100)
-    ):
-        reasons.add(ValidationReason.TEXT_BINARY_CONTENT)
-    match = from_bytes(data).best()
-    if match is None:
+    text = _decode_text(data)
+    if text is None:
         reasons.add(ValidationReason.TEXT_DECODE_FAILED)
         return reasons
-    text = str(match)
-    disallowed_controls = sum(
-        ord(character) < 32 and character not in "\t\n\r\f" for character in text
-    )
-    if disallowed_controls > max(0, len(text) // 100):
+    if _has_binary_controls(data, text):
         reasons.add(ValidationReason.TEXT_BINARY_CONTENT)
     if text.count("\n") + (1 if text else 0) > config.max_text_lines:
         reasons.add(ValidationReason.TEXT_TOO_MANY_LINES)
     return reasons
 
 
-_FLAG_REASONS = {ValidationReason.PDF_ACTIVE_CONTENT}
+_FLAG_REASONS = {ValidationReason.DUPLICATE_IN_KB, ValidationReason.PDF_ACTIVE_CONTENT}
 
 
 def validate_file(
