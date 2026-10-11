@@ -26,7 +26,7 @@
 
 | ID | Task | Wave | Session | Status | Branch | PR |
 |---|---|---|---|---|---|---|
-| T0.1 | Multi-agent workflow bootstrap | – | – | DONE | ai/claude-agent-workflow | (this PR) |
+| T0.1 | Multi-agent workflow bootstrap | – | – | DONE | ai/claude-agent-workflow | #9 |
 | T1.0 | Contracts: provider Protocols, core models, API + SSE schemas | 0 | – | TODO | | |
 | T1.1 | OIDC authentication (backend) | 1 | S07 | TODO | | |
 | T1.2 | Tenant context, RLS & permission engine | 1 | S08 | TODO | | |

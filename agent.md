@@ -324,7 +324,7 @@ A gate is passed only when **every** exit criterion in `session.md` → *Gates &
 
 ### T0.1 — Multi-agent workflow bootstrap  ·  2026-10-12  ·  Claude
 **Status:** ☑ Done
-**Commit(s):** `docs: three-agent workflow and M1 task split (T0.1)` (PR in `docs/TASKS.md` Claude board)
+**Commit(s):** `docs: three-agent workflow and M1 task split (T0.1)` via PR #9
 
 **Done**
 - User decision: Sessions 07–33 are built by **three agents in parallel**: Claude (architect, security/DB/integration, reviewer), Codex (libraries, frontend foundation, Ask experience, reviews Claude), Cline (UI pages, scripts, local QA). Incorporates the user's multi-agent workflow guide. D-013 in `docs/DECISIONS.md`.
