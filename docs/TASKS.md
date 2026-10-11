@@ -27,7 +27,7 @@
 | ID | Task | Wave | Session | Status | Branch | PR |
 |---|---|---|---|---|---|---|
 | T0.1 | Multi-agent workflow bootstrap | – | – | DONE | ai/claude-agent-workflow | #9 |
-| T1.0 | Contracts: provider Protocols, core models, API + SSE schemas | 0 | – | TODO | | |
+| T1.0 | Contracts: provider Protocols, core models, API + SSE schemas | 0 | – | REVIEW | ai/claude-t1.0-contracts | #11 |
 | T1.1 | OIDC authentication (backend) | 1 | S07 | TODO | | |
 | T1.2 | Tenant context, RLS & permission engine | 1 | S08 | TODO | | |
 | T1.3 | Org / member / group / invitation APIs + audit | 2 | S09 | TODO | | |
@@ -122,13 +122,14 @@ Format: owner → reviewer · session.md section(s) · dependencies · owned pat
 #### T1.0 Contracts (Claude → Codex)
 - **Session:** cross-cutting (enables parallel work; ADR-006, plan §25, §26, §23, §10.1, §12)
 - **Depends on:** –
-- **Owned paths:** `app/providers/{storage,scanning,embeddings,rerankers,llm,search,identity}/base.py`, `app/ingestion/canonical.py`, `app/ingestion/chunking/types.py`, `app/ingestion/parsing/base.py`, `app/rag/types.py`, `app/domain/schemas/`, `app/export_openapi.py`, `docs/api/sse-events.md`
+- **Owned paths:** `app/providers/{storage,scanning,embeddings,rerankers,llm,search,identity}/base.py`, `app/ingestion/canonical.py`, `app/ingestion/chunking/types.py`, `app/ingestion/parsing/base.py`, `app/security/content_types.py`, `app/rag/types.py`, `app/domain/enums.py`, `app/domain/schemas/`, `app/api/v1/{_stub,identity,knowledge,retrieval}.py`, `app/export_openapi.py`, `packages/contracts/openapi.json`, `tests/fakes/`, `docs/api/sse-events.md`
 - **Scope:**
-  - Python Protocols with docstrings: `ObjectStore` (presign_put, head, get_stream, put, copy, delete, exists), `MalwareScanner`, `DocumentParser`, `ContentScanner`, `Chunker`, `EmbeddingProvider` (`embed_documents`, `embed_query`, `model_id`, `dimension`, `is_external`), `RerankerProvider`, `LLMProvider` (`generate`, `stream`, usage), `SearchBackend` (dense, lexical, hybrid), `IdentityVerifier`.
+  - Python Protocols with docstrings: `ObjectStore` (presign_put, head, get_stream, put, copy, delete, exists), `DocumentParser`, `ContentScanner`, `Chunker`, `EmbeddingProvider` (`embed_documents`, `embed_query`, `model_id`, `dimension`, `is_external`), `RerankerProvider`, `LLMProvider` (`generate`, `stream`, usage), `SearchBackend` (dense, lexical, hybrid), `IdentityVerifier`.
   - Pydantic models: `CanonicalDocument` + `Block` (plan §10.1), `ChunkDraft` (§12, incl. `embedding_text`, page/slide/row ranges, `content_hash`), RAG types (`Candidate`, `RankedHit`, `EvidenceItem`, `SourceAlias`, `Usage`).
   - API schemas (request/response) for `/v1/me`, organizations, members, invitations, groups, knowledge bases + permissions, uploads, documents, versions, ingestion jobs, search, query, query runs, debug, feedback. Registered as **stub routes returning 501** so the OpenAPI spec and the TS client exist before the implementations.
   - `docs/api/sse-events.md`: event names and payload schemas (meta, stage, sources, answer_delta, citation, done, error).
   - `python -m app.export_openapi` writes `packages/contracts/openapi.json`.
+- **Note:** the malware-scanner (`MalwareScanner`, `providers/scanning/base.py`) and file-validation (`validate_file`, `security/file_validation.py`) contracts are **T2.3's APIs**, adopted after review of #10.
 - **Acceptance:** contracts import cleanly, mypy strict passes; OpenAPI exported and committed; each Protocol has a fake implementation in `tests/fakes/` (used by others' tests); reviewed by Codex for usability.
 
 #### T1.1 OIDC authentication (Claude → Codex)
