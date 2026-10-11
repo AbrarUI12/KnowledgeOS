@@ -40,11 +40,12 @@
 
 ### Claude: architect · security/DB/integration · reviewer
 - **Worktree / ports:** `D:\projects\kos-claude` · API 8000 · web 3000
-- **Current task:** T1.0 contracts (wave 0)
+- **Current task:** T1.0 contracts in REVIEW (PR #11, reviewer Codex); next T1.1 OIDC
 - **Last finished:** T0.1 multi-agent workflow bootstrap (2026-10-12)
 - **Blockers:** none
 - **Recent:**
-  - 2026-10-12 · T0.1 · docs/AI_CONTEXT, ARCHITECTURE, TASKS, DECISIONS, TESTING, AGENT_WORKFLOW; worktrees; ports
+  - 2026-10-12 · T1.0 · PR #11 (in review): 11 provider Protocols + core models + 49 stub endpoints (501) + OpenAPI in `packages/contracts/openapi.json` + fakes in `tests/fakes/` + `docs/api/sse-events.md`
+  - 2026-10-12 · T0.1 · PR #9: docs/AI_CONTEXT, ARCHITECTURE, TASKS, DECISIONS, TESTING, AGENT_WORKFLOW; worktrees; ports
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100

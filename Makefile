@@ -9,7 +9,8 @@ COMPOSE := docker compose
 API_PORT ?= 8000
 WEB_PORT ?= 3000
 
-.PHONY: help install lint format typecheck test test-unit test-int migrate migration api web hooks env up up-full down reset logs ps psql infra-check
+# openapi: regenerate packages/contracts/openapi.json (T1.0 contract)
+.PHONY: openapi help install lint format typecheck test test-unit test-int migrate migration api web hooks env up up-full down reset logs ps psql infra-check
 
 help:
 	@echo "install    Install backend (uv) and frontend (pnpm) dependencies + git hooks"
@@ -65,6 +66,9 @@ migrate:
 migration:
 	@test -n "$(name)" || (echo "usage: make migration name=<slug>" && exit 1)
 	$(UV) run alembic revision --autogenerate -m "$(name)"
+
+openapi:
+	$(UV) run python -m app.export_openapi
 
 api:
 	$(UV) run uvicorn app.main:app --reload --port $(API_PORT)

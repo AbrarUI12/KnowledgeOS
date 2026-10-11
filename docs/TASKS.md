@@ -27,7 +27,7 @@
 | ID | Task | Wave | Session | Status | Branch | PR |
 |---|---|---|---|---|---|---|
 | T0.1 | Multi-agent workflow bootstrap | – | – | DONE | ai/claude-agent-workflow | #9 |
-| T1.0 | Contracts: provider Protocols, core models, API + SSE schemas | 0 | – | IN PROGRESS | ai/claude-t1.0-contracts | |
+| T1.0 | Contracts: provider Protocols, core models, API + SSE schemas | 0 | – | REVIEW | ai/claude-t1.0-contracts | #11 |
 | T1.1 | OIDC authentication (backend) | 1 | S07 | TODO | | |
 | T1.2 | Tenant context, RLS & permission engine | 1 | S08 | TODO | | |
 | T1.3 | Org / member / group / invitation APIs + audit | 2 | S09 | TODO | | |
@@ -122,7 +122,7 @@ Format: owner → reviewer · session.md section(s) · dependencies · owned pat
 #### T1.0 Contracts (Claude → Codex)
 - **Session:** cross-cutting (enables parallel work; ADR-006, plan §25, §26, §23, §10.1, §12)
 - **Depends on:** –
-- **Owned paths:** `app/providers/{storage,scanning,embeddings,rerankers,llm,search,identity}/base.py`, `app/ingestion/canonical.py`, `app/ingestion/chunking/types.py`, `app/ingestion/parsing/base.py`, `app/rag/types.py`, `app/domain/schemas/`, `app/export_openapi.py`, `docs/api/sse-events.md`
+- **Owned paths:** `app/providers/{storage,scanning,embeddings,rerankers,llm,search,identity}/base.py`, `app/ingestion/canonical.py`, `app/ingestion/chunking/types.py`, `app/ingestion/parsing/base.py`, `app/security/{validation_types,content_types}.py`, `app/rag/types.py`, `app/domain/enums.py`, `app/domain/schemas/`, `app/api/v1/{_stub,identity,knowledge,retrieval}.py`, `app/export_openapi.py`, `packages/contracts/openapi.json`, `tests/fakes/`, `docs/api/sse-events.md`
 - **Scope:**
   - Python Protocols with docstrings: `ObjectStore` (presign_put, head, get_stream, put, copy, delete, exists), `MalwareScanner`, `DocumentParser`, `ContentScanner`, `Chunker`, `EmbeddingProvider` (`embed_documents`, `embed_query`, `model_id`, `dimension`, `is_external`), `RerankerProvider`, `LLMProvider` (`generate`, `stream`, usage), `SearchBackend` (dense, lexical, hybrid), `IdentityVerifier`.
   - Pydantic models: `CanonicalDocument` + `Block` (plan §10.1), `ChunkDraft` (§12, incl. `embedding_text`, page/slide/row ranges, `content_hash`), RAG types (`Candidate`, `RankedHit`, `EvidenceItem`, `SourceAlias`, `Usage`).
