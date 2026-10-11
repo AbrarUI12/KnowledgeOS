@@ -5,6 +5,9 @@ API_DIR := apps/api
 UV := uv --directory $(API_DIR)
 
 COMPOSE := docker compose
+# Per-agent dev ports (docs/AGENT_WORKFLOW.md §2): Claude 8000/3000, Codex 8100/3100, Cline 8200/3200
+API_PORT ?= 8000
+WEB_PORT ?= 3000
 
 .PHONY: help install lint format typecheck test test-unit test-int migrate migration api web hooks env up up-full down reset logs ps psql infra-check
 
@@ -18,8 +21,8 @@ help:
 	@echo "test-int   Backend integration tests (Testcontainers)"
 	@echo "migrate    Apply DB migrations to the local stack (alembic upgrade head)"
 	@echo "migration  Create a migration: make migration name=add_users"
-	@echo "api        Run the API with reload on http://localhost:8000"
-	@echo "web        Run the Next.js dev server on http://localhost:3000"
+	@echo "api        Run the API with reload (API_PORT=8000 by default)"
+	@echo "web        Run the Next.js dev server (WEB_PORT=3000 by default)"
 	@echo "up         Start core local services (postgres, redis, minio, keycloak, mailpit)"
 	@echo "up-full    Start core + clamav"
 	@echo "down       Stop services (keeps data)"
@@ -64,10 +67,10 @@ migration:
 	$(UV) run alembic revision --autogenerate -m "$(name)"
 
 api:
-	$(UV) run uvicorn app.main:app --reload --port 8000
+	$(UV) run uvicorn app.main:app --reload --port $(API_PORT)
 
 web:
-	pnpm web:dev
+	pnpm --filter @knowledgeos/web exec next dev --port $(WEB_PORT)
 
 hooks:
 	pre-commit run --all-files

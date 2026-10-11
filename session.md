@@ -5,6 +5,8 @@
 > **How big:** **65 sessions** grouped into **17 sprints**, plus Session 00 (planning, done).
 > **Budget:** **$0**. Every service is a free tier or open-source model (see *Locked decisions*).
 > **Progress lives in:** `agent.md`. This file says *what to do*; `agent.md` says *what has been done*.
+>
+> **Three-agent mode (from Session 07):** Claude, Codex and Cline work in parallel. Who does which part of each session, and the live status, are in [`docs/TASKS.md`](docs/TASKS.md); the working rules are in [`docs/AGENT_WORKFLOW.md`](docs/AGENT_WORKFLOW.md). This file remains the detailed spec ("Tasks" = scope, "Done when" = acceptance bar).
 
 ---
 
