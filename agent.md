@@ -22,14 +22,14 @@
 |---|---|
 | **Project phase** | Building: Sprint 0 |
 | **Current sprint** | Sprint 0: Foundation |
-| **Last completed session** | Session 03: Backend core skeleton |
-| **Next session** | **Session 04: CI pipeline, Dockerfiles & ADRs** |
-| **Sessions done** | 3 / 65 (5%) |
+| **Last completed session** | Session 04: CI pipeline, Dockerfiles & ADRs |
+| **Next session** | **Session 05: Design system foundation (FE-0)** → closes gate G0 |
+| **Sessions done** | 4 / 65 (6%) |
 | **Last gate passed** | none (next gate: **G0**, after Session 05) |
 | **Repository** | https://github.com/AbrarUI12/KnowledgeOS (public, branch `main`) |
 | **Live environments** | none yet (staging planned in Session 33, production in Session 62) |
 | **Blockers** | none |
-| **Last updated** | 2026-10-12, by Claude (Session 03) |
+| **Last updated** | 2026-10-12, by Claude (Session 04) |
 
 ---
 
@@ -128,6 +128,12 @@ Dev access token (password grant, dev realm only):
 - Web: `make web` → http://localhost:3000
 - *(workers added in Session 16)*
 
+### 4.4b Build container images
+```bash
+docker build -f infra/docker/backend.Dockerfile --target api -t knowledgeos-api:dev .   # ~366 MB, runs as uid 1000
+docker build -f infra/docker/web.Dockerfile -t knowledgeos-web:dev .                    # Next.js standalone, ~384 MB
+```
+
 ### 4.5 Run tests
 - Everything: `make lint typecheck test` (backend integration tests start their own Postgres/Redis/MinIO containers via Testcontainers, so Docker must be running; they don't use the `make up` stack)
 - Backend unit only (no Docker): `make test-unit`. Integration only: `make test-int`. Frontend only: `pnpm web:test`
@@ -155,7 +161,7 @@ Status legend: `☐` not started · `◐` partial / in progress · `☑` done ·
 | 01 | Repository bootstrap & tooling | 0 | | ☑ | 2026-10-11 | see log | Python 3.12, Next 16, pnpm 12 |
 | 02 | Local infrastructure (Docker Compose) | 0 | | ☑ | 2026-10-12 | see log | PG 5433, Redis 6380, pgsty/minio |
 | 03 | Backend core skeleton | 0 | | ☑ | 2026-10-12 | see log | 16 tests (13 unit, 3 integration) |
-| 04 | CI pipeline, Dockerfiles & ADRs | 0 | | ☐ | | | |
+| 04 | CI pipeline, Dockerfiles & ADRs | 0 | | ☑ | 2026-10-12 | PR #1 | CI green; ADR-001…008 |
 | 05 | Design system foundation (FE-0) | 0 | G0 | ☐ | | | |
 | 06 | Identity & organization schema | 1 | | ☐ | | | |
 | 07 | OIDC authentication (backend) | 1 | | ☐ | | | |
@@ -274,6 +280,34 @@ A gate is passed only when **every** exit criterion in `session.md` → *Gates &
 **Next steps**
 - <first thing the next person should do>
 ```
+
+---
+
+### Session 04 — CI pipeline, Dockerfiles & ADRs  ·  2026-10-12  ·  Claude
+**Status:** ☑ Done
+**Commit(s):** `ci: add CI pipeline, Dockerfiles and ADRs 001-008 (session 04)` via PR #1 (merge commit)
+
+**Done**
+- `.github/workflows/ci.yml` (on PR, push to `main`, manual): `backend` (uv locked sync → Ruff lint + format incl. `scripts/` → mypy strict → pytest with coverage; Testcontainers integration tests include the migration up/down/up check), `frontend` (pnpm locked install → ESLint → Prettier → typecheck → Vitest → build), `secrets` (gitleaks, full history), `docker` (buildx builds of backend `api` target and web, GHA cache). Action majors checked against their latest releases: checkout v7, setup-uv v10, pnpm/action-setup v6, setup-node v7, gitleaks v3, setup-buildx v4, build-push v7.
+- `infra/docker/backend.Dockerfile`: uv multi-stage, deps layer cached, `api` target (uvicorn, healthcheck, proxy headers) and `worker` target (placeholder until S16), non-root **uid 1000** (HF Spaces requirement). `infra/docker/web.Dockerfile`: Next.js standalone (Node 24, corepack pnpm). `.dockerignore`. `next.config.ts`: `output: "standalone"` + `outputFileTracingRoot` at the repo root.
+- `.github/dependabot.yml`: uv, npm, GitHub Actions, Docker, Docker Compose (minor/patch grouped).
+- `docs/adr/` ADR-001…008 + index + template. `docs/architecture/overview.md` with system, local, free-tier and enterprise deployment diagrams (Mermaid).
+- Fix: `app/core/config.py` found the `.env` with `parents[4]`, which raises `IndexError` in shallow container paths. It now searches upward for `docker-compose.yml` and uses no env file inside images.
+- Branch protection on `main`: CI jobs required for PRs (not enforced for admins, so owner pushes still work).
+
+**Tests**
+- Local: `make lint typecheck test` green. `docker build` both images OK; api container → `/health/live` 200, Docker health `healthy`, `id` = uid 1000; web container serves the home page.
+- CI on PR #1: see the gate/status notes below (all jobs green before merge).
+
+**Decisions & deviations**
+- session.md lists a separate "migrations" CI job; the migration up→down→up check already runs inside the backend integration tests on a fresh Testcontainers Postgres, so it isn't duplicated as its own job.
+- Dependabot instead of Renovate (built in, no app install).
+
+**Known issues / tech debt**
+- The backend `worker` image target is a placeholder that exits until Session 16.
+
+**Next steps**
+- Session 05: design tokens, fonts, motion system, restyled primitives, `/dev/primitives`, contrast checks → close **gate G0**.
 
 ---
 
@@ -425,14 +459,14 @@ Written in Session 04 under `docs/adr/`. Index:
 
 | ADR | Title | Status |
 |---|---|---|
-| ADR-001 | Modular monolith | planned (S04) |
-| ADR-002 | PostgreSQL + pgvector first search | planned (S04) |
-| ADR-003 | OIDC identity, app-owned authorization | planned (S04) |
-| ADR-004 | Tenant RLS strategy | planned (S04) |
-| ADR-005 | Async ingestion + transactional outbox | planned (S04) |
-| ADR-006 | Provider abstraction | planned (S04) |
-| ADR-007 | Index generations | planned (S04) |
-| ADR-008 | Free-tier deployment topology | planned (S04) |
+| ADR-001 | Modular monolith | Accepted (S04) |
+| ADR-002 | PostgreSQL + pgvector first search | Accepted (S04) |
+| ADR-003 | OIDC identity, app-owned authorization | Accepted (S04) |
+| ADR-004 | Tenant RLS strategy | Accepted (S04) |
+| ADR-005 | Async ingestion + transactional outbox | Accepted (S04) |
+| ADR-006 | Provider abstraction | Accepted (S04) |
+| ADR-007 | Index generations | Accepted (S04) |
+| ADR-008 | Free-tier deployment topology | Accepted (S04) |
 
 ### 9.2 Smaller decisions
 
