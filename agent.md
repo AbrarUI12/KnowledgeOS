@@ -56,11 +56,11 @@
 
 ### Cline: UI pages · scripts · local QA
 - **Worktree / ports:** `D:\projects\kos-cline` · API 8200 · web 3200
-- **Current task:** T4.5 demo corpus generator, then T1.8 `get_token.py` (wave 0)
-- **Last finished:** –
+- **Current task:** T4.3 RRF fusion module (wave 1)
+- **Last finished:** T4.5 demo corpus generator + T1.8 `get_token.py` (2026-10-12)
 - **Blockers:** none
 - **Recent:**
-  - –
+  - 2026-10-12 · T4.5 + T1.8 · demo corpus file generator (16 synthetic docs across 8 formats) + `scripts/get_token.py` password grant script for dev Keycloak
 
 ---
 

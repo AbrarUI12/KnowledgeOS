@@ -1,0 +1,162 @@
+[
+  {
+    "key": "acme-hr-handbook-2025",
+    "title": "Acme Corp Employee Handbook 2025",
+    "org": "acme",
+    "kb": "hr",
+    "classification": "internal",
+    "acl": "org:acme",
+    "format": "pdf",
+    "file": "acme_hr_handbook_2025.pdf"
+  },
+  {
+    "key": "acme-hr-handbook-2026",
+    "title": "Acme Corp Employee Handbook 2026",
+    "org": "acme",
+    "kb": "hr",
+    "classification": "internal",
+    "acl": "org:acme",
+    "format": "pdf",
+    "file": "acme_hr_handbook_2026.pdf"
+  },
+  {
+    "key": "acme-hr-compensation-bands",
+    "title": "Acme Corp Compensation Bands 2026 (HR Only)",
+    "org": "acme",
+    "kb": "hr",
+    "classification": "confidential",
+    "acl": "group:acme:hr",
+    "format": "docx",
+    "file": "acme_hr_compensation_bands.docx"
+  },
+  {
+    "key": "acme-support-manual",
+    "title": "Acme Corp Support Manual",
+    "org": "acme",
+    "kb": "support",
+    "classification": "internal",
+    "acl": "org:acme",
+    "format": "pdf",
+    "file": "acme_support_manual.pdf"
+  },
+  {
+    "key": "acme-support-faq",
+    "title": "Acme Corp Support FAQ",
+    "org": "acme",
+    "kb": "support",
+    "classification": "internal",
+    "acl": "org:acme",
+    "format": "markdown",
+    "file": "acme_support_faq.md"
+  },
+  {
+    "key": "acme-support-troubleshooting",
+    "title": "Acme Corp Troubleshooting Guide",
+    "org": "acme",
+    "kb": "support",
+    "classification": "internal",
+    "acl": "org:acme",
+    "format": "html",
+    "file": "acme_support_troubleshooting.html"
+  },
+  {
+    "key": "acme-eng-architecture",
+    "title": "Acme Corp System Architecture",
+    "org": "acme",
+    "kb": "engineering",
+    "classification": "internal",
+    "acl": "org:acme",
+    "format": "markdown",
+    "file": "acme_eng_architecture.md"
+  },
+  {
+    "key": "acme-eng-runbook",
+    "title": "Acme Corp Operations Runbook",
+    "org": "acme",
+    "kb": "engineering",
+    "classification": "internal",
+    "acl": "org:acme",
+    "format": "docx",
+    "file": "acme_eng_runbook.docx"
+  },
+  {
+    "key": "acme-eng-architecture-slides",
+    "title": "Acme Corp Architecture Overview",
+    "org": "acme",
+    "kb": "engineering",
+    "classification": "internal",
+    "acl": "org:acme",
+    "format": "pptx",
+    "file": "acme_eng_architecture_slides.pptx"
+  },
+  {
+    "key": "acme-eng-team-metrics",
+    "title": "Acme Engineering Team Metrics",
+    "org": "acme",
+    "kb": "engineering",
+    "classification": "internal",
+    "acl": "org:acme",
+    "format": "xlsx",
+    "file": "acme_eng_team_metrics.xlsx"
+  },
+  {
+    "key": "acme-compliance-policy",
+    "title": "Acme Corp Compliance Policy",
+    "org": "acme",
+    "kb": "compliance",
+    "classification": "confidential",
+    "acl": "org:acme",
+    "format": "pdf",
+    "file": "acme_compliance_policy.pdf"
+  },
+  {
+    "key": "acme-hr-politica-vacaciones",
+    "title": "Politica de Vacaciones",
+    "org": "acme",
+    "kb": "hr",
+    "classification": "internal",
+    "acl": "org:acme",
+    "format": "txt",
+    "file": "acme_hr_politica_vacaciones.txt"
+  },
+  {
+    "key": "acme-eng-notes",
+    "title": "Engineering Notes",
+    "org": "acme",
+    "kb": "engineering",
+    "classification": "internal",
+    "acl": "org:acme",
+    "format": "txt",
+    "file": "acme_eng_notes.txt"
+  },
+  {
+    "key": "acme-eng-metrics",
+    "title": "Service Metrics",
+    "org": "acme",
+    "kb": "engineering",
+    "classification": "internal",
+    "acl": "org:acme",
+    "format": "csv",
+    "file": "acme_eng_metrics.csv"
+  },
+  {
+    "key": "globex-hr-handbook-2026",
+    "title": "Globex Corp Employee Handbook 2026",
+    "org": "globex",
+    "kb": "hr",
+    "classification": "internal",
+    "acl": "org:globex",
+    "format": "pdf",
+    "file": "globex_hr_handbook_2026.pdf"
+  },
+  {
+    "key": "globex-support-faq",
+    "title": "Globex Support FAQ",
+    "org": "globex",
+    "kb": "support",
+    "classification": "internal",
+    "acl": "org:globex",
+    "format": "markdown",
+    "file": "globex_support_faq.md"
+  }
+]
