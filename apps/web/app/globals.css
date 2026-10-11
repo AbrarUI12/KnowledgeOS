@@ -1,26 +1,143 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "../styles/tokens.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Dark mode follows the data-theme attribute set by next-themes (not a .dark class). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/*
+ * Tailwind theme -> KnowledgeOS tokens.
+ * KnowledgeOS names (canvas, ink, line, accent…) are used in feature code. The shadcn names
+ * (background, primary, muted…) are mapped onto the same tokens so every Radix/shadcn primitive
+ * renders in the KnowledgeOS palette instead of stock shadcn styling.
+ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* KnowledgeOS semantic colors */
+  --color-canvas: var(--canvas);
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-tertiary: var(--ink-tertiary);
+  --color-ink-inverse: var(--ink-inverse);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-control-border: var(--control-border);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-focus: var(--focus);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-scrim: var(--scrim);
+
+  /* shadcn compatibility names -> KnowledgeOS tokens */
+  --color-background: var(--canvas);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface-1);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--surface-1);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--on-accent);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--ink);
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--ink-secondary);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--on-accent);
+  --color-destructive: var(--danger);
+  --color-border: var(--line);
+  --color-input: var(--control-border);
+  --color-ring: var(--focus);
+
+  /* Fonts */
+  --font-sans: var(--font-ui);
+  --font-serif: var(--font-reading);
+  --font-mono: var(--font-code);
+  --font-heading: var(--font-ui);
+
+  /* Type scale */
+  --text-2xs: var(--fs-2xs);
+  --text-xs: var(--fs-xs);
+  --text-sm: var(--fs-sm);
+  --text-base: var(--fs-base);
+  --text-md: var(--fs-md);
+  --text-reading: var(--fs-reading);
+
+  /* Radius (shadcn components use rounded-md / rounded-lg / rounded-xl) */
+  --radius-xs: var(--r-xs);
+  --radius-sm: 6px;
+  --radius-md: var(--r-control);
+  --radius-lg: var(--r-control);
+  --radius-xl: var(--r-panel);
+  --radius-2xl: var(--r-panel);
+  --radius-3xl: var(--r-panel);
+  --radius-4xl: var(--r-panel);
+  --radius-control: var(--r-control);
+  --radius-panel: var(--r-panel);
+
+  /* Elevation */
+  --shadow-popover: var(--elevation-popover);
+  --shadow-overlay: var(--elevation-overlay);
+
+  /* Sizes */
+  --spacing-control-sm: var(--control-sm);
+  --spacing-control-md: var(--control-md);
+  --spacing-control-lg: var(--control-lg);
+  --spacing-sidebar: var(--sidebar-expanded);
+  --spacing-sidebar-collapsed: var(--sidebar-collapsed);
+  --spacing-evidence: var(--evidence-default);
+  --container-reading: var(--reading-max);
+
+  /* Motion */
+  --ease-standard: var(--easing-standard);
+  --ease-enter: var(--easing-enter);
+  --ease-exit: var(--easing-exit);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-line;
+  }
+  html {
+    font-family: var(--font-ui);
+    font-size: 100%;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-canvas text-ink;
+    font-size: var(--fs-base);
+    line-height: var(--leading-ui);
+  }
+  /* One visible, consistent focus indicator everywhere (keyboard users only). */
+  :focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus);
+    outline-offset: var(--focus-ring-offset);
+  }
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--ink);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  /* Tabular numerals for metrics, scores and counts (plan §27.3). */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Long-form answer / report reading measure. */
+  .prose-reading {
+    font-family: var(--font-reading);
+    font-size: var(--fs-reading);
+    line-height: var(--leading-reading);
+    max-width: var(--reading-max);
+  }
 }
