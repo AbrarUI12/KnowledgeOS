@@ -7,8 +7,13 @@ from pathlib import Path
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# apps/api/app/core/config.py -> repository root
-_REPO_ROOT = Path(__file__).resolve().parents[4]
+
+def _local_env_files() -> tuple[Path, ...]:
+    """The repo-root `.env` in a source checkout (marked by docker-compose.yml); none in images."""
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "docker-compose.yml").is_file():
+            return (parent / ".env",)
+    return ()
 
 
 class Environment(StrEnum):
@@ -20,7 +25,7 @@ class Environment(StrEnum):
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=(_REPO_ROOT / ".env",),
+        env_file=_local_env_files(),
         env_file_encoding="utf-8",
         extra="ignore",
     )
