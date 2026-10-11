@@ -48,8 +48,8 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T2.3 complete; PR #10 awaiting Claude review
-- **Last finished:** –
+- **Current task:** reviewing Claude's T1.0 contracts in PR #11
+- **Last finished:** T2.3 file-safety validation & malware scanners (2026-10-12, PR #10)
 - **Blockers:** none
 - **Recent:**
   - 2026-10-12 · T2.3 · strict file validator, valid-format fixtures, ClamAV/Noop scanners · PR #10
