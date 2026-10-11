@@ -30,7 +30,7 @@ Before editing: identify affected modules, existing tests, API implications, dat
 While editing:
 - implement **only your task**; note adjacent work as follow-ups instead of doing it;
 - stay inside your **owned paths** (AGENT_WORKFLOW §4); smallest coherent change; follow existing naming and structure;
-- your backend code is **DB-free**: no models, no migrations, no router registration. Claude owns those. Need a table? Put the spec in the PR or open a `blocker` issue to `@claude`;
+- your backend code is **DB-free**: no models, no migrations, no router registration. Claude owns those. Need a table? Put the spec in the PR or open a `blocker` issue to `[to:claude]`;
 - code against the contracts; if a contract is wrong, open a `contract-change` discussion, don't silently diverge.
 
 After editing: run tests, lint and type checks; update `docs/TASKS.md` (your row) and your block in `agent.md` → Team status; write the completion report in the PR.

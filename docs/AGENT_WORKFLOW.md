@@ -88,7 +88,7 @@ Edit files you own. If your task needs a change in someone else's area, ask on a
 
 **Lockfiles** (`uv.lock`, `pnpm-lock.yaml`) are never hand-merged. On conflict: take `origin/main`'s version, then re-run `uv lock` / `pnpm install` with your added dependency.
 
-**Database rule:** Codex and Cline write DB-free code (Pydantic/dataclasses in, out). If your task needs a table or column, put the spec in your PR or in a `blocker` issue to `@claude`; Claude adds the migration. This prevents competing Alembic heads.
+**Database rule:** Codex and Cline write DB-free code (Pydantic/dataclasses in, out). If your task needs a table or column, put the spec in your PR or in a `blocker` issue to `[to:claude]`; Claude adds the migration. This prevents competing Alembic heads.
 
 ---
 
@@ -121,7 +121,7 @@ author implements ─► tests green ─► PR ready ─► cross-agent review �
 - Every review ends with one status line: `Review: PASS` or `Review: CHANGES REQUESTED (BLOCKER n, HIGH n)`.
 - **Merge rule:** the author merges (`gh pr merge <n> --merge --delete-branch`) when CI is green **and** the latest review says PASS, or lists only MEDIUM/LOW items (fixed or ticketed as follow-ups).
 - **Needs the user's OK before merging:** `contract-change` PRs, changes to `docs/ARCHITECTURE.md` or `docs/DECISIONS.md`, new ADRs, anything touching deployment secrets, and any disagreement between author and reviewer about a BLOCKER/HIGH.
-- If a review hasn't arrived within the reviewer's next work session, the author pings on the PR with `@claude please review` / `@codex please review`.
+- If a review hasn't arrived within the reviewer's next work session, the author pings on the PR with `[to:claude] please review` / `[to:codex] please review`.
 - Dependabot PRs are handled by the user.
 
 ### Review format
@@ -152,9 +152,11 @@ Don't invent issues to have something to say. If it's correct, say PASS.
 
 ## 7. Communication protocol
 
+> **Addressing:** write `[to:claude]`, `[to:codex]` or `[to:cline]` at the start of a comment or issue. **Never write `@codex` (or `@claude`) on GitHub**: those mentions summon the vendors' cloud bots (OpenAI's Codex connector answered our first `@codex`). All agents share one GitHub account, so `@`-mentions can't reach an agent anyway.
+
 1. **Files are the long-term memory:** `docs/AI_CONTEXT.md` (context), `docs/ARCHITECTURE.md` (structure), `docs/DECISIONS.md` (why), `docs/TESTING.md` (how to test), `docs/TASKS.md` (who does what, status).
 2. **PRs carry the work:** draft PR = claim; PR description = completion report; PR comments = reviews and replies.
-3. **GitHub Issues carry questions and blockers only.** Labels `agent-question` or `blocker`. Open with the addressee: `@codex: is ChunkDraft.page_end inclusive?` Close when answered; if the answer changes a contract or decision, record it in the right doc.
+3. **GitHub Issues carry questions and blockers only.** Labels `agent-question` or `blocker`. Open with the addressee tag: `[to:codex] is ChunkDraft.page_end inclusive?` Close when answered; if the answer changes a contract or decision, record it in the right doc.
 4. **agent.md Team status** shows each agent's current task, last finished task and blockers at a glance.
 5. **Never rely on chat memory.** Every handoff points to files, commits or PRs: "Implement T4.3. Contract: `app/rag/types.py`. Previous work: PR #21."
 
@@ -162,7 +164,7 @@ Don't invent issues to have something to say. If it's correct, say PASS.
 
 ```bash
 git fetch origin && git merge origin/main                         # in your worktree
-gh pr list --search "review-requested:@me OR mentions:@me" --state open   # also scan open PRs for "@<you>"
+gh pr list --state open --search "<you> in:comments"     # e.g. "codex in:comments"; read the [to:<you>] comments
 gh issue list --label agent-question --state open
 gh issue list --label blocker --state open
 ```

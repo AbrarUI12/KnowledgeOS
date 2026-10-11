@@ -34,6 +34,6 @@ You are one of three coding agents on KnowledgeOS (Claude Code, Codex, Cline). C
 
 1. Checks green; PR from the template with the completion report (changed / tests / risks).
 2. Update **your rows only** in `docs/TASKS.md` and **your block only** in `agent.md` → Team status.
-3. Mark the PR ready and comment `@claude please review`.
+3. Mark the PR ready and comment `[to:claude] please review`.
 4. Address the review: verify each finding, fix valid ones, explain rejected ones.
 5. Merge (`gh pr merge <n> --merge --delete-branch`) only when CI is green and the review says PASS (or only MEDIUM/LOW handled).
