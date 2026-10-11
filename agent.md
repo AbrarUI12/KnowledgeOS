@@ -278,7 +278,7 @@ A gate is passed only when **every** exit criterion in `session.md` → *Gates &
 - `make lint typecheck test` → Ruff clean, mypy strict "no issues in 30 source files", pytest 1 passed, ESLint clean, Prettier clean, tsc clean, Vitest 1 passed.
 - `pnpm web:build` → compiled successfully. `uv run uvicorn app.main:app` → `/health/live` returned `{"status":"ok"}`.
 - `pre-commit run --all-files` → all hooks pass, gitleaks finds nothing.
-- Fresh-clone check: see the note below the commit.
+- Fresh-clone check: `git clone` → `make install` → `make lint typecheck test`, all green (run at `D:\kos-cc`, then deleted).
 
 **Decisions & deviations**
 - D-007 (hardware → Ollama on the RTX 4060 for local generation) recorded in §9.2.
@@ -287,6 +287,7 @@ A gate is passed only when **every** exit criterion in `session.md` → *Gates &
 
 **Known issues / tech debt**
 - None new. GitHub Actions CI does not exist yet (Session 04), so nothing enforces checks on push until then.
+- I-004: keep clones at a **short path** on Windows. In a very deep folder `next typegen` failed with "path not found" (Windows MAX_PATH).
 
 **Next steps**
 - Start **Session 02**: Docker Compose stack (pgvector Postgres, Redis, MinIO, Keycloak, Mailpit, ClamAV profile). Make sure Docker Desktop is running. With 16 GB RAM, give Docker about 8 GB (I-002).
@@ -329,6 +330,7 @@ A gate is passed only when **every** exit criterion in `session.md` → *Gates &
 | I-001 | Risk | Free-tier limits change. Re-verify HF Spaces, Neon, Groq, Gemini, B2 and Auth0 terms before deploying | 00 | – | Open, revisit in S32 and S60 |
 | I-002 | Risk | Developer laptop RAM: the full Compose stack (Postgres, Redis, MinIO, Keycloak, ClamAV, worker with models) may need 10+ GB. Use the `core` profile when RAM is tight | 00 | – | Open, revisit in S02 |
 | I-003 | Risk | CPU-only reranking may miss the plan's retrieval P95 < 500 ms target. Measure, then tune (ONNX int8, fewer candidates) or revise the target with evidence | 00 | – | Open, revisit in S27 and S58 |
+| I-004 | Risk | Windows MAX_PATH: `next typegen` fails when the repo sits in a very deep folder. Keep the clone at a short path such as `D:\projects\KnowledgeOS` | 01 | – | Open (workaround documented) |
 
 Types: `Blocker` · `Bug` · `Tech debt` · `Risk` · `Question`
 
