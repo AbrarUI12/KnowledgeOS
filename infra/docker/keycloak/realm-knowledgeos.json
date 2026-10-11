@@ -1,0 +1,115 @@
+{
+  "realm": "knowledgeos",
+  "displayName": "KnowledgeOS (local dev)",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "clients": [
+    {
+      "clientId": "knowledgeos-web",
+      "name": "KnowledgeOS Web (Next.js / Auth.js)",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "knowledgeos-web-dev-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*"
+      },
+      "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "email", "basic"],
+      "protocolMappers": [
+        {
+          "name": "audience-knowledgeos-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "knowledgeos-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "knowledgeos-api",
+      "name": "KnowledgeOS API (audience only)",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "knowledgeos-api-dev-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false
+    },
+    {
+      "clientId": "knowledgeos-cli",
+      "name": "KnowledgeOS dev scripts (password grant, DEV REALM ONLY)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "implicitFlowEnabled": false,
+      "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "email", "basic"],
+      "protocolMappers": [
+        {
+          "name": "audience-knowledgeos-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "knowledgeos-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "alice@acme.test",
+      "email": "alice@acme.test",
+      "firstName": "Alice",
+      "lastName": "Admin",
+      "emailVerified": true,
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "alice-dev-password", "temporary": false }]
+    },
+    {
+      "username": "bob@acme.test",
+      "email": "bob@acme.test",
+      "firstName": "Bob",
+      "lastName": "Member",
+      "emailVerified": true,
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "bob-dev-password", "temporary": false }]
+    },
+    {
+      "username": "hana@acme.test",
+      "email": "hana@acme.test",
+      "firstName": "Hana",
+      "lastName": "HR",
+      "emailVerified": true,
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "hana-dev-password", "temporary": false }]
+    },
+    {
+      "username": "carol@globex.test",
+      "email": "carol@globex.test",
+      "firstName": "Carol",
+      "lastName": "Globex",
+      "emailVerified": true,
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "carol-dev-password", "temporary": false }]
+    }
+  ]
+}

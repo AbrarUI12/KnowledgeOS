@@ -1,0 +1,2 @@
+# Shared Ruff config for files outside apps/api (e.g. scripts/).
+extend = "apps/api/pyproject.toml"

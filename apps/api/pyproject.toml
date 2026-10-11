@@ -59,6 +59,7 @@ markers = [
 
 [dependency-groups]
 dev = [
+    "boto3>=1.43.111",
     "hypothesis>=6.169.0",
     "mypy>=2.4.0",
     "pytest>=9.1.1",

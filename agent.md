@@ -22,14 +22,14 @@
 |---|---|
 | **Project phase** | Building: Sprint 0 |
 | **Current sprint** | Sprint 0: Foundation |
-| **Last completed session** | Session 01: Repository bootstrap & tooling |
-| **Next session** | **Session 02: Local infrastructure (Docker Compose)** |
-| **Sessions done** | 1 / 65 (2%) |
+| **Last completed session** | Session 02: Local infrastructure (Docker Compose) |
+| **Next session** | **Session 03: Backend core skeleton** |
+| **Sessions done** | 2 / 65 (3%) |
 | **Last gate passed** | none (next gate: **G0**, after Session 05) |
 | **Repository** | https://github.com/AbrarUI12/KnowledgeOS (public, branch `main`) |
 | **Live environments** | none yet (staging planned in Session 33, production in Session 62) |
 | **Blockers** | none |
-| **Last updated** | 2026-10-11, by Claude (Session 01) |
+| **Last updated** | 2026-10-12, by Claude (Session 02) |
 
 ---
 
@@ -102,7 +102,25 @@ make lint typecheck test
 *(Sessions 02–03 add the Docker stack and `.env` setup.)*
 
 ### 4.3 Start the local stack
-*(filled in Session 02)*
+Docker Desktop must be running (installed at `%LOCALAPPDATA%\Programs\DockerDesktop`).
+```bash
+make up            # core: postgres, redis, minio (+ bucket init), keycloak, mailpit. Creates .env from .env.example if missing
+make up-full       # core + clamav (~1.9 GB RAM)
+make infra-check   # verifies every service (extensions, DB roles, RLS bypass off, buckets, OIDC issuer + dev login)
+make ps | logs | psql | down
+make reset         # DELETES all local volumes (fresh DB, realm re-import)
+```
+| Service | URL / port | Dev credentials |
+|---|---|---|
+| PostgreSQL | `localhost:5433` (not 5432, see D-009) | app `knowledgeos_app`/`app_dev_password`, owner `knowledgeos_owner`/`owner_dev_password`, superuser `postgres`/`postgres` |
+| Redis | `localhost:6380` (not 6379, see D-009) | – |
+| MinIO API / console | http://localhost:9000 / http://localhost:9001 | `kos_minio` / `kos_minio_dev_secret` |
+| Keycloak | http://localhost:8080 (realm `knowledgeos`) | admin `admin`/`admin`; users `alice@acme.test`, `bob@acme.test`, `hana@acme.test`, `carol@globex.test`, password `<firstname>-dev-password` |
+| Mailpit | http://localhost:8025 (SMTP 1025) | – |
+| ClamAV (`full`) | `localhost:3310` | – |
+
+Dev access token (password grant, dev realm only):
+`curl -s -X POST http://localhost:8080/realms/knowledgeos/protocol/openid-connect/token -d grant_type=password -d client_id=knowledgeos-cli -d username=alice@acme.test -d password=alice-dev-password -d scope=openid`
 
 ### 4.4 Run the API / web / workers
 - API: `make api` → http://localhost:8000/health/live returns `{"status":"ok"}`
@@ -134,7 +152,7 @@ Status legend: `☐` not started · `◐` partial / in progress · `☑` done ·
 |---|---|---|---|---|---|---|---|
 | 00 | Planning: plan.md, session.md, agent.md | – | – | ☑ | 2026-10-11 | – | Docs only |
 | 01 | Repository bootstrap & tooling | 0 | | ☑ | 2026-10-11 | see log | Python 3.12, Next 16, pnpm 12 |
-| 02 | Local infrastructure (Docker Compose) | 0 | | ☐ | | | |
+| 02 | Local infrastructure (Docker Compose) | 0 | | ☑ | 2026-10-12 | see log | PG 5433, Redis 6380, pgsty/minio |
 | 03 | Backend core skeleton | 0 | | ☐ | | | |
 | 04 | CI pipeline, Dockerfiles & ADRs | 0 | | ☐ | | | |
 | 05 | Design system foundation (FE-0) | 0 | G0 | ☐ | | | |
@@ -258,6 +276,36 @@ A gate is passed only when **every** exit criterion in `session.md` → *Gates &
 
 ---
 
+### Session 02 — Local infrastructure (Docker Compose)  ·  2026-10-12  ·  Claude
+**Status:** ☑ Done
+**Commit(s):** `chore(infra): local docker compose stack (session 02)`
+
+**Done**
+- `docker-compose.yml` with profiles: default/core (postgres `pgvector/pgvector:pg17`, `redis:7-alpine`, `pgsty/minio`, Keycloak 26.8, Mailpit), `full` (+ `clamav/clamav:stable`), `init` (one-shot `minio-init`). Healthchecks on all services.
+- Postgres init: `01-extensions.sql` (vector, pg_trgm) and `02-roles.sh`: `knowledgeos_owner` (owns DB + schema `public`), `knowledgeos_app` and `knowledgeos_dispatcher` (NOSUPERUSER, NOBYPASSRLS), default privileges giving the app role DML on owner-created tables, `CREATE` on `public` revoked from PUBLIC, separate `keycloak` DB/role.
+- MinIO init (`infra/docker/minio/minio-init.sh`): private buckets `kos-quarantine`, `kos-trusted`, `kos-artifacts`, idempotent 7-day expiry on quarantine (`mc ilm import`). CORS origin via `MINIO_API_CORS_ALLOW_ORIGIN`.
+- Keycloak realm import (`infra/docker/keycloak/realm-knowledgeos.json`): clients `knowledgeos-web` (confidential + PKCE S256), `knowledgeos-api` (audience), `knowledgeos-cli` (public, password grant, dev only), audience mapper → `aud: knowledgeos-api`, 4 dev users. `KC_HOSTNAME=http://localhost:8080` + dynamic backchannel so the issuer is identical for browser and containers.
+- `.env.example` (all names + dev values) and a git-ignored `.env`. Makefile targets `env`, `up`, `up-full`, `down`, `reset`, `logs`, `ps`, `psql`, `infra-check`. `scripts/check_infra.py` verifies every service.
+- Ruff (Makefile + pre-commit) now also covers `scripts/`; root `ruff.toml` extends `apps/api/pyproject.toml` so both use one config. `boto3` added as a backend dev dependency (check script; S3 provider comes in S13).
+
+**Tests**
+- `make up` → all core services healthy. `make infra-check` → postgres (extensions, roles, **app role cannot bypass RLS**), redis PONG, minio buckets, keycloak issuer + dev login, mailpit: all OK.
+- Decoded a dev token: `iss=http://localhost:8080/realms/knowledgeos`, `aud=knowledgeos-api`, `email` present.
+- `make up-full` → ClamAV PONG. `make reset && make up` → clean state healthy in ~49 s, realm re-imported.
+- `minio-init` run 3× → exactly one lifecycle rule (idempotent).
+
+**Decisions & deviations**
+- D-008 (pgsty/minio because the official image is gone) and D-009 (ports 5433/6380) in §9.2.
+
+**Known issues / tech debt**
+- I-002 updated with measured memory.
+- `pgsty/mc:latest` and `axllent/mailpit:latest` are unpinned (dev-only helpers). Pin them if they ever break.
+
+**Next steps**
+- Session 03: backend core (settings, logging, error envelope, async DB, Alembic 0001, `/health/ready`, Testcontainers harness). The stack is up (`make up`).
+
+---
+
 ### Session 01 — Repository bootstrap & tooling  ·  2026-10-11  ·  Claude
 **Status:** ☑ Done
 **Commit(s):** `chore: bootstrap monorepo, tooling and agent onboarding files (session 01)` on `main`
@@ -328,7 +376,7 @@ A gate is passed only when **every** exit criterion in `session.md` → *Gates &
 | ID | Type | Description | Raised (session) | Owner | Status |
 |---|---|---|---|---|---|
 | I-001 | Risk | Free-tier limits change. Re-verify HF Spaces, Neon, Groq, Gemini, B2 and Auth0 terms before deploying | 00 | – | Open, revisit in S32 and S60 |
-| I-002 | Risk | Developer laptop RAM: the full Compose stack (Postgres, Redis, MinIO, Keycloak, ClamAV, worker with models) may need 10+ GB. Use the `core` profile when RAM is tight | 00 | – | Open, revisit in S02 |
+| I-002 | Risk | Developer laptop RAM: the full Compose stack (Postgres, Redis, MinIO, Keycloak, ClamAV, worker with models) may need 10+ GB. Use the `core` profile when RAM is tight. **Measured S02:** Docker has 7.4 GB; Keycloak ≈ 1.8 GB, ClamAV ≈ 1.9 GB, the others < 100 MB each; another local project (`retailops-bd`) uses ≈ 1.5 GB. Stop ClamAV (`docker compose stop clamav`) and other projects when running workers/Ollama | 00 | – | Open (measured), revisit in S16/S22 |
 | I-003 | Risk | CPU-only reranking may miss the plan's retrieval P95 < 500 ms target. Measure, then tune (ONNX int8, fewer candidates) or revise the target with evidence | 00 | – | Open, revisit in S27 and S58 |
 | I-004 | Risk | Windows MAX_PATH: `next typegen` fails when the repo sits in a very deep folder. Keep the clone at a short path such as `D:\projects\KnowledgeOS` | 01 | – | Open (workaround documented) |
 
@@ -362,6 +410,8 @@ Written in Session 04 under `docs/adr/`. Index:
 | D-004 | 2026-10-11 | Embeddings and reranker run **in-process with open models** (Qwen3-Embedding-0.6B 1024-d; bge-reranker-v2-m3) | $0, no rate limits, data never leaves the deployment (satisfies local-only policy) |
 | D-005 | 2026-10-11 | Generation goes through one **OpenAI-compatible adapter** (Ollama locally; Groq free primary; Gemini free fallback) | One adapter covers many free providers; model IDs stay in config |
 | D-007 | 2026-10-11 | Dev machine: 16 GB RAM + RTX 4060 Laptop (8 GB VRAM). Local dev uses **Ollama on the GPU** for generation (7–8B models at Q4, e.g. `qwen3:8b`) and can run embeddings/reranker on CUDA locally; deployed stays CPU | 8 GB VRAM fits a Q4 8B model; 16 GB system RAM means the Compose `full` profile + Ollama together is tight, so use the `core` profile when running local models |
+| D-008 | 2026-10-12 | Local MinIO uses **`pgsty/minio`** (pinned `RELEASE.2026-08-04T00-00-00Z`) and `pgsty/mc` | The official `minio/minio` and `minio/mc` images no longer exist on Docker Hub. pgsty is the maintained community build of the same server. Only local dev is affected (deployed storage is B2/R2) |
+| D-009 | 2026-10-12 | KnowledgeOS host ports: **Postgres 5433, Redis 6380** | 5432/6379 are used by another local project (`retailops-bd`). Configurable via `POSTGRES_PORT`/`REDIS_PORT` in `.env` |
 | D-006 | 2026-10-11 | Hosted identity uses **Auth0 Free**; Keycloak stays for local development | Hosting Keycloak needs a paid always-on instance; the app is IdP-agnostic by design |
 
 ---
@@ -387,8 +437,9 @@ Written in Session 04 under `docs/adr/`. Index:
 
 | Service | Purpose | Env var names | Environments | Introduced in |
 |---|---|---|---|---|
-| PostgreSQL (local container) | Main DB | `DATABASE_URL`, `DATABASE_MIGRATION_URL` | local | S02/S03 |
-| Redis (local container) | Celery broker, rate limits | `REDIS_URL` | local | S02 |
-| MinIO (local container) | Object storage | `S3_ENDPOINT_URL`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_QUARANTINE`, `S3_BUCKET_TRUSTED`, `S3_BUCKET_ARTIFACTS` | local | S02 |
-| Keycloak (local container) | OIDC | `OIDC_ISSUER`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL` | local | S02/S07 |
+| PostgreSQL (local container) | Main DB | `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_SUPERUSER(_PASSWORD)`, `KOS_OWNER_PASSWORD`, `KOS_APP_PASSWORD`, `KOS_DISPATCHER_PASSWORD`, `DATABASE_URL`, `DATABASE_MIGRATION_URL` | local | S02 |
+| Redis (local container) | Celery broker, rate limits | `REDIS_PORT`, `REDIS_URL` | local | S02 |
+| MinIO (local container) | Object storage | `S3_ENDPOINT_URL`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_QUARANTINE`, `S3_BUCKET_TRUSTED`, `S3_BUCKET_ARTIFACTS`, `S3_PUBLIC_ENDPOINT_URL`, `S3_REGION`, `S3_FORCE_PATH_STYLE`, `MINIO_PORT`, `MINIO_CONSOLE_PORT` | local | S02 |
+| Keycloak (local container) | OIDC | `KEYCLOAK_PORT`, `KEYCLOAK_ADMIN(_PASSWORD)`, `KEYCLOAK_DB_PASSWORD`, `OIDC_ISSUER`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL`, `OIDC_WEB_CLIENT_ID`, `OIDC_WEB_CLIENT_SECRET`, `OIDC_CLI_CLIENT_ID` | local | S02 |
+| Mailpit / ClamAV (local containers) | Email, malware scan | `SMTP_HOST`, `SMTP_PORT`, `MAILPIT_UI_PORT`, `CLAMAV_HOST`, `CLAMAV_PORT`, `WEB_ORIGIN` | local | S02 |
 | *(more rows added as sessions introduce services: Neon, B2, Auth0, HF, Vercel, Groq, Gemini, Langfuse, Grafana Cloud, Google Drive OAuth)* | | | | |

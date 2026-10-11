@@ -18,9 +18,9 @@ repos:
     hooks:
       - id: ruff-check
         args: [--fix]
-        files: ^apps/api/
+        files: ^(apps/api|scripts)/
       - id: ruff-format
-        files: ^apps/api/
+        files: ^(apps/api|scripts)/
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.0

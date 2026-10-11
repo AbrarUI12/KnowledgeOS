@@ -4,7 +4,9 @@
 API_DIR := apps/api
 UV := uv --directory $(API_DIR)
 
-.PHONY: help install lint format typecheck test api web hooks
+COMPOSE := docker compose
+
+.PHONY: help install lint format typecheck test api web hooks env up up-full down reset logs ps psql infra-check
 
 help:
 	@echo "install    Install backend (uv) and frontend (pnpm) dependencies + git hooks"
@@ -14,6 +16,11 @@ help:
 	@echo "test       pytest + vitest"
 	@echo "api        Run the API with reload on http://localhost:8000"
 	@echo "web        Run the Next.js dev server on http://localhost:3000"
+	@echo "up         Start core local services (postgres, redis, minio, keycloak, mailpit)"
+	@echo "up-full    Start core + clamav"
+	@echo "down       Stop services (keeps data)"
+	@echo "reset      Stop services and DELETE all local data volumes"
+	@echo "infra-check  Verify every local service is healthy and configured"
 
 install:
 	$(UV) sync
@@ -21,8 +28,8 @@ install:
 	pre-commit install
 
 lint:
-	$(UV) run ruff check .
-	$(UV) run ruff format --check .
+	$(UV) run ruff check . ../../scripts
+	$(UV) run ruff format --check . ../../scripts
 	pnpm web:lint
 	pnpm --filter @knowledgeos/web format:check
 
@@ -47,3 +54,32 @@ web:
 
 hooks:
 	pre-commit run --all-files
+
+env:
+	@test -f .env || (cp .env.example .env && echo "created .env from .env.example")
+
+up: env
+	$(COMPOSE) up -d --wait
+	$(COMPOSE) --profile init run --rm minio-init
+
+up-full: env
+	$(COMPOSE) --profile full up -d --wait
+	$(COMPOSE) --profile init run --rm minio-init
+
+down:
+	$(COMPOSE) --profile full down
+
+reset:
+	$(COMPOSE) --profile full down -v
+
+logs:
+	$(COMPOSE) logs -f --tail=100
+
+ps:
+	$(COMPOSE) --profile full ps
+
+psql:
+	$(COMPOSE) exec postgres psql -U postgres -d knowledgeos
+
+infra-check:
+	$(UV) run python ../../scripts/check_infra.py
