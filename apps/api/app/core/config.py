@@ -70,6 +70,22 @@ class Settings(BaseSettings):
     clamav_max_stream_bytes: int = 50 * 1024 * 1024
     require_malware_scan: bool = Field(default_factory=_malware_scan_required)
 
+    # OIDC (Keycloak locally, Auth0 deployed). Only tokens whose `iss` equals oidc_issuer and whose
+    # `aud` contains oidc_audience are accepted (ADR-003).
+    oidc_issuer: str = "http://localhost:8080/realms/knowledgeos"
+    oidc_audience: str = "knowledgeos-api"
+    oidc_jwks_url: str | None = Field(
+        default=None, description="Override; normally taken from the issuer's discovery document"
+    )
+    oidc_algorithms: tuple[str, ...] = ("RS256", "ES256")
+    oidc_leeway_seconds: int = Field(default=30, ge=0, le=60)
+    oidc_jwks_cache_seconds: int = Field(default=600, ge=30)
+    oidc_jwks_min_refresh_seconds: int = Field(
+        default=30, ge=0, description="Rate limit for JWKS refreshes triggered by unknown key IDs"
+    )
+    oidc_http_timeout_seconds: float = 5.0
+    user_last_seen_write_interval_seconds: int = 300
+
     readiness_timeout_seconds: float = 2.0
 
     @property

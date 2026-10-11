@@ -27,6 +27,7 @@ class AppError(Exception):
     status_code: int = 500
     code: str = "internal_error"
     message: str = "An unexpected error occurred."
+    headers: Mapping[str, str] = {}
 
     def __init__(self, message: str | None = None, *, details: dict[str, Any] | None = None):
         super().__init__(message or self.message)
@@ -110,7 +111,9 @@ def error_response(
 
 async def _app_error(request: Request, exc: Exception) -> JSONResponse:
     exc = cast(AppError, exc)
-    return error_response(request, exc.status_code, exc.code, exc.message, exc.details)
+    return error_response(
+        request, exc.status_code, exc.code, exc.message, exc.details, headers=exc.headers
+    )
 
 
 async def _http_error(request: Request, exc: Exception) -> JSONResponse:
