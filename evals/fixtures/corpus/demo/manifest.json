@@ -7,7 +7,8 @@
     "classification": "internal",
     "acl": "org:acme",
     "format": "pdf",
-    "file": "acme_hr_handbook_2025.pdf"
+    "file": "acme_hr_handbook_2025.pdf",
+    "tags": []
   },
   {
     "key": "acme-hr-handbook-2026",
@@ -17,7 +18,8 @@
     "classification": "internal",
     "acl": "org:acme",
     "format": "pdf",
-    "file": "acme_hr_handbook_2026.pdf"
+    "file": "acme_hr_handbook_2026.pdf",
+    "tags": []
   },
   {
     "key": "acme-hr-compensation-bands",
@@ -27,7 +29,8 @@
     "classification": "confidential",
     "acl": "group:acme:hr",
     "format": "docx",
-    "file": "acme_hr_compensation_bands.docx"
+    "file": "acme_hr_compensation_bands.docx",
+    "tags": []
   },
   {
     "key": "acme-support-manual",
@@ -37,7 +40,8 @@
     "classification": "internal",
     "acl": "org:acme",
     "format": "pdf",
-    "file": "acme_support_manual.pdf"
+    "file": "acme_support_manual.pdf",
+    "tags": []
   },
   {
     "key": "acme-support-faq",
@@ -47,7 +51,8 @@
     "classification": "internal",
     "acl": "org:acme",
     "format": "markdown",
-    "file": "acme_support_faq.md"
+    "file": "acme_support_faq.md",
+    "tags": []
   },
   {
     "key": "acme-support-troubleshooting",
@@ -57,7 +62,8 @@
     "classification": "internal",
     "acl": "org:acme",
     "format": "html",
-    "file": "acme_support_troubleshooting.html"
+    "file": "acme_support_troubleshooting.html",
+    "tags": []
   },
   {
     "key": "acme-eng-architecture",
@@ -67,7 +73,8 @@
     "classification": "internal",
     "acl": "org:acme",
     "format": "markdown",
-    "file": "acme_eng_architecture.md"
+    "file": "acme_eng_architecture.md",
+    "tags": []
   },
   {
     "key": "acme-eng-runbook",
@@ -77,7 +84,8 @@
     "classification": "internal",
     "acl": "org:acme",
     "format": "docx",
-    "file": "acme_eng_runbook.docx"
+    "file": "acme_eng_runbook.docx",
+    "tags": []
   },
   {
     "key": "acme-eng-architecture-slides",
@@ -87,7 +95,8 @@
     "classification": "internal",
     "acl": "org:acme",
     "format": "pptx",
-    "file": "acme_eng_architecture_slides.pptx"
+    "file": "acme_eng_architecture_slides.pptx",
+    "tags": []
   },
   {
     "key": "acme-eng-team-metrics",
@@ -97,7 +106,8 @@
     "classification": "internal",
     "acl": "org:acme",
     "format": "xlsx",
-    "file": "acme_eng_team_metrics.xlsx"
+    "file": "acme_eng_team_metrics.xlsx",
+    "tags": []
   },
   {
     "key": "acme-compliance-policy",
@@ -107,7 +117,8 @@
     "classification": "confidential",
     "acl": "org:acme",
     "format": "pdf",
-    "file": "acme_compliance_policy.pdf"
+    "file": "acme_compliance_policy.pdf",
+    "tags": []
   },
   {
     "key": "acme-hr-politica-vacaciones",
@@ -117,7 +128,8 @@
     "classification": "internal",
     "acl": "org:acme",
     "format": "txt",
-    "file": "acme_hr_politica_vacaciones.txt"
+    "file": "acme_hr_politica_vacaciones.txt",
+    "tags": []
   },
   {
     "key": "acme-eng-notes",
@@ -127,7 +139,10 @@
     "classification": "internal",
     "acl": "org:acme",
     "format": "txt",
-    "file": "acme_eng_notes.txt"
+    "file": "acme_eng_notes.txt",
+    "tags": [
+      "poisoned"
+    ]
   },
   {
     "key": "acme-eng-metrics",
@@ -137,7 +152,8 @@
     "classification": "internal",
     "acl": "org:acme",
     "format": "csv",
-    "file": "acme_eng_metrics.csv"
+    "file": "acme_eng_metrics.csv",
+    "tags": []
   },
   {
     "key": "globex-hr-handbook-2026",
@@ -147,7 +163,8 @@
     "classification": "internal",
     "acl": "org:globex",
     "format": "pdf",
-    "file": "globex_hr_handbook_2026.pdf"
+    "file": "globex_hr_handbook_2026.pdf",
+    "tags": []
   },
   {
     "key": "globex-support-faq",
@@ -157,6 +174,7 @@
     "classification": "internal",
     "acl": "org:globex",
     "format": "markdown",
-    "file": "globex_support_faq.md"
+    "file": "globex_support_faq.md",
+    "tags": []
   }
 ]

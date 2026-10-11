@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 # Load environment from .env at repo root
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +35,16 @@ def load_env() -> dict[str, str]:
 
 
 ENV = load_env()
+
+LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def is_local_issuer(issuer: str) -> bool:
+    """True only if the issuer's *host* is loopback (not e.g. http://localhost.evil.com)."""
+    try:
+        return urlsplit(issuer).hostname in LOCAL_HOSTS
+    except ValueError:
+        return False
 
 
 def _decode_token_summary(parts: list[str], email: str) -> str | None:
@@ -79,7 +90,7 @@ def get_token(username: str) -> str:
     client_id = ENV.get("OIDC_CLI_CLIENT_ID", "knowledgeos-cli")
 
     # Safety check: refuse non-localhost issuers
-    if "localhost" not in issuer and "127.0.0.1" not in issuer:
+    if not is_local_issuer(issuer):
         print(
             f"ERROR: OIDC_ISSUER ({issuer}) is not a localhost address. "
             "This script is for local development only.",
@@ -116,7 +127,7 @@ def get_token(username: str) -> str:
 
     # Decode JWT payload (second segment) for display
     parts = token.split(".")
-    summary = _decode_token_summary(parts)
+    summary = _decode_token_summary(parts, email)
     if summary:
         print(summary, file=sys.stderr)
 

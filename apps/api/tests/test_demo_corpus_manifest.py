@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -66,12 +67,16 @@ class TestDemoCorpusManifest:
         ]
         assert len(restricted) > 0, "no group-restricted confidential document found"
 
-    def test_poisoned_document_exists(self, manifest: list[dict[str, str]]) -> None:
-        """The poisoned doc for security testing should be present."""
-        # The poisoned doc is identified by its content containing injection text
-        # We check it exists in the manifest by key
-        keys = {e["key"] for e in manifest}
-        assert "acme-eng-notes" in keys, "poisoned document not in manifest"
+    def test_exactly_one_poisoned_document_is_tagged(self, manifest: list[dict[str, Any]]) -> None:
+        """Security tests find the prompt-injection doc by its tag, not by a hard-coded key."""
+        poisoned = [e for e in manifest if "poisoned" in e.get("tags", [])]
+        assert [e["key"] for e in poisoned] == ["acme-eng-notes"]
+        text = (MANIFEST_PATH.parent / poisoned[0]["file"]).read_text(encoding="utf-8")
+        assert "ignore previous instructions" in text.lower()
+
+    def test_every_entry_has_a_tags_list(self, manifest: list[dict[str, Any]]) -> None:
+        for entry in manifest:
+            assert isinstance(entry.get("tags"), list), entry["key"]
 
     def test_manifest_files_exist_on_disk(self, manifest: list[dict[str, str]]) -> None:
         base = MANIFEST_PATH.parent

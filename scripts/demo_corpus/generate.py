@@ -38,6 +38,7 @@ def add_to_manifest(
     acl: str,
     fmt: str,
     filename: str,
+    tags: tuple[str, ...] = (),
 ) -> None:
     manifest.append(
         {
@@ -49,6 +50,8 @@ def add_to_manifest(
             "acl": acl,
             "format": fmt,
             "file": filename,
+            # Special roles in tests, e.g. "poisoned" = contains a prompt-injection attempt.
+            "tags": list(tags),
         }
     )
 
@@ -521,6 +524,7 @@ def generate_acme_other() -> None:
         "org:acme",
         "txt",
         "acme_eng_notes.txt",
+        tags=("poisoned",),
     )
 
     generate_csv(
@@ -619,8 +623,9 @@ def main() -> None:
 
     manifest_path = OUTPUT_DIR / "manifest.json"
     manifest_path.write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False),
+        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
+        newline="\n",  # same bytes on Windows and Linux (deterministic, matches .gitattributes)
     )
 
     print(f"Generated {len(manifest)} documents.")
