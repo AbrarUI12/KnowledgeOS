@@ -26,6 +26,7 @@
 | **Next session** | **Session 01: Repository bootstrap & tooling** |
 | **Sessions done** | 0 / 65 (0%) |
 | **Last gate passed** | none (next gate: **G0**, after Session 05) |
+| **Repository** | https://github.com/AbrarUI12/KnowledgeOS (public, branch `main`) |
 | **Live environments** | none yet (staging planned in Session 33, production in Session 62) |
 | **Blockers** | none |
 | **Last updated** | 2026-10-11, by Claude (planning session) |
