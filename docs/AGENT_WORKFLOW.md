@@ -74,7 +74,7 @@ Edit files you own. If your task needs a change in someone else's area, ask on a
 | `apps/api/migrations/` + `app/db/models/` + `app/db/models/__init__.py` | **Claude only** |
 | `apps/api/app/api/v1/router.py` (router registration) | **Claude only** |
 | `app/ingestion/stages/`, `app/rag/retrieval/`, `app/rag/orchestration/`, `app/providers/{search,identity}/` | Claude |
-| Contract files from T1.0 (`app/providers/*/base.py`, `app/ingestion/canonical.py`, `app/ingestion/chunking/types.py`, `app/ingestion/parsing/base.py`, `app/security/{validation_types,content_types}.py`, `app/rag/types.py`, `app/domain/enums.py`, `app/domain/schemas/`, `packages/contracts/openapi.json`, `tests/fakes/`, `docs/api/sse-events.md`) | Claude (changes = `contract-change` PR) |
+| Contract files from T1.0 (`app/providers/*/base.py`, `app/ingestion/canonical.py`, `app/ingestion/chunking/types.py`, `app/ingestion/parsing/base.py`, `app/security/content_types.py`, `app/rag/types.py`, `app/domain/enums.py`, `app/domain/schemas/`, `packages/contracts/openapi.json`, `tests/fakes/`, `docs/api/sse-events.md`) | Claude (changes = `contract-change` PR) |
 | `infra/`, `docker-compose.yml`, `.github/workflows/`, `docs/ARCHITECTURE.md`, `docs/DECISIONS.md` | Claude |
 | `app/providers/{storage,scanning,embeddings,rerankers,llm}/` (implementations) | Codex |
 | `app/security/{file_validation,content_scanner}.py`, `app/ingestion/{parsing,normalize,chunking}/` (implementations) | Codex |
@@ -95,7 +95,7 @@ Edit files you own. If your task needs a change in someone else's area, ask on a
 ## 5. Contract-first development
 
 Claude's first task (T1.0) publishes the interfaces everyone codes against:
-- provider Protocols: ObjectStore, MalwareScanner, FileValidator, DocumentParser, ContentScanner, Chunker, EmbeddingProvider, RerankerProvider, LLMProvider, SearchBackend;
+- provider Protocols: ObjectStore, MalwareScanner (T2.3's API), DocumentParser, ContentScanner, Chunker, EmbeddingProvider, RerankerProvider, LLMProvider, SearchBackend;
 - core models: `CanonicalDocument`, `ChunkDraft`, RAG types (`Candidate`, `RankedHit`, `EvidenceItem`, `SourceAlias`);
 - Pydantic API schemas for me/orgs/members/groups/KBs/documents/uploads/jobs/search/query/debug, so the OpenAPI spec and the generated TS client exist before the endpoints do;
 - the SSE event schema (`docs/api/sse-events.md`).

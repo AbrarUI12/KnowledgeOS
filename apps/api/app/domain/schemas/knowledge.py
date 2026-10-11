@@ -16,7 +16,7 @@ from app.domain.enums import (
     PrincipalType,
     Visibility,
 )
-from app.ingestion.canonical import CanonicalDocument
+from app.ingestion.canonical import CanonicalDocument, SourceLocation
 from app.security.content_types import ContentFinding
 
 # ----------------------------------------------------------------------------- knowledge bases
@@ -50,6 +50,12 @@ class AclEntry(BaseModel):
     principal_type: PrincipalType
     principal_id: str = Field(description="User/group UUID, or a role key for principal_type=role")
     permission: AclPermission
+
+
+class KnowledgeBasePermissionsUpdate(BaseModel):
+    """PUT body: the complete allow-only ACL. Server-owned propagation state isn't accepted."""
+
+    entries: list[AclEntry]
 
 
 class KnowledgeBasePermissions(BaseModel):
@@ -163,8 +169,7 @@ class ChunkSummary(BaseModel):
     ordinal: int
     token_count: int
     section_path: list[str]
-    page_start: int | None
-    page_end: int | None
+    location: SourceLocation
     block_ids: list[str]
 
 

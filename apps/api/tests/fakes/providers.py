@@ -6,16 +6,18 @@ import re
 import uuid
 from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from typing import BinaryIO
 
-from app.ingestion.canonical import Block, BlockType, CanonicalDocument
+from app.ingestion.canonical import Block, BlockType, CanonicalDocument, SourceLocation
 from app.ingestion.chunking.types import ChunkDraft, ChunkerConfig
 from app.providers.identity.base import TokenInvalidError, VerifiedToken
 from app.providers.llm.base import ChatMessage, GenerationParams, LLMChunk, LLMResult
-from app.providers.scanning.base import ScanResult, ScanStatus
+from app.providers.scanning.base import MalwareScanResult, MalwareScanStatus
 from app.providers.search.base import (
     HybridSearchRequest,
     HybridSearchResult,
+    QueryFilters,
     SearchScope,
 )
 from app.providers.storage.base import ObjectInfo, ObjectStoreError, PresignedUpload
@@ -25,7 +27,6 @@ from app.security.content_types import (
     ContentScanOutcome,
     ContentScanResult,
 )
-from app.security.validation_types import ValidationLimits, ValidationResult, ValidationStatus
 
 _WORD = re.compile(r"\w+", re.UNICODE)
 
@@ -89,49 +90,22 @@ class FakeObjectStore:
         return (bucket, key) in self.objects
 
 
-# ----------------------------------------------------------------------- scanning / validation
+# ----------------------------------------------------------------------- scanning
 
 
 class FakeMalwareScanner:
-    """Reports INFECTED when the bytes contain `marker` (never the real EICAR string: Defender)."""
+    """Implements T2.3's `MalwareScanner`: INFECTED when the stream contains `marker`.
+
+    Never uses the real EICAR string (Windows Defender deletes files containing it).
+    """
 
     def __init__(self, marker: bytes = b"KOS-FAKE-MALWARE") -> None:
         self.marker = marker
 
-    @property
-    def name(self) -> str:
-        return "fake"
-
-    async def scan(self, data: bytes, *, filename: str | None = None) -> ScanResult:
-        if self.marker in data:
-            return ScanResult(status=ScanStatus.INFECTED, scanner=self.name, signature="Fake.Test")
-        return ScanResult(status=ScanStatus.CLEAN, scanner=self.name)
-
-
-class FakeFileValidator:
-    """Accepts everything within max_bytes; rejects empty and oversized files."""
-
-    def validate(
-        self,
-        data: bytes,
-        *,
-        filename: str,
-        declared_mime: str | None = None,
-        limits: ValidationLimits | None = None,
-    ) -> ValidationResult:
-        limits = limits or ValidationLimits()
-        reasons: tuple[str, ...] = ()
-        if not data:
-            reasons = ("empty_file",)
-        elif len(data) > limits.max_bytes:
-            reasons = ("too_large",)
-        return ValidationResult(
-            status=ValidationStatus.REJECTED if reasons else ValidationStatus.ACCEPTED,
-            reasons=reasons,
-            detected_mime=declared_mime,
-            sha256=sha256_hex(data),
-            size_bytes=len(data),
-        )
+    async def scan(self, stream: BinaryIO) -> MalwareScanResult:
+        if self.marker in stream.read():
+            return MalwareScanResult(status=MalwareScanStatus.INFECTED, threat="Fake.Test")
+        return MalwareScanResult(status=MalwareScanStatus.CLEAN)
 
 
 class FakeContentScanner:
@@ -233,8 +207,7 @@ class FakeChunker:
                     embedding_text=f"{document.title}\n{section}\n{block.text}".strip(),
                     content_hash=sha256_hex(block.text),
                     token_count=len(_WORD.findall(block.text)),
-                    page_start=block.page,
-                    page_end=block.page,
+                    location=SourceLocation(page_start=block.page, page_end=block.page),
                 )
             )
         return drafts
@@ -345,10 +318,40 @@ class IndexedChunk:
     organization_id: uuid.UUID
     access_principals: frozenset[str]
     embedding: list[float] = field(default_factory=list)
+    source_id: uuid.UUID | None = None
+    document_type: str | None = None
+    tags: frozenset[str] = frozenset()
+    department: str | None = None
+    language: str | None = None
+    modified_on: date | None = None
+    effective_from: date | None = None
+    effective_to: date | None = None
+
+
+def _matches(chunk: IndexedChunk, f: QueryFilters) -> bool:
+    checks = (
+        not f.document_ids or chunk.candidate.document_id in f.document_ids,
+        not f.source_ids or chunk.source_id in f.source_ids,
+        not f.document_types or chunk.document_type in f.document_types,
+        not f.tags or set(f.tags) <= chunk.tags,
+        f.department is None or chunk.department == f.department,
+        not f.languages or chunk.language in f.languages,
+        not f.modified_from
+        or (chunk.modified_on is not None and chunk.modified_on >= f.modified_from),
+        not f.modified_to or (chunk.modified_on is not None and chunk.modified_on <= f.modified_to),
+        not f.effective_from
+        or chunk.effective_to is None
+        or chunk.effective_to >= f.effective_from,
+        not f.effective_to
+        or chunk.effective_from is None
+        or chunk.effective_from <= f.effective_to,
+    )
+    return all(checks)
 
 
 class FakeSearchBackend:
-    """In-memory search that **applies the authorization scope** like the real backend must."""
+    """In-memory search that applies the authorization scope **and** QueryFilters, like the real
+    backend must (filters narrow the authorized pool; they never widen it)."""
 
     def __init__(self, chunks: Sequence[IndexedChunk] = (), generation_id: uuid.UUID | None = None):
         self.chunks = list(chunks)
@@ -363,23 +366,39 @@ class FakeSearchBackend:
             and c.access_principals & set(scope.principal_tokens)
         ]
 
-    async def hybrid_search(self, request: HybridSearchRequest) -> HybridSearchResult:
-        pool = self._authorized(request.scope)
+    def _pool(self, request: HybridSearchRequest) -> list[IndexedChunk]:
+        return [c for c in self._authorized(request.scope) if _matches(c, request.filters)]
+
+    async def dense_search(self, request: HybridSearchRequest) -> list[RankedHit]:
+        if request.query_embedding is None:
+            return []
+        q = request.query_embedding
+        scored = [
+            (sum(a * b for a, b in zip(q, c.embedding, strict=False)), c)
+            for c in self._pool(request)
+        ]
+        ranked = [(s, c) for s, c in sorted(scored, key=lambda x: -x[0]) if s > 0]
+        return [
+            RankedHit(candidate=c.candidate, dense_rank=i + 1, dense_score=s)
+            for i, (s, c) in enumerate(ranked[: request.dense_k])
+        ]
+
+    async def lexical_search(self, request: HybridSearchRequest) -> list[RankedHit]:
         words = set(_WORD.findall(request.query.lower()))
-        lexical = sorted(
-            (c for c in pool if words & set(_WORD.findall(c.candidate.content.lower()))),
-            key=lambda c: -len(words & set(_WORD.findall(c.candidate.content.lower()))),
-        )[: request.lexical_k]
-        dense: list[IndexedChunk] = []
-        if request.query_embedding is not None:
-            q = request.query_embedding
-            scored = [(sum(a * b for a, b in zip(q, c.embedding, strict=False)), c) for c in pool]
-            dense = [c for s, c in sorted(scored, key=lambda x: -x[0]) if s > 0][: request.dense_k]
+        scored = [
+            (len(words & set(_WORD.findall(c.candidate.content.lower()))), c)
+            for c in self._pool(request)
+        ]
+        ranked = [(s, c) for s, c in sorted(scored, key=lambda x: -x[0]) if s > 0]
+        return [
+            RankedHit(candidate=c.candidate, lexical_rank=i + 1, lexical_score=float(s))
+            for i, (s, c) in enumerate(ranked[: request.lexical_k])
+        ]
+
+    async def hybrid_search(self, request: HybridSearchRequest) -> HybridSearchResult:
         return HybridSearchResult(
-            dense=[RankedHit(candidate=c.candidate, dense_rank=i + 1) for i, c in enumerate(dense)],
-            lexical=[
-                RankedHit(candidate=c.candidate, lexical_rank=i + 1) for i, c in enumerate(lexical)
-            ],
+            dense=await self.dense_search(request),
+            lexical=await self.lexical_search(request),
             index_generation_id=self.generation_id,
         )
 

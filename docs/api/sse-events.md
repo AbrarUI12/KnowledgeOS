@@ -1,7 +1,7 @@
 # SSE events: `POST /v1/knowledge-bases/{kb_id}/query/stream`
 
 > Contract from T1.0. Server implementation: Claude T5.4. Client (stream reducer): Codex T5.5.
-> Payload schemas are the `Stream*` models in `apps/api/app/domain/schemas/retrieval.py` (also in `packages/contracts/openapi.json` once referenced). Change them only through a `contract-change` PR.
+> Payload schemas are the `Stream*` models in `apps/api/app/domain/schemas/retrieval.py`. They're published in `packages/contracts/openapi.json` as the discriminated union `StreamEvent` (`{event, data}`) on the stream response, so the TS client can generate types for the reducer. Change them only through a `contract-change` PR.
 
 ## Transport
 

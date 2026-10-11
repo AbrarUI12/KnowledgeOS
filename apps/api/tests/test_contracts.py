@@ -1,28 +1,29 @@
 """T1.0 contract tests: fakes satisfy their Protocols, models keep invariants, stubs answer 501."""
 
+import io
 import uuid
+from datetime import date
 
 import pytest
 from httpx import AsyncClient
 from pydantic import ValidationError
 
+from app.ingestion.canonical import Block, CanonicalDocument, SourceLocation
 from app.ingestion.chunking.types import ChunkDraft, Chunker
 from app.ingestion.parsing.base import DocumentParser
 from app.providers.embeddings.base import EmbeddingProvider
 from app.providers.identity.base import IdentityVerifier, TokenInvalidError
 from app.providers.llm.base import ChatMessage, LLMProvider, Role
 from app.providers.rerankers.base import RerankerProvider
-from app.providers.scanning.base import MalwareScanner, ScanStatus
+from app.providers.scanning.base import MalwareScanner, MalwareScanStatus
 from app.providers.search.base import HybridSearchRequest, QueryFilters, SearchBackend, SearchScope
 from app.providers.storage.base import ObjectStore
 from app.rag.types import Candidate, SourceAlias
 from app.security.content_types import ContentScanner, ContentScanOutcome
-from app.security.validation_types import FileValidator, ValidationStatus
 from tests.fakes import (
     FakeChunker,
     FakeContentScanner,
     FakeEmbeddingProvider,
-    FakeFileValidator,
     FakeIdentityVerifier,
     FakeLLM,
     FakeMalwareScanner,
@@ -43,7 +44,6 @@ HASH = "a" * 64
     [
         (FakeObjectStore(), ObjectStore),
         (FakeMalwareScanner(), MalwareScanner),
-        (FakeFileValidator(), FileValidator),
         (FakeParser(), DocumentParser),
         (FakeContentScanner(), ContentScanner),
         (FakeChunker(), Chunker),
@@ -107,13 +107,11 @@ async def test_fake_pipeline_parse_scan_chunk() -> None:
     assert drafts[0].embedding_text.startswith("Leave policy")
 
 
-async def test_fake_scanner_and_validator() -> None:
-    assert (await FakeMalwareScanner().scan(b"hello")).status is ScanStatus.CLEAN
-    assert (await FakeMalwareScanner().scan(b"xxKOS-FAKE-MALWARExx")).status is ScanStatus.INFECTED
-    assert FakeFileValidator().validate(b"", filename="a.txt").status is ValidationStatus.REJECTED
-    ok = FakeFileValidator().validate(b"hi", filename="a.txt")
-    assert ok.status is ValidationStatus.ACCEPTED
-    assert len(ok.sha256) == 64
+async def test_fake_scanner_follows_t23_contract() -> None:
+    scanner = FakeMalwareScanner()
+    assert (await scanner.scan(io.BytesIO(b"hello"))).status is MalwareScanStatus.CLEAN
+    infected = await scanner.scan(io.BytesIO(b"xxKOS-FAKE-MALWARExx"))
+    assert infected.status is MalwareScanStatus.INFECTED
 
 
 async def test_fake_object_store_round_trip() -> None:
@@ -216,3 +214,111 @@ async def test_stub_routes_answer_501_with_task(
     error = response.json()["error"]
     assert error["code"] == "not_implemented"
     assert error["details"] == {"task": task}
+
+
+# ----------------------------------------------------------------------------- review regressions
+
+
+def _block(order: int, block_id: str) -> Block:
+    return Block(block_id=block_id, type="paragraph", text="x", source_order=order)
+
+
+def _doc(blocks: list[Block]) -> CanonicalDocument:
+    return CanonicalDocument(
+        title="t", mime_type="text/plain", parser_name="p", parser_version="1", blocks=blocks
+    )
+
+
+def test_canonical_document_requires_increasing_order_and_unique_ids() -> None:
+    _doc([_block(0, "aaaaaaaa"), _block(1, "bbbbbbbb")])
+    with pytest.raises(ValidationError, match="strictly increasing"):
+        _doc([_block(1, "aaaaaaaa"), _block(1, "bbbbbbbb")])
+    with pytest.raises(ValidationError, match="duplicate block_id"):
+        _doc([_block(0, "aaaaaaaa"), _block(1, "aaaaaaaa")])
+
+
+def test_source_location_ranges_must_be_ordered() -> None:
+    SourceLocation(slide_start=2, slide_end=3, sheet="Q1", row_start=10, row_end=40)
+    with pytest.raises(ValidationError):
+        SourceLocation(row_start=40, row_end=10)
+
+
+def _ids() -> dict[str, uuid.UUID]:
+    return {k: uuid.uuid4() for k in ("chunk_id", "document_id", "document_version_id")}
+
+
+def test_candidate_and_alias_hashes_must_be_sha256() -> None:
+    with pytest.raises(ValidationError):
+        SourceAlias(alias="S1", title="t", version_number=1, content_hash="xyz", **_ids())
+    with pytest.raises(ValidationError):
+        Candidate(
+            knowledge_base_id=uuid.uuid4(),
+            ordinal=0,
+            title="t",
+            content="c",
+            content_hash="xyz",
+            token_count=1,
+            **_ids(),
+        )
+
+
+def test_slide_and_row_locations_flow_from_chunk_to_alias() -> None:
+    location = SourceLocation(slide_start=4, slide_end=4)
+    draft = ChunkDraft(
+        ordinal=0,
+        block_type="paragraph",
+        content="c",
+        embedding_text="c",
+        content_hash=HASH,
+        token_count=1,
+        location=location,
+    )
+    alias = SourceAlias(
+        alias="S1",
+        title="deck",
+        version_number=1,
+        content_hash=HASH,
+        location=draft.location,
+        **_ids(),
+    )
+    assert alias.location.slide_start == 4
+
+
+async def test_fake_search_branches_and_filters() -> None:
+    org, kb, keep_doc = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+
+    def chunk(doc: uuid.UUID, document_type: str, modified_on: date) -> IndexedChunk:
+        candidate = Candidate(
+            chunk_id=uuid.uuid4(),
+            document_id=doc,
+            document_version_id=uuid.uuid4(),
+            knowledge_base_id=kb,
+            ordinal=0,
+            title="t",
+            content="leave policy",
+            content_hash=HASH,
+            token_count=2,
+        )
+        return IndexedChunk(
+            candidate=candidate,
+            organization_id=org,
+            access_principals=frozenset({f"org:{org}"}),
+            document_type=document_type,
+            modified_on=modified_on,
+        )
+
+    backend = FakeSearchBackend(
+        [chunk(keep_doc, "policy", date(2026, 1, 5)), chunk(uuid.uuid4(), "faq", date(2024, 1, 1))]
+    )
+    scope = SearchScope(
+        organization_id=org, knowledge_base_ids=(kb,), principal_tokens=(f"org:{org}",)
+    )
+    for filters in (
+        QueryFilters(document_ids=(keep_doc,)),
+        QueryFilters(document_types=("policy",)),
+        QueryFilters(modified_from=date(2025, 1, 1)),
+    ):
+        request = HybridSearchRequest(scope=scope, query="leave", filters=filters)
+        hits = await backend.lexical_search(request)
+        assert [h.candidate.document_id for h in hits] == [keep_doc]
+    assert await backend.dense_search(HybridSearchRequest(scope=scope, query="leave")) == []

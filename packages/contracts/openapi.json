@@ -484,31 +484,12 @@
             "title": "Id",
             "type": "string"
           },
+          "location": {
+            "$ref": "#/components/schemas/SourceLocation"
+          },
           "ordinal": {
             "title": "Ordinal",
             "type": "integer"
-          },
-          "page_end": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Page End"
-          },
-          "page_start": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Page Start"
           },
           "section_path": {
             "items": {
@@ -527,8 +508,7 @@
           "ordinal",
           "token_count",
           "section_path",
-          "page_start",
-          "page_end",
+          "location",
           "block_ids"
         ],
         "title": "ChunkSummary",
@@ -1735,6 +1715,23 @@
         "title": "KnowledgeBasePermissions",
         "type": "object"
       },
+      "KnowledgeBasePermissionsUpdate": {
+        "description": "PUT body: the complete allow-only ACL. Server-owned propagation state isn't accepted.",
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/AclEntry"
+            },
+            "title": "Entries",
+            "type": "array"
+          }
+        },
+        "required": [
+          "entries"
+        ],
+        "title": "KnowledgeBasePermissionsUpdate",
+        "type": "object"
+      },
       "KnowledgeBaseUpdate": {
         "properties": {
           "description": {
@@ -2559,30 +2556,11 @@
             "title": "Knowledge Base Id",
             "type": "string"
           },
+          "location": {
+            "$ref": "#/components/schemas/SourceLocation"
+          },
           "match_type": {
             "$ref": "#/components/schemas/MatchType"
-          },
-          "page_end": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Page End"
-          },
-          "page_start": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Page Start"
           },
           "score": {
             "description": "Fused score (relative within one response only)",
@@ -2615,8 +2593,7 @@
           "section_path",
           "snippet",
           "match_type",
-          "page_start",
-          "page_end",
+          "location",
           "score"
         ],
         "title": "SearchHit",
@@ -2701,6 +2678,7 @@
             "type": "string"
           },
           "content_hash": {
+            "pattern": "^[0-9a-f]{64}$",
             "title": "Content Hash",
             "type": "string"
           },
@@ -2714,27 +2692,9 @@
             "title": "Document Version Id",
             "type": "string"
           },
-          "page_end": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Page End"
-          },
-          "page_start": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Page Start"
+          "location": {
+            "$ref": "#/components/schemas/SourceLocation",
+            "default": {}
           },
           "section_path": {
             "default": [],
@@ -2774,6 +2734,492 @@
           "content_hash"
         ],
         "title": "SourceAlias",
+        "type": "object"
+      },
+      "SourceLocation": {
+        "description": "Where a piece of evidence lives in its source, for citations and source navigation.\n\nAll numbers are 1-based and inclusive. PDFs/DOCX use pages, PPTX uses slides, XLSX/CSV use a\nsheet plus a row range. Ranges allow a chunk to span several pages/slides/rows.",
+        "properties": {
+          "page_end": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page End"
+          },
+          "page_start": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Start"
+          },
+          "row_end": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row End"
+          },
+          "row_start": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row Start"
+          },
+          "sheet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sheet"
+          },
+          "slide_end": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slide End"
+          },
+          "slide_start": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slide Start"
+          }
+        },
+        "title": "SourceLocation",
+        "type": "object"
+      },
+      "StreamAnswerDelta": {
+        "properties": {
+          "text": {
+            "description": "One or more complete sentences/blocks, never single characters",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "StreamAnswerDelta",
+        "type": "object"
+      },
+      "StreamAnswerDeltaEvent": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StreamAnswerDelta"
+          },
+          "event": {
+            "const": "answer_delta",
+            "title": "Event",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "data"
+        ],
+        "title": "StreamAnswerDeltaEvent",
+        "type": "object"
+      },
+      "StreamCitation": {
+        "properties": {
+          "alias": {
+            "title": "Alias",
+            "type": "string"
+          },
+          "chunk_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Chunk Id"
+          },
+          "valid": {
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "alias",
+          "valid"
+        ],
+        "title": "StreamCitation",
+        "type": "object"
+      },
+      "StreamCitationEvent": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StreamCitation"
+          },
+          "event": {
+            "const": "citation",
+            "title": "Event",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "data"
+        ],
+        "title": "StreamCitationEvent",
+        "type": "object"
+      },
+      "StreamDone": {
+        "properties": {
+          "abstain_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Abstain Reason"
+          },
+          "abstained": {
+            "title": "Abstained",
+            "type": "boolean"
+          },
+          "conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/ConflictNote"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "degraded": {
+            "default": false,
+            "title": "Degraded",
+            "type": "boolean"
+          },
+          "evidence_status": {
+            "$ref": "#/components/schemas/EvidenceStatus"
+          },
+          "timing": {
+            "$ref": "#/components/schemas/Timing",
+            "default": {
+              "generation_ms": null,
+              "rerank_ms": null,
+              "retrieval_ms": null,
+              "total_ms": null
+            }
+          },
+          "usage": {
+            "$ref": "#/components/schemas/Usage",
+            "default": {
+              "estimated": false,
+              "input_tokens": 0,
+              "output_tokens": 0
+            }
+          }
+        },
+        "required": [
+          "abstained",
+          "evidence_status"
+        ],
+        "title": "StreamDone",
+        "type": "object"
+      },
+      "StreamDoneEvent": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StreamDone"
+          },
+          "event": {
+            "const": "done",
+            "title": "Event",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "data"
+        ],
+        "title": "StreamDoneEvent",
+        "type": "object"
+      },
+      "StreamError": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "StreamError",
+        "type": "object"
+      },
+      "StreamErrorEvent": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StreamError"
+          },
+          "event": {
+            "const": "error",
+            "title": "Event",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "data"
+        ],
+        "title": "StreamErrorEvent",
+        "type": "object"
+      },
+      "StreamEvent": {
+        "description": "Any event of `POST /v1/knowledge-bases/{kb_id}/query/stream` (docs/api/sse-events.md).",
+        "discriminator": {
+          "mapping": {
+            "answer_delta": "#/components/schemas/StreamAnswerDeltaEvent",
+            "citation": "#/components/schemas/StreamCitationEvent",
+            "done": "#/components/schemas/StreamDoneEvent",
+            "error": "#/components/schemas/StreamErrorEvent",
+            "meta": "#/components/schemas/StreamMetaEvent",
+            "sources": "#/components/schemas/StreamSourcesEvent",
+            "stage": "#/components/schemas/StreamStageEvent"
+          },
+          "propertyName": "event"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/StreamMetaEvent"
+          },
+          {
+            "$ref": "#/components/schemas/StreamStageEvent"
+          },
+          {
+            "$ref": "#/components/schemas/StreamSourcesEvent"
+          },
+          {
+            "$ref": "#/components/schemas/StreamAnswerDeltaEvent"
+          },
+          {
+            "$ref": "#/components/schemas/StreamCitationEvent"
+          },
+          {
+            "$ref": "#/components/schemas/StreamDoneEvent"
+          },
+          {
+            "$ref": "#/components/schemas/StreamErrorEvent"
+          }
+        ],
+        "title": "StreamEvent"
+      },
+      "StreamMeta": {
+        "properties": {
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Model"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "query_run_id": {
+            "format": "uuid",
+            "title": "Query Run Id",
+            "type": "string"
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Trace Id"
+          }
+        },
+        "required": [
+          "query_run_id"
+        ],
+        "title": "StreamMeta",
+        "type": "object"
+      },
+      "StreamMetaEvent": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StreamMeta"
+          },
+          "event": {
+            "const": "meta",
+            "title": "Event",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "data"
+        ],
+        "title": "StreamMetaEvent",
+        "type": "object"
+      },
+      "StreamSources": {
+        "properties": {
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceAlias"
+            },
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sources"
+        ],
+        "title": "StreamSources",
+        "type": "object"
+      },
+      "StreamSourcesEvent": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StreamSources"
+          },
+          "event": {
+            "const": "sources",
+            "title": "Event",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "data"
+        ],
+        "title": "StreamSourcesEvent",
+        "type": "object"
+      },
+      "StreamStage": {
+        "properties": {
+          "candidates": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Candidates"
+          },
+          "elapsed_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Elapsed Ms"
+          },
+          "stage": {
+            "enum": [
+              "retrieval.started",
+              "retrieval.completed",
+              "rerank.started",
+              "rerank.completed",
+              "generation.started"
+            ],
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage"
+        ],
+        "title": "StreamStage",
+        "type": "object"
+      },
+      "StreamStageEvent": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StreamStage"
+          },
+          "event": {
+            "const": "stage",
+            "title": "Event",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "data"
+        ],
+        "title": "StreamStageEvent",
         "type": "object"
       },
       "TableData": {
@@ -5151,6 +5597,39 @@
           },
           {
             "in": "query",
+            "name": "document_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Document Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "classification",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Classification"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Classification"
+            }
+          },
+          {
+            "in": "query",
             "name": "sort",
             "required": false,
             "schema": {
@@ -5609,7 +6088,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/KnowledgeBasePermissions"
+                "$ref": "#/components/schemas/KnowledgeBasePermissionsUpdate"
               }
             }
           },
@@ -5829,7 +6308,11 @@
         "responses": {
           "200": {
             "content": {
-              "text/event-stream": {}
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/StreamEvent"
+                }
+              }
             },
             "description": "SSE stream: meta, stage, sources, answer_delta, citation, done, error (docs/api/sse-events.md)"
           },
@@ -6252,6 +6735,28 @@
       "post": {
         "description": "Create an organization; the caller becomes its owner. Supports `Idempotency-Key`.",
         "operationId": "organizations_create_organization",
+        "parameters": [
+          {
+            "description": "Client-generated unique key (e.g. a UUID). Retrying with the same key and body returns the original response instead of repeating the operation (plan §26.1).",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client-generated unique key (e.g. a UUID). Retrying with the same key and body returns the original response instead of repeating the operation (plan §26.1).",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -7751,6 +8256,26 @@
               "format": "uuid",
               "title": "X-Organization-Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Client-generated unique key (e.g. a UUID). Retrying with the same key and body returns the original response instead of repeating the operation (plan §26.1).",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client-generated unique key (e.g. a UUID). Retrying with the same key and body returns the original response instead of repeating the operation (plan §26.1).",
+              "title": "Idempotency-Key"
             }
           }
         ],

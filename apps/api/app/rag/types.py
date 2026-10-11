@@ -12,6 +12,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.ingestion.canonical import SHA256_PATTERN, SourceLocation
+
 
 class Branch(StrEnum):
     DENSE = "dense"
@@ -31,10 +33,9 @@ class Candidate(BaseModel):
     title: str
     section_path: tuple[str, ...] = ()
     content: str
-    content_hash: str
+    content_hash: str = Field(pattern=SHA256_PATTERN)
     token_count: int
-    page_start: int | None = None
-    page_end: int | None = None
+    location: SourceLocation = SourceLocation()
     version_number: int = 1
     source_url: str | None = None
 
@@ -68,10 +69,9 @@ class SourceAlias(BaseModel):
     title: str
     version_number: int
     section_path: tuple[str, ...] = ()
-    page_start: int | None = None
-    page_end: int | None = None
+    location: SourceLocation = SourceLocation()
     source_url: str | None = None
-    content_hash: str
+    content_hash: str = Field(pattern=SHA256_PATTERN)
 
 
 class EvidenceItem(BaseModel):

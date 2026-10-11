@@ -11,7 +11,7 @@ from typing import Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.ingestion.canonical import BlockType, CanonicalDocument
+from app.ingestion.canonical import SHA256_PATTERN, BlockType, CanonicalDocument, SourceLocation
 
 
 class ChunkerConfig(BaseModel):
@@ -42,14 +42,9 @@ class ChunkDraft(BaseModel):
     section_path: list[str] = Field(default_factory=list)
     content: str = Field(description="Display/generation text: the source body, not rewritten")
     embedding_text: str = Field(description="Title + section path + labels + body (plan §12.3)")
-    content_hash: str = Field(pattern=r"^[0-9a-f]{64}$", description="sha256 of `content`")
+    content_hash: str = Field(pattern=SHA256_PATTERN, description="sha256 of `content`")
     token_count: int = Field(ge=0)
-    page_start: int | None = Field(default=None, ge=1)
-    page_end: int | None = Field(default=None, ge=1)
-    slide: int | None = Field(default=None, ge=1)
-    sheet: str | None = None
-    row_start: int | None = Field(default=None, ge=1)
-    row_end: int | None = Field(default=None, ge=1)
+    location: SourceLocation = SourceLocation()
     identifiers: list[str] = Field(
         default_factory=list, description="Exact identifiers found, e.g. 'HR-142-B' (lexical boost)"
     )

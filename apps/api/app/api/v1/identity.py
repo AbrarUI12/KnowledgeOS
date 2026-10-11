@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
-from app.api.v1._stub import ERRORS, stub
+from app.api.v1._stub import ERRORS, IdempotencyKeyHeader, stub
 from app.domain.schemas.common import Page
 from app.domain.schemas.identity import (
     GroupCreate,
@@ -46,7 +46,9 @@ async def list_organizations() -> list[OrganizationOut]:
     response_model=OrganizationOut,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_organization(body: OrganizationCreate) -> OrganizationOut:
+async def create_organization(
+    body: OrganizationCreate, idempotency_key: IdempotencyKeyHeader = None
+) -> OrganizationOut:
     """Create an organization; the caller becomes its owner. Supports `Idempotency-Key`."""
     stub("T1.3")
 

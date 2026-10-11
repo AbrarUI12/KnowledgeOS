@@ -7,8 +7,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
-from app.api.v1._stub import ERRORS, OrgIdHeader, stub
-from app.domain.enums import DocumentStatus, IngestionState
+from app.api.v1._stub import ERRORS, IdempotencyKeyHeader, OrgIdHeader, stub
+from app.domain.enums import Classification, DocumentStatus, IngestionState
 from app.domain.schemas.common import Page
 from app.domain.schemas.knowledge import (
     ApprovalDecision,
@@ -23,6 +23,7 @@ from app.domain.schemas.knowledge import (
     KnowledgeBaseCreate,
     KnowledgeBaseOut,
     KnowledgeBasePermissions,
+    KnowledgeBasePermissionsUpdate,
     KnowledgeBaseUpdate,
     UploadComplete,
     UploadCompleted,
@@ -93,7 +94,7 @@ async def get_knowledge_base_permissions(
     response_model=KnowledgeBasePermissions,
 )
 async def set_knowledge_base_permissions(
-    org: OrgIdHeader, kb_id: uuid.UUID, body: KnowledgeBasePermissions
+    org: OrgIdHeader, kb_id: uuid.UUID, body: KnowledgeBasePermissionsUpdate
 ) -> KnowledgeBasePermissions:
     """Replace the allow-only ACL (`kb.manage`). Emits `acl.changed`; chunks update
     asynchronously."""
@@ -125,7 +126,10 @@ async def create_upload(org: OrgIdHeader, kb_id: uuid.UUID, body: UploadCreate) 
 
 @router.post("/uploads/{upload_id}/complete", tags=["uploads"], response_model=UploadCompleted)
 async def complete_upload(
-    org: OrgIdHeader, upload_id: uuid.UUID, body: UploadComplete
+    org: OrgIdHeader,
+    upload_id: uuid.UUID,
+    body: UploadComplete,
+    idempotency_key: IdempotencyKeyHeader = None,
 ) -> UploadCompleted:
     """Verify the uploaded object and create document + version + ingestion job atomically.
     Supports `Idempotency-Key`."""
@@ -144,6 +148,8 @@ async def list_documents(
     cursor: Cursor = None,
     limit: Limit = 50,
     status_filter: Annotated[DocumentStatus | None, Query(alias="status")] = None,
+    document_type: Annotated[str | None, Query(max_length=64)] = None,
+    classification: Annotated[Classification | None, Query()] = None,
     sort: Annotated[str, Query(pattern=r"^-?(title|created_at|updated_at)$")] = "-updated_at",
 ) -> Page[DocumentOut]:
     stub("T2.4")

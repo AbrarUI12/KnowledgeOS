@@ -11,6 +11,17 @@ from app.domain.schemas.common import ORG_HEADER, ORG_HEADER_DESCRIPTION, ErrorE
 
 OrgIdHeader = Annotated[uuid.UUID, Header(alias=ORG_HEADER, description=ORG_HEADER_DESCRIPTION)]
 
+IdempotencyKeyHeader = Annotated[
+    str | None,
+    Header(
+        alias="Idempotency-Key",
+        min_length=8,
+        max_length=200,
+        description="Client-generated unique key (e.g. a UUID). Retrying with the same key and "
+        "body returns the original response instead of repeating the operation (plan §26.1).",
+    ),
+]
+
 ERRORS: dict[int | str, dict[str, Any]] = {
     401: {"model": ErrorEnvelope, "description": "Missing or invalid token"},
     403: {"model": ErrorEnvelope, "description": "Missing permission"},

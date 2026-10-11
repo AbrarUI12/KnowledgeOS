@@ -75,7 +75,17 @@ class HybridSearchResult(BaseModel):
 
 @runtime_checkable
 class SearchBackend(Protocol):
-    async def hybrid_search(self, request: HybridSearchRequest) -> HybridSearchResult: ...
+    async def dense_search(self, request: HybridSearchRequest) -> list[RankedHit]:
+        """Vector branch only (uses `query_embedding`; empty if it's None). Ranks are 1-based."""
+        ...
+
+    async def lexical_search(self, request: HybridSearchRequest) -> list[RankedHit]:
+        """Full-text/identifier branch only. Ranks are 1-based."""
+        ...
+
+    async def hybrid_search(self, request: HybridSearchRequest) -> HybridSearchResult:
+        """Both branches (concurrently), unfused, with degraded flags if one branch failed."""
+        ...
 
     async def neighbors(
         self, scope: SearchScope, chunk_id: uuid.UUID, *, before: int = 1, after: int = 1

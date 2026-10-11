@@ -7,11 +7,12 @@ source of truth for that document.
 
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, RootModel
 
 from app.domain.enums import EvidenceStatus, FeedbackRating, MatchType
+from app.ingestion.canonical import SourceLocation
 from app.providers.search.base import QueryFilters
 from app.rag.types import SourceAlias, Usage
 
@@ -38,8 +39,7 @@ class SearchHit(BaseModel):
     section_path: list[str]
     snippet: str = Field(description="Plain text; matched terms wrapped in «…» markers")
     match_type: MatchType
-    page_start: int | None
-    page_end: int | None
+    location: SourceLocation
     score: float = Field(description="Fused score (relative within one response only)")
 
 
@@ -206,3 +206,60 @@ class StreamDone(BaseModel):
 class StreamError(BaseModel):
     code: str
     message: str
+
+
+# One SSE frame = `event: <name>` + `data: <payload JSON>`. These envelopes exist so the event
+# vocabulary is part of the OpenAPI contract (components "StreamEvent*"); the wire format sends
+# `event` as the SSE event name and `data` as the JSON payload.
+
+
+class StreamMetaEvent(BaseModel):
+    event: Literal["meta"]
+    data: StreamMeta
+
+
+class StreamStageEvent(BaseModel):
+    event: Literal["stage"]
+    data: StreamStage
+
+
+class StreamSourcesEvent(BaseModel):
+    event: Literal["sources"]
+    data: StreamSources
+
+
+class StreamAnswerDeltaEvent(BaseModel):
+    event: Literal["answer_delta"]
+    data: StreamAnswerDelta
+
+
+class StreamCitationEvent(BaseModel):
+    event: Literal["citation"]
+    data: StreamCitation
+
+
+class StreamDoneEvent(BaseModel):
+    event: Literal["done"]
+    data: StreamDone
+
+
+class StreamErrorEvent(BaseModel):
+    event: Literal["error"]
+    data: StreamError
+
+
+class StreamEvent(
+    RootModel[
+        Annotated[
+            StreamMetaEvent
+            | StreamStageEvent
+            | StreamSourcesEvent
+            | StreamAnswerDeltaEvent
+            | StreamCitationEvent
+            | StreamDoneEvent
+            | StreamErrorEvent,
+            Field(discriminator="event"),
+        ]
+    ]
+):
+    """Any event of `POST /v1/knowledge-bases/{kb_id}/query/stream` (docs/api/sse-events.md)."""

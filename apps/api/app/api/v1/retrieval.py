@@ -6,6 +6,7 @@ import uuid
 from fastapi import APIRouter, status
 from fastapi.responses import StreamingResponse
 
+from app.api.openapi import STREAM_EVENT_REF
 from app.api.v1._stub import ERRORS, OrgIdHeader, stub
 from app.domain.schemas.retrieval import (
     AnswerOut,
@@ -47,7 +48,7 @@ async def query_knowledge_base(org: OrgIdHeader, kb_id: uuid.UUID, body: QueryRe
     response_class=StreamingResponse,
     responses={
         200: {
-            "content": {"text/event-stream": {}},
+            "content": {"text/event-stream": {"schema": {"$ref": STREAM_EVENT_REF}}},
             "description": "SSE stream: meta, stage, sources, answer_delta, citation, done, error "
             "(docs/api/sse-events.md)",
         }
