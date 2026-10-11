@@ -49,7 +49,7 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** reviewing Claude's T1.0 contracts in PR #11
+- **Current task:** T2.2 ObjectStore providers (S3/MinIO/B2 + in-memory)
 - **Last finished:** T2.3 file-safety validation & malware scanners (2026-10-12, PR #10)
 - **Blockers:** none
 - **Recent:**
