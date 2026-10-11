@@ -31,6 +31,7 @@ Every error response uses one envelope:
 | 422 | `validation_failed` | Body/query validation failed; `details.errors[]` has `loc`, `msg`, `type` |
 | 429 | `rate_limited` | Too many requests (`Retry-After` header when known) |
 | 500 | `internal_error` | Unexpected server error |
+| 501 | `not_implemented` | Contract stub (T1.0): endpoint exists with its final schema; `details.task` names the task implementing it |
 | 503 | `service_unavailable` | A dependency is unavailable |
 
 Domain-specific codes (uploads, ingestion, retrieval) are added here as sessions introduce them.

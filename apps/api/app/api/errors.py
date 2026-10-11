@@ -58,6 +58,15 @@ class RateLimited(AppError):
     status_code, code, message = 429, "rate_limited", "Too many requests."
 
 
+class NotImplementedYet(AppError):
+    """Contract stub (T1.0): the endpoint exists with its final schema but isn't implemented yet."""
+
+    status_code, code, message = 501, "not_implemented", "This endpoint is not implemented yet."
+
+    def __init__(self, task: str) -> None:
+        super().__init__(f"Not implemented yet (task {task}).", details={"task": task})
+
+
 class ServiceUnavailable(AppError):
     status_code, code, message = 503, "service_unavailable", "A dependency is unavailable."
 
@@ -72,6 +81,7 @@ _HTTP_STATUS_CODES: dict[int, str] = {
     413: "payload_too_large",
     415: "unsupported_media_type",
     429: "rate_limited",
+    501: "not_implemented",
 }
 
 

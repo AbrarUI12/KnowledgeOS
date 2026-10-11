@@ -40,19 +40,20 @@
 
 ### Claude: architect · security/DB/integration · reviewer
 - **Worktree / ports:** `D:\projects\kos-claude` · API 8000 · web 3000
-- **Current task:** T1.0 contracts (wave 0)
-- **Last finished:** T0.1 multi-agent workflow bootstrap (2026-10-12)
+- **Current task:** T1.1 OIDC authentication (backend)
+- **Last finished:** T1.0 contracts (2026-10-12, PR #11, Codex review PASS)
 - **Blockers:** none
 - **Recent:**
-  - 2026-10-12 · T0.1 · docs/AI_CONTEXT, ARCHITECTURE, TASKS, DECISIONS, TESTING, AGENT_WORKFLOW; worktrees; ports
+  - 2026-10-12 · T1.0 · PR #11 (merged; scanner/validator contract = T2.3's API): 11 provider Protocols + core models + 49 stub endpoints (501) + OpenAPI in `packages/contracts/openapi.json` + fakes in `tests/fakes/` + `docs/api/sse-events.md`
+  - 2026-10-12 · T0.1 · PR #9: docs/AI_CONTEXT, ARCHITECTURE, TASKS, DECISIONS, TESTING, AGENT_WORKFLOW; worktrees; ports
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T2.3 file-safety validation & malware scanners (wave 0)
-- **Last finished:** –
+- **Current task:** reviewing Claude's T1.0 contracts in PR #11
+- **Last finished:** T2.3 file-safety validation & malware scanners (2026-10-12, PR #10)
 - **Blockers:** none
 - **Recent:**
-  - –
+  - 2026-10-12 · T2.3 · strict file validator, valid-format fixtures, ClamAV/Noop scanners · PR #10
 
 ### Cline: UI pages · scripts · local QA
 - **Worktree / ports:** `D:\projects\kos-cline` · API 8200 · web 3200
@@ -599,5 +600,5 @@ All deviations (DV-001…) now live in **[`docs/DECISIONS.md`](docs/DECISIONS.md
 | Redis (local container) | Celery broker, rate limits | `REDIS_PORT`, `REDIS_URL` | local | S02 |
 | MinIO (local container) | Object storage | `S3_ENDPOINT_URL`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_QUARANTINE`, `S3_BUCKET_TRUSTED`, `S3_BUCKET_ARTIFACTS`, `S3_PUBLIC_ENDPOINT_URL`, `S3_REGION`, `S3_FORCE_PATH_STYLE`, `MINIO_PORT`, `MINIO_CONSOLE_PORT` | local | S02 |
 | Keycloak (local container) | OIDC | `KEYCLOAK_PORT`, `KEYCLOAK_ADMIN(_PASSWORD)`, `KEYCLOAK_DB_PASSWORD`, `OIDC_ISSUER`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL`, `OIDC_WEB_CLIENT_ID`, `OIDC_WEB_CLIENT_SECRET`, `OIDC_CLI_CLIENT_ID` | local | S02 |
-| Mailpit / ClamAV (local containers) | Email, malware scan | `SMTP_HOST`, `SMTP_PORT`, `MAILPIT_UI_PORT`, `CLAMAV_HOST`, `CLAMAV_PORT`, `WEB_ORIGIN` | local | S02 |
+| Mailpit / ClamAV (local containers) | Email, malware scan | `SMTP_HOST`, `SMTP_PORT`, `MAILPIT_UI_PORT`, `CLAMAV_HOST`, `CLAMAV_PORT`, `CLAMAV_TIMEOUT_SECONDS`, `CLAMAV_MAX_STREAM_BYTES`, `REQUIRE_MALWARE_SCAN`, `WEB_ORIGIN` | local | S02, S14 |
 | *(more rows added as sessions introduce services: Neon, B2, Auth0, HF, Vercel, Groq, Gemini, Langfuse, Grafana Cloud, Google Drive OAuth)* | | | | |

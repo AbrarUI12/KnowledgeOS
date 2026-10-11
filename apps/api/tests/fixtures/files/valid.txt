@@ -1,0 +1,1 @@
+KnowledgeOS valid plain-text fixture.
