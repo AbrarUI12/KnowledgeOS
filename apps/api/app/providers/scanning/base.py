@@ -1,40 +1,30 @@
-"""Contract: malware scanning (T1.0). Implementations: ClamAV + Noop (Codex, T2.3).
+"""Malware scanner contract and result types."""
 
-Scanners receive raw bytes (callers enforce size limits before scanning) and never raise for an
-infected file: infection is a normal result. They raise only for operational failures, using
-`ScannerUnavailableError` so callers can classify the failure as retryable.
-"""
+from __future__ import annotations
 
 from enum import StrEnum
-from typing import Protocol, runtime_checkable
+from typing import BinaryIO, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict
 
 
-class ScanStatus(StrEnum):
+class MalwareScanStatus(StrEnum):
     CLEAN = "clean"
     INFECTED = "infected"
-    SKIPPED = "skipped"  # no scanner configured (NoopScanner); rejected when a scan is required
+    SKIPPED = "skipped"
+    ERROR = "error"
 
 
-class ScanResult(BaseModel):
+class MalwareScanResult(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    status: ScanStatus
-    scanner: str  # e.g. "clamav", "noop"
-    signature: str | None = None  # malware name when INFECTED; never document content
-    detail: str | None = None  # safe, human-readable note (no paths, no secrets)
-
-
-class ScannerUnavailableError(RuntimeError):
-    """The scanner couldn't be reached or timed out (retryable for the ingestion job)."""
+    status: MalwareScanStatus
+    threat: str | None = None
+    reason: str | None = None
 
 
 @runtime_checkable
 class MalwareScanner(Protocol):
-    @property
-    def name(self) -> str: ...
-
-    async def scan(self, data: bytes, *, filename: str | None = None) -> ScanResult:
-        """Scan `data`: INFECTED/CLEAN/SKIPPED; raises ScannerUnavailableError on failure."""
+    async def scan(self, stream: BinaryIO) -> MalwareScanResult:
+        """Scan an untrusted binary stream and return a fail-closed typed result."""
         ...
