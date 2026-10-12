@@ -417,3 +417,109 @@ async def test_tenant_session_helper_scopes_workers_to_one_org(
             assert (await session.execute(text("SELECT count(*) FROM groups"))).scalar_one() == 0
     finally:
         await engine.dispose()
+
+
+async def test_knowledge_tables_are_isolated_per_org(
+    admin: asyncpg.Connection, app_conn: asyncpg.Connection, tenants: tuple[Tenant, Tenant]
+) -> None:
+    """T2.1: knowledge rows of org B are invisible and unwritable in org A's context."""
+    acme, globex = tenants
+    kb = await admin.fetchval(
+        "INSERT INTO knowledge_bases (id, organization_id, name, slug) "
+        "VALUES ($1, $2, 'Secrets', 'secrets') RETURNING id",
+        uuid.uuid4(),
+        globex.org,
+    )
+    source = await admin.fetchval(
+        "INSERT INTO data_sources (id, organization_id, knowledge_base_id, type, name) "
+        "VALUES ($1, $2, $3, 'upload', 'Uploads') RETURNING id",
+        uuid.uuid4(),
+        globex.org,
+        kb,
+    )
+    await admin.execute(
+        "INSERT INTO documents (id, organization_id, knowledge_base_id, source_id, title) "
+        "VALUES ($1, $2, $3, $4, 'Salaries')",
+        uuid.uuid4(),
+        globex.org,
+        kb,
+        source,
+    )
+    await admin.execute(
+        "INSERT INTO outbox_events (id, organization_id, event_type, aggregate_type, aggregate_id) "
+        "VALUES ($1, $2, 'acl.changed', 'knowledge_base', $3)",
+        uuid.uuid4(),
+        globex.org,
+        str(kb),
+    )
+
+    async with context(app_conn, acme.org, acme.user) as c:
+        for table in ("knowledge_bases", "data_sources", "documents", "outbox_events"):
+            assert await c.fetchval(f"SELECT count(*) FROM {table}") == 0, table  # noqa: S608
+    # A composite FK can't point an org-A document at org B's knowledge base either.
+    with pytest.raises((asyncpg.ForeignKeyViolationError, asyncpg.InsufficientPrivilegeError)):
+        async with context(app_conn, acme.org, acme.user) as c:
+            await c.execute(
+                "INSERT INTO documents (id, organization_id, knowledge_base_id, source_id, title) "
+                "VALUES ($1, $2, $3, $4, 'Planted')",
+                uuid.uuid4(),
+                acme.org,
+                kb,
+                source,
+            )
+
+
+async def test_active_version_must_belong_to_the_document_and_org(
+    admin: asyncpg.Connection, app_conn: asyncpg.Connection, tenants: tuple[Tenant, Tenant]
+) -> None:
+    """Review #25 (HIGH): documents.active_version_id can't point at another document's or another
+    organization's version, even though FK checks bypass RLS on the referenced row."""
+    acme, globex = tenants
+
+    async def make_doc(org: uuid.UUID) -> tuple[uuid.UUID, uuid.UUID]:
+        kb = await admin.fetchval(
+            "INSERT INTO knowledge_bases (id, organization_id, name, slug) "
+            "VALUES ($1, $2, 'K', $3) RETURNING id",
+            uuid.uuid4(),
+            org,
+            f"k-{uuid.uuid4().hex[:6]}",
+        )
+        source = await admin.fetchval(
+            "INSERT INTO data_sources (id, organization_id, knowledge_base_id, type, name) "
+            "VALUES ($1, $2, $3, 'upload', 'U') RETURNING id",
+            uuid.uuid4(),
+            org,
+            kb,
+        )
+        doc = await admin.fetchval(
+            "INSERT INTO documents (id, organization_id, knowledge_base_id, source_id, title) "
+            "VALUES ($1, $2, $3, $4, 'D') RETURNING id",
+            uuid.uuid4(),
+            org,
+            kb,
+            source,
+        )
+        version = await admin.fetchval(
+            "INSERT INTO document_versions (id, organization_id, document_id, version_number) "
+            "VALUES ($1, $2, $3, 1) RETURNING id",
+            uuid.uuid4(),
+            org,
+            doc,
+        )
+        return doc, version
+
+    doc_a, version_a = await make_doc(acme.org)
+    _, other_version_a = await make_doc(acme.org)
+    _, version_b = await make_doc(globex.org)
+
+    async with context(app_conn, acme.org, acme.user) as c:
+        await c.execute(
+            "UPDATE documents SET active_version_id = $1 WHERE id = $2", version_a, doc_a
+        )
+
+    for foreign in (other_version_a, version_b):
+        with pytest.raises(asyncpg.ForeignKeyViolationError):
+            async with context(app_conn, acme.org, acme.user) as c:
+                await c.execute(
+                    "UPDATE documents SET active_version_id = $1 WHERE id = $2", foreign, doc_a
+                )

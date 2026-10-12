@@ -196,7 +196,7 @@ async def test_fake_reranker_scores_overlap() -> None:
 @pytest.mark.parametrize(
     ("method", "path", "task"),
     [
-        ("GET", "/v1/knowledge-bases", "T2.1"),
+        ("GET", "/v1/documents/{id}", "T2.4"),
         ("POST", "/v1/knowledge-bases/{id}/search", "T4.6"),
         ("POST", "/v1/knowledge-bases/{id}/query", "T5.3"),
     ],
