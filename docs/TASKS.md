@@ -49,7 +49,7 @@
 | ID | Task | Wave | Session | Status | Branch | PR |
 |---|---|---|---|---|---|---|
 | T2.3 | File-safety validation & malware scanners | 0 | S14 | DONE | ai/codex-t2.3-file-validation | #10 |
-| T2.2 | ObjectStore providers (S3/MinIO/B2 + in-memory) | 1 | S13 | TODO | | |
+| T2.2 | ObjectStore providers (S3/MinIO/B2 + in-memory) | 1 | S13 | DONE | ai/codex-t2.2-object-store | #14 |
 | T1.4 | Frontend auth, typed API client & app shell | 1 | S10, S11 | TODO | | |
 | T3.2 | Docling parser library (PDF/DOCX/HTML/MD) | 2 | S17 | TODO | | |
 | T3.3 | Office/tabular formats, OCR & normalization library | 3 | S18 | TODO | | |
@@ -65,9 +65,9 @@
 
 | ID | Task | Wave | Session | Status | Branch | PR |
 |---|---|---|---|---|---|---|
-| T4.5 | Demo corpus file generator | 0 | S25 | TODO | | |
-| T1.8 | `scripts/get_token.py` | 0 | S07 | TODO | | |
-| T4.3 | RRF fusion module | 1 | S24 | TODO | | |
+| T4.5 | Demo corpus file generator | 0 | S25 | DONE | ai/cline-t4.5-demo-corpus | #12 |
+| T1.8 | `scripts/get_token.py` | 0 | S07 | DONE | ai/cline-t4.5-demo-corpus | #12 |
+| T4.3 | RRF fusion module | 1 | S24 | REVIEW | ai/cline-t4.3-rrf-fusion | #16 |
 | T1.5 | Command palette, shortcuts, status center | 2 | S11 | TODO | | |
 | T1.6 | Access pages: Members & Groups | 2 | S11 | TODO | | |
 | T1.7 | Playwright E2E harness + first journeys | 2 | S11 | TODO | | |

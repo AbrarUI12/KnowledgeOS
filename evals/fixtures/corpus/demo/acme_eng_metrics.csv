@@ -1,0 +1,5 @@
+Service Metrics
+Service,Uptime %,Avg Response (ms),Error Rate %
+api,99.95,45,0.02
+web,99.90,120,0.05
+worker,99.85,200,0.08
