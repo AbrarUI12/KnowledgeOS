@@ -17,7 +17,7 @@ describe("demo walkthrough", () => {
   it("filters sample passages and reports an empty search", async () => {
     const user = userEvent.setup();
     render(<DemoWalkthrough />);
-    await user.click(screen.getByRole("button", { name: "Search", exact: true }));
+    await user.click(screen.getByRole("button", { name: /^Search$/ }));
     await user.type(screen.getByRole("searchbox"), "on-call");
     expect(screen.getByRole("status")).toHaveTextContent("1 sample results");
     expect(screen.getByRole("button", { name: "Engineering runbook" })).toBeInTheDocument();
