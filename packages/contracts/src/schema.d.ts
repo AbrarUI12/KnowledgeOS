@@ -271,7 +271,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Accept Invitation */
+        /**
+         * Accept Invitation
+         * @description Join the inviting organization. The signed-in email must match the invitation
+         *     (403 `invitation_email_mismatch`); 410 `invitation_expired`.
+         */
         post: operations["invitations_accept_invitation"];
         delete?: never;
         options?: never;
@@ -507,7 +511,8 @@ export interface paths {
         put?: never;
         /**
          * Create Organization
-         * @description Create an organization; the caller becomes its owner. Supports `Idempotency-Key`.
+         * @description Create an organization; the caller becomes its owner (409 `slug_taken`).
+         *     Supports `Idempotency-Key`.
          */
         post: operations["organizations_create_organization"];
         delete?: never;
@@ -526,7 +531,10 @@ export interface paths {
         /** List Groups */
         get: operations["groups_list_groups"];
         put?: never;
-        /** Create Group */
+        /**
+         * Create Group
+         * @description Create a group (`groups.manage`; 409 `group_name_taken`). Supports `Idempotency-Key`.
+         */
         post: operations["groups_create_group"];
         delete?: never;
         options?: never;
@@ -598,7 +606,9 @@ export interface paths {
         put?: never;
         /**
          * Create Invitation
-         * @description Invite by email; returns a one-time `accept_url` (the token is stored hashed).
+         * @description Invite by email (`members.manage`); returns a one-time `accept_url` (the token is stored
+         *     hashed). 409 `already_member`. No `Idempotency-Key`: a replay would have to persist the token.
+         *     A retry instead issues a fresh link and revokes the earlier pending one.
          */
         post: operations["invitations_create_invitation"];
         delete?: never;
@@ -614,7 +624,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Members */
+        /**
+         * List Members
+         * @description Members of the organization (any member may list them).
+         */
         get: operations["members_list_members"];
         put?: never;
         post?: never;
@@ -634,13 +647,17 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Remove Member */
+        /**
+         * Remove Member
+         * @description Remove a member and their group memberships (`members.manage`; 409 `last_owner`).
+         */
         delete: operations["members_remove_member"];
         options?: never;
         head?: never;
         /**
          * Update Member
-         * @description Change a member's role (`members.manage`). The last owner can't be demoted (409).
+         * @description Change a member's role (`members.manage`). Granting or removing `owner` needs
+         *     `org.manage`; the last owner can't be demoted (409 `last_owner`).
          */
         patch: operations["members_update_member"];
         trace?: never;
@@ -4539,7 +4556,10 @@ export interface operations {
     groups_create_group: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated unique key (e.g. a UUID). Retrying with the same key and body returns the original response instead of repeating the operation (plan §26.1). */
+                "Idempotency-Key"?: string | null;
+            };
             path: {
                 org_id: string;
             };
