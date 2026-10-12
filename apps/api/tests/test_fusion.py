@@ -126,7 +126,9 @@ class TestFusionOrderingAndScoring:
         ]
         result = reciprocal_rank_fusion(dense, [])
         scores = [h.fused_score for h in result]
-        assert scores == sorted(scores, reverse=True)
+        assert None not in scores
+        floats = [s for s in scores if s is not None]
+        assert floats == sorted(floats, reverse=True)
         assert [h.chunk_id for h in result] == [uid(3), uid(1), uid(4), uid(2)]
 
     def test_deterministic_tie_break_by_chunk_id(self) -> None:
@@ -242,12 +244,6 @@ class TestFusionPerDocumentCap:
         assert [h.candidate.ordinal for h in result] == [1, 2, 3]
         # The fourth chunk is dropped even though it is a distinct content hash.
         assert uid(4) not in {h.chunk_id for h in result}
-
-    def test_surviving_chunks_are_ordinally_contiguous(self) -> None:
-        """The per-document survivors form a contiguous ordinal run (no gaps)."""
-        result = reciprocal_rank_fusion(self._same_doc_dense(5), [])
-        ordinals = [h.candidate.ordinal for h in result]
-        assert ordinals == list(range(ordinals[0], ordinals[0] + len(ordinals)))
 
     def test_custom_max_per_document(self) -> None:
         """A tighter cap keeps fewer chunks from the same document."""
@@ -407,3 +403,31 @@ class TestFusionConfig:
         cfg = FusionConfig()
         with pytest.raises(ValidationError):
             cfg.k0 = 10  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# Input validation (precondition violations must fail loudly, not mis-rank)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestFusionInputValidation:
+    def test_duplicate_chunk_in_one_branch_is_rejected(self) -> None:
+        c = make_candidate(chunk_id=uid(1), document_id=uid(100), content_hash=make_hash("a"))
+        with pytest.raises(ValueError, match="duplicate chunk"):
+            reciprocal_rank_fusion([dense_hit(c, 1), dense_hit(c, 2)], [])
+        with pytest.raises(ValueError, match="duplicate chunk"):
+            reciprocal_rank_fusion([], [lexical_hit(c, 1), lexical_hit(c, 2)])
+
+    def test_missing_branch_rank_is_rejected(self) -> None:
+        c = make_candidate(chunk_id=uid(1), document_id=uid(100), content_hash=make_hash("a"))
+        with pytest.raises(ValueError, match="dense_rank"):
+            reciprocal_rank_fusion([RankedHit(candidate=c)], [])
+        with pytest.raises(ValueError, match="lexical_rank"):
+            reciprocal_rank_fusion([], [RankedHit(candidate=c, dense_rank=1)])
+
+    @pytest.mark.parametrize("rank", [0, -1])
+    def test_rank_below_one_is_rejected(self, rank: int) -> None:
+        c = make_candidate(chunk_id=uid(1), document_id=uid(100), content_hash=make_hash("a"))
+        with pytest.raises(ValueError, match=">= 1"):
+            reciprocal_rank_fusion([dense_hit(c, rank)], [])

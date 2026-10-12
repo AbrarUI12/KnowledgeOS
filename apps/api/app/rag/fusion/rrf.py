@@ -13,9 +13,9 @@ survivors:
 - **near-duplicate cap by content hash** — at most ``max_per_content_hash`` chunks sharing a
   ``content_hash`` survive, so duplicated passages cannot flood the reranker input;
 - **per-document cap** — at most ``max_per_document`` chunks from a single document survive, so one
-  long document cannot monopolise results. The cap is intentionally greater than one so that
-  ordinally contiguous chunks from a promising document can all survive, preserving the
-  same-document continuity needed for answers that span paragraphs.
+  long document cannot monopolise results. The default is greater than one, so several passages of
+  a promising document can survive; adjacent-chunk expansion itself happens later, in the context
+  packer's neighbor callback (T5.1).
 
 This module is pure: no I/O, no database, fully deterministic given its inputs.
 """
@@ -55,8 +55,9 @@ def reciprocal_rank_fusion(
 ) -> list[RankedHit]:
     """Fuse two ranked branches into one list ordered by weighted RRF score.
 
-    Preconditions: within each branch, chunk ids are unique and ranks are 1-based and ascending;
-    the same chunk id may appear in both branches (it is merged). Inputs are assumed to be already
+    Preconditions (violations raise ``ValueError``): within each branch, chunk ids are unique and
+    every hit carries that branch's rank, 1-based; the same chunk id may appear in both branches
+    (it is merged). Inputs are assumed to be already
     authorized — this function performs no access checks.
 
     Returns the fused ``RankedHit``s with ``fused_score`` populated, ordered by descending fused
@@ -64,6 +65,8 @@ def reciprocal_rank_fusion(
     caps from ``config``.
     """
     cfg = config if config is not None else FusionConfig()
+    _validate_branch(dense_hits, "dense_rank")
+    _validate_branch(lexical_hits, "lexical_rank")
 
     # 1. Merge by chunk id, keeping each branch's native rank/score and clearing the other branch's
     #    fields so the merged hit carries exactly one contribution per branch.
@@ -107,3 +110,17 @@ def reciprocal_rank_fusion(
         document_counts[document_id] += 1
         result.append(hit.model_copy(update={"fused_score": score}))
     return result
+
+
+def _validate_branch(hits: Sequence[RankedHit], rank_field: str) -> None:
+    """Fail loudly on caller bugs that would otherwise silently mis-rank results."""
+    seen: set[uuid.UUID] = set()
+    for hit in hits:
+        rank = getattr(hit, rank_field)
+        if rank is None:
+            raise ValueError(f"hit {hit.chunk_id} is missing {rank_field}")
+        if rank < 1:
+            raise ValueError(f"{rank_field} must be >= 1, got {rank} for {hit.chunk_id}")
+        if hit.chunk_id in seen:
+            raise ValueError(f"duplicate chunk {hit.chunk_id} within the {rank_field} branch")
+        seen.add(hit.chunk_id)
