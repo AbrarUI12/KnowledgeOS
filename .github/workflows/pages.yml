@@ -1,0 +1,51 @@
+# Showcase deployment: static export of apps/web to GitHub Pages on every push to main.
+# Placeholder data only (no backend); the real deployment is milestone M1 (Vercel + HF Space).
+name: Pages showcase
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Drop server-only routes (Pages has no server)
+        run: rm -rf apps/web/app/api apps/web/proxy.ts apps/web/middleware.ts
+      - name: Static build
+        env:
+          KOS_STATIC_EXPORT: "1"
+          KOS_BASE_PATH: /${{ github.event.repository.name }}
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: pnpm --filter @knowledgeos/web build
+      - run: touch apps/web/out/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
