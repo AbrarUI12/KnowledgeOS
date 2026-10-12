@@ -43,4 +43,4 @@ Every error response uses one envelope:
 
 Domain-specific codes keep the HTTP status of their generic parent (`last_owner` is a 409 like `conflict`), so clients can fall back to the status. Uploads, ingestion and retrieval codes are added as sessions introduce them.
 
-**Idempotency (plan §26.1):** `POST /v1/organizations`, `POST .../invitations` and `POST .../groups` accept an `Idempotency-Key` header (8–200 chars, per user, kept for `IDEMPOTENCY_TTL_HOURS`). Retrying with the same key and body returns the original status and body; a failed request doesn't consume the key.
+**Idempotency (plan §26.1):** `POST /v1/organizations` and `POST .../groups` accept an `Idempotency-Key` header (8–200 chars, per user, kept for `IDEMPOTENCY_TTL_HOURS`). Retrying with the same key and body returns the original status and body; a failed request doesn't consume the key. Invitations deliberately don't: replaying one would mean storing its bearer token. A retried invitation issues a fresh link and revokes the earlier pending one.

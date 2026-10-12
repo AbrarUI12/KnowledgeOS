@@ -380,10 +380,20 @@ async def accept_invitation(
     )
     if invitation is None or invitation.revoked_at is not None:
         raise NotFound("The invitation was not found.")
-    if invitation.email.lower() != (user.email or "").lower():
+    # The invitation is addressed to an email: only an IdP-verified match may claim it.
+    if not user.email_verified or invitation.email.lower() != (user.email or "").lower():
         raise InvitationEmailMismatch
 
     await set_tenant_context(session, invitation.organization_id, user.id)
+    # Serialize concurrent accepts of the same link, then re-read its state under the lock.
+    invitation = await session.scalar(
+        select(Invitation)
+        .where(Invitation.id == invitation.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if invitation is None or invitation.revoked_at is not None:
+        raise NotFound("The invitation was not found.")
     role = await session.scalar(select(Role).where(Role.id == invitation.role_id))
     org_active = await session.scalar(
         select(Organization.id).where(

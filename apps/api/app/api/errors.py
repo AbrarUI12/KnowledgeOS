@@ -90,7 +90,7 @@ class InvitationExpired(Gone):
 class InvitationEmailMismatch(Forbidden):
     code, message = (
         "invitation_email_mismatch",
-        "This invitation was sent to a different email address.",
+        "This invitation was sent to a different (or unverified) email address.",
     )
 
 

@@ -175,25 +175,17 @@ async def create_invitation(
     ctx: ManageMembers,
     session: DbSession,
     body: InvitationCreate,
-    idempotency_key: IdempotencyKeyHeader = None,
-) -> InvitationOut | JSONResponse:
+) -> InvitationOut:
     """Invite by email (`members.manage`); returns a one-time `accept_url` (the token is stored
-    hashed). 409 `already_member`. Supports `Idempotency-Key`."""
+    hashed). 409 `already_member`. No `Idempotency-Key`: a replay would have to persist the token.
+    A retry instead issues a fresh link and revokes the earlier pending one."""
     settings = request.app.state.settings
-    return await _idempotent(
-        request,
+    return await organizations.create_invitation(
         session,
-        ctx.user_id,
-        idempotency_key,
+        ctx,
         body,
-        status.HTTP_201_CREATED,
-        lambda: organizations.create_invitation(
-            session,
-            ctx,
-            body,
-            ttl=timedelta(hours=settings.invitation_ttl_hours),
-            web_base_url=settings.web_base_url,
-        ),
+        ttl=timedelta(hours=settings.invitation_ttl_hours),
+        web_base_url=settings.web_base_url,
     )
 
 

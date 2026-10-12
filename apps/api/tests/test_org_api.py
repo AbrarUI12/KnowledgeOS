@@ -1,5 +1,6 @@
 """Organizations, members, invitations and groups through the API (T1.3, S09)."""
 
+import asyncio
 import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
@@ -42,9 +43,21 @@ async def app(migrated_settings: Settings, admin: asyncpg.Connection) -> AsyncIt
         migrated_settings.model_copy(update={"web_base_url": "http://web.test"})
     )
     tokens = {
-        name: VerifiedToken(issuer=ISSUER, subject=f"{name}-sub", email=f"{name}@acme.test")
+        name: VerifiedToken(
+            issuer=ISSUER,
+            subject=f"{name}-sub",
+            email=f"{name}@acme.test",
+            claims={"email_verified": True},
+        )
         for name in PEOPLE
     }
+    # Same email as erin, but the IdP hasn't verified it.
+    tokens["mallory"] = VerifiedToken(
+        issuer=ISSUER,
+        subject="mallory-sub",
+        email="erin@acme.test",
+        claims={"email_verified": False},
+    )
     application.dependency_overrides[get_identity_verifier] = lambda: FakeIdentityVerifier(tokens)
     async with application.router.lifespan_context(application):
         yield application
@@ -527,3 +540,80 @@ async def test_group_management_needs_permission(api: AsyncClient) -> None:
         f"/v1/organizations/{org}/groups", json={"name": "X"}, headers=auth("bob")
     )
     assert response.status_code == 403
+
+
+# --------------------------------------------------------------------------- review #19 fixes
+
+
+async def test_unverified_email_cannot_accept_an_invitation(
+    api: AsyncClient, admin: asyncpg.Connection
+) -> None:
+    """Review #19 (HIGH): the invited address must be verified by the IdP, not just claimed."""
+    org = await create_org(api)
+    invite = await api.post(
+        f"/v1/organizations/{org}/invitations",
+        json={"email": "erin@acme.test", "role": "owner"},
+        headers=auth("alice"),
+    )
+    token = invite.json()["accept_url"].rsplit("/", 1)[1]
+
+    forged = await api.post(f"/v1/invitations/{token}/accept", headers=auth("mallory"))
+    assert forged.status_code == 403
+    assert forged.json()["error"]["code"] == "invitation_email_mismatch"
+    assert await audit_count(admin, "member.joined") == 0
+
+    verified = await api.post(f"/v1/invitations/{token}/accept", headers=auth("erin"))
+    assert verified.status_code == 200
+
+
+async def test_invitation_tokens_are_never_persisted(
+    api: AsyncClient, admin: asyncpg.Connection
+) -> None:
+    """Review #19 (HIGH): no replay cache or other table may hold the plaintext token."""
+    org = await create_org(api)
+    invite = await api.post(
+        f"/v1/organizations/{org}/invitations",
+        json={"email": "bob@acme.test"},
+        headers=auth("alice", **{"Idempotency-Key": "invite-bob-0001"}),
+    )
+    token = invite.json()["accept_url"].rsplit("/", 1)[1]
+
+    dump = await admin.fetchval(
+        "SELECT coalesce(string_agg(response_json::text, ' '), '') FROM idempotency_keys"
+    )
+    assert token not in dump
+    assert (
+        await admin.fetchval(
+            "SELECT count(*) FROM idempotency_keys WHERE key = $1", "invite-bob-0001"
+        )
+        == 0
+    )
+    assert token not in str(await admin.fetchval("SELECT token_hash FROM invitations"))
+
+
+async def test_concurrent_accepts_create_one_membership(
+    api: AsyncClient, admin: asyncpg.Connection
+) -> None:
+    """Review #19 (MEDIUM): two simultaneous accepts serialize on the invitation row."""
+    org = await create_org(api)
+    invite = await api.post(
+        f"/v1/organizations/{org}/invitations",
+        json={"email": "bob@acme.test"},
+        headers=auth("alice"),
+    )
+    token = invite.json()["accept_url"].rsplit("/", 1)[1]
+
+    first, second = await asyncio.gather(
+        api.post(f"/v1/invitations/{token}/accept", headers=auth("bob")),
+        api.post(f"/v1/invitations/{token}/accept", headers=auth("bob")),
+    )
+
+    assert {first.status_code, second.status_code} == {200}
+    bob = await user_id(api, "bob")
+    assert (
+        await admin.fetchval(
+            "SELECT count(*) FROM memberships WHERE organization_id = $1 AND user_id = $2", org, bob
+        )
+        == 1
+    )
+    assert await audit_count(admin, "member.joined") == 1

@@ -7765,7 +7765,7 @@
     },
     "/v1/organizations/{org_id}/invitations": {
       "post": {
-        "description": "Invite by email (`members.manage`); returns a one-time `accept_url` (the token is stored\nhashed). 409 `already_member`. Supports `Idempotency-Key`.",
+        "description": "Invite by email (`members.manage`); returns a one-time `accept_url` (the token is stored\nhashed). 409 `already_member`. No `Idempotency-Key`: a replay would have to persist the token.\nA retry instead issues a fresh link and revokes the earlier pending one.",
         "operationId": "invitations_create_invitation",
         "parameters": [
           {
@@ -7776,26 +7776,6 @@
               "format": "uuid",
               "title": "Org Id",
               "type": "string"
-            }
-          },
-          {
-            "description": "Client-generated unique key (e.g. a UUID). Retrying with the same key and body returns the original response instead of repeating the operation (plan §26.1).",
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "maxLength": 200,
-                  "minLength": 8,
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Client-generated unique key (e.g. a UUID). Retrying with the same key and body returns the original response instead of repeating the operation (plan §26.1).",
-              "title": "Idempotency-Key"
             }
           }
         ],
