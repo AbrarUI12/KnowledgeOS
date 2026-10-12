@@ -49,7 +49,7 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** none. Next: review Claude's PR #13 (T1.1), then T1.4 frontend auth/shell (wave 1)
+- **Current task:** T1.4 frontend auth/client/shell (draft PR #17). Reviews posted: #13 changes requested, #15 PASS for T1.2 changes.
 - **Last finished:** T2.2 ObjectStore providers (2026-10-12, PR #14; review MEDIUM fixed by Claude while Codex was at its usage limit)
 - **Blockers:** none
 - **Recent:**

@@ -50,7 +50,7 @@
 |---|---|---|---|---|---|---|
 | T2.3 | File-safety validation & malware scanners | 0 | S14 | DONE | ai/codex-t2.3-file-validation | #10 |
 | T2.2 | ObjectStore providers (S3/MinIO/B2 + in-memory) | 1 | S13 | DONE | ai/codex-t2.2-object-store | #14 |
-| T1.4 | Frontend auth, typed API client & app shell | 1 | S10, S11 | IN PROGRESS | ai/codex-t1.4-frontend-foundation | |
+| T1.4 | Frontend auth, typed API client & app shell | 1 | S10, S11 | IN PROGRESS | ai/codex-t1.4-frontend-foundation | #17 |
 | T3.2 | Docling parser library (PDF/DOCX/HTML/MD) | 2 | S17 | TODO | | |
 | T3.3 | Office/tabular formats, OCR & normalization library | 3 | S18 | TODO | | |
 | T3.4 | Content-security scanner & structure-aware chunker | 4 | S19 | TODO | | |

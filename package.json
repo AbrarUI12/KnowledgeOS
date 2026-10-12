@@ -3,6 +3,8 @@
   "private": true,
   "packageManager": "pnpm@12.11.2",
   "scripts": {
+    "gen:api": "uv --directory apps/api run python -m app.export_openapi && pnpm --filter @knowledgeos/web gen:api",
+    "check:api": "pnpm --filter @knowledgeos/web gen:api && git diff --exit-code -- packages/contracts",
     "web:dev": "pnpm --filter @knowledgeos/web dev",
     "web:lint": "pnpm --filter @knowledgeos/web lint",
     "web:typecheck": "pnpm --filter @knowledgeos/web typecheck",
