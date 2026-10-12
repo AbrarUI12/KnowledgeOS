@@ -9,8 +9,8 @@ export default function DemoPlaceholder() {
     >
       <h1 className="text-3xl font-semibold tracking-tight">Interactive demo</h1>
       <p className="text-ink-secondary">
-        The interactive walkthrough (ask with streamed, cited answers; knowledge library; search)
-        is being published. Check back shortly.
+        The interactive walkthrough (ask with streamed, cited answers; knowledge library; search) is
+        being published. Check back shortly.
       </p>
       <Link className="text-accent underline-offset-4 hover:underline" href="/">
         Back to the project overview
