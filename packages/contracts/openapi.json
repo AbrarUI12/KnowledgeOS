@@ -3494,6 +3494,13 @@
         "title": "Visibility",
         "type": "string"
       }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "description": "OIDC access token",
+        "scheme": "bearer",
+        "type": "http"
+      }
     }
   },
   "info": {
@@ -3673,6 +3680,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Get Chunk Context",
         "tags": [
           "documents"
@@ -3762,6 +3774,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Delete Document",
         "tags": [
           "documents"
@@ -3855,6 +3872,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Get Document",
         "tags": [
           "documents"
@@ -3950,6 +3972,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Reindex Document",
         "tags": [
           "documents"
@@ -4049,6 +4076,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Document Versions",
         "tags": [
           "documents"
@@ -4153,6 +4185,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Start Document Replacement",
         "tags": [
           "documents"
@@ -4268,6 +4305,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Approve Document Version",
         "tags": [
           "documents"
@@ -4373,6 +4415,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Get Document Content Url",
         "tags": [
           "documents"
@@ -4479,6 +4526,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Inspect Document Version",
         "tags": [
           "documents"
@@ -4594,6 +4646,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Reject Document Version",
         "tags": [
           "documents"
@@ -4689,6 +4746,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Get Ingestion Job",
         "tags": [
           "ingestion"
@@ -4784,6 +4846,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Cancel Ingestion Job",
         "tags": [
           "ingestion"
@@ -4883,6 +4950,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Ingestion Job Events",
         "tags": [
           "ingestion"
@@ -4979,6 +5051,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Retry Ingestion Job",
         "tags": [
           "ingestion"
@@ -4987,6 +5064,7 @@
     },
     "/v1/invitations/{token}/accept": {
       "post": {
+        "description": "Join the inviting organization. The signed-in email must match the invitation\n(403 `invitation_email_mismatch`); 410 `invitation_expired`.",
         "operationId": "invitations_accept_invitation",
         "parameters": [
           {
@@ -5061,6 +5139,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Accept Invitation",
         "tags": [
           "invitations"
@@ -5151,6 +5234,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Knowledge Bases",
         "tags": [
           "knowledge_bases"
@@ -5244,6 +5332,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Create Knowledge Base",
         "tags": [
           "knowledge_bases"
@@ -5333,6 +5426,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Archive Knowledge Base",
         "tags": [
           "knowledge_bases"
@@ -5426,6 +5524,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Get Knowledge Base",
         "tags": [
           "knowledge_bases"
@@ -5529,6 +5632,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Update Knowledge Base",
         "tags": [
           "knowledge_bases"
@@ -5714,6 +5822,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Documents",
         "tags": [
           "documents"
@@ -5813,6 +5926,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Index Generations",
         "tags": [
           "knowledge_bases"
@@ -5957,6 +6075,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Ingestion Jobs",
         "tags": [
           "ingestion"
@@ -6052,6 +6175,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Get Knowledge Base Permissions",
         "tags": [
           "knowledge_bases"
@@ -6156,6 +6284,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Set Knowledge Base Permissions",
         "tags": [
           "knowledge_bases"
@@ -6262,6 +6395,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Query Knowledge Base",
         "tags": [
           "query"
@@ -6367,6 +6505,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Query Knowledge Base Stream",
         "tags": [
           "query"
@@ -6473,6 +6616,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Search Knowledge Base",
         "tags": [
           "search"
@@ -6579,6 +6727,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Create Upload",
         "tags": [
           "uploads"
@@ -6651,6 +6804,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Get Me",
         "tags": [
           "me"
@@ -6727,13 +6885,18 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Organizations",
         "tags": [
           "organizations"
         ]
       },
       "post": {
-        "description": "Create an organization; the caller becomes its owner. Supports `Idempotency-Key`.",
+        "description": "Create an organization; the caller becomes its owner (409 `slug_taken`).\nSupports `Idempotency-Key`.",
         "operationId": "organizations_create_organization",
         "parameters": [
           {
@@ -6829,6 +6992,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Create Organization",
         "tags": [
           "organizations"
@@ -6942,12 +7110,18 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Groups",
         "tags": [
           "groups"
         ]
       },
       "post": {
+        "description": "Create a group (`groups.manage`; 409 `group_name_taken`). Supports `Idempotency-Key`.",
         "operationId": "groups_create_group",
         "parameters": [
           {
@@ -6958,6 +7132,26 @@
               "format": "uuid",
               "title": "Org Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Client-generated unique key (e.g. a UUID). Retrying with the same key and body returns the original response instead of repeating the operation (plan §26.1).",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client-generated unique key (e.g. a UUID). Retrying with the same key and body returns the original response instead of repeating the operation (plan §26.1).",
+              "title": "Idempotency-Key"
             }
           }
         ],
@@ -7033,6 +7227,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Create Group",
         "tags": [
           "groups"
@@ -7119,6 +7318,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Delete Group",
         "tags": [
           "groups"
@@ -7220,6 +7424,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Update Group",
         "tags": [
           "groups"
@@ -7343,6 +7552,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Group Members",
         "tags": [
           "groups"
@@ -7437,6 +7651,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Add Group Member",
         "tags": [
           "groups"
@@ -7533,6 +7752,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Remove Group Member",
         "tags": [
           "groups"
@@ -7541,7 +7765,7 @@
     },
     "/v1/organizations/{org_id}/invitations": {
       "post": {
-        "description": "Invite by email; returns a one-time `accept_url` (the token is stored hashed).",
+        "description": "Invite by email (`members.manage`); returns a one-time `accept_url` (the token is stored\nhashed). 409 `already_member`. No `Idempotency-Key`: a replay would have to persist the token.\nA retry instead issues a fresh link and revokes the earlier pending one.",
         "operationId": "invitations_create_invitation",
         "parameters": [
           {
@@ -7627,6 +7851,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Create Invitation",
         "tags": [
           "invitations"
@@ -7635,6 +7864,7 @@
     },
     "/v1/organizations/{org_id}/members": {
       "get": {
+        "description": "Members of the organization (any member may list them).",
         "operationId": "members_list_members",
         "parameters": [
           {
@@ -7740,6 +7970,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Members",
         "tags": [
           "members"
@@ -7748,6 +7983,7 @@
     },
     "/v1/organizations/{org_id}/members/{user_id}": {
       "delete": {
+        "description": "Remove a member and their group memberships (`members.manage`; 409 `last_owner`).",
         "operationId": "members_remove_member",
         "parameters": [
           {
@@ -7826,13 +8062,18 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Remove Member",
         "tags": [
           "members"
         ]
       },
       "patch": {
-        "description": "Change a member's role (`members.manage`). The last owner can't be demoted (409).",
+        "description": "Change a member's role (`members.manage`). Granting or removing `owner` needs\n`org.manage`; the last owner can't be demoted (409 `last_owner`).",
         "operationId": "members_update_member",
         "parameters": [
           {
@@ -7928,6 +8169,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Update Member",
         "tags": [
           "members"
@@ -8024,6 +8270,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Get Query Run",
         "tags": [
           "query_runs"
@@ -8129,6 +8380,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Create Feedback",
         "tags": [
           "query_runs"
@@ -8225,6 +8481,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Search",
         "tags": [
           "search"
@@ -8351,6 +8612,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Complete Upload",
         "tags": [
           "uploads"

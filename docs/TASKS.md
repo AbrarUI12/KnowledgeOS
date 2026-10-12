@@ -28,9 +28,9 @@
 |---|---|---|---|---|---|---|
 | T0.1 | Multi-agent workflow bootstrap | – | – | DONE | ai/claude-agent-workflow | #9 |
 | T1.0 | Contracts: provider Protocols, core models, API + SSE schemas | 0 | – | DONE | ai/claude-t1.0-contracts | #11 |
-| T1.1 | OIDC authentication (backend) | 1 | S07 | IN PROGRESS | ai/claude-t1.1-oidc | |
-| T1.2 | Tenant context, RLS & permission engine | 1 | S08 | TODO | | |
-| T1.3 | Org / member / group / invitation APIs + audit | 2 | S09 | TODO | | |
+| T1.1 | OIDC authentication (backend) | 1 | S07 | DONE | ai/claude-t1.1-oidc | #13 |
+| T1.2 | Tenant context, RLS & permission engine | 1 | S08 | DONE | ai/claude-t1.2-rls | #23 (was #15) |
+| T1.3 | Org / member / group / invitation APIs + audit | 2 | S09 | REVIEW | ai/claude-t1.3-org-apis | #19 |
 | T2.1 | KB & document schema + KB APIs + RLS meta-test | 2 | S12 | TODO | | |
 | T2.4 | Upload & document endpoints | 3 | S13 | TODO | | |
 | T3.1 | Outbox dispatcher, Celery & job state machine | 3 | S16 | TODO | | |
@@ -65,9 +65,9 @@
 
 | ID | Task | Wave | Session | Status | Branch | PR |
 |---|---|---|---|---|---|---|
-| T4.5 | Demo corpus file generator | 0 | S25 | REVIEW | ai/cline-t4.5-demo-corpus | #12 |
-| T1.8 | `scripts/get_token.py` | 0 | S07 | REVIEW | ai/cline-t4.5-demo-corpus | #12 |
-| T4.3 | RRF fusion module | 1 | S24 | TODO | | |
+| T4.5 | Demo corpus file generator | 0 | S25 | DONE | ai/cline-t4.5-demo-corpus | #12 |
+| T1.8 | `scripts/get_token.py` | 0 | S07 | DONE | ai/cline-t4.5-demo-corpus | #12 |
+| T4.3 | RRF fusion module | 1 | S24 | REVIEW | ai/cline-t4.3-rrf-fusion | #16 |
 | T1.5 | Command palette, shortcuts, status center | 2 | S11 | TODO | | |
 | T1.6 | Access pages: Members & Groups | 2 | S11 | TODO | | |
 | T1.7 | Playwright E2E harness + first journeys | 2 | S11 | TODO | | |

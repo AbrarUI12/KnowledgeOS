@@ -40,16 +40,19 @@
 
 ### Claude: architect · security/DB/integration · reviewer
 - **Worktree / ports:** `D:\projects\kos-claude` · API 8000 · web 3000
-- **Current task:** T1.1 OIDC authentication (backend)
-- **Last finished:** T1.0 contracts (2026-10-12, PR #11, Codex review PASS)
+- **Current task:** T1.3 in REVIEW (#19, fixes for Codex's review pushed); next T2.1 KB & document schema
+- **Last finished:** T1.1 (#13), T1.2 (#23), CORS (#20), Pages showcase (#21); live at https://abrarui12.github.io/KnowledgeOS/
 - **Blockers:** none
 - **Recent:**
+  - 2026-10-12 · T1.3 · org/member/group/invitation APIs, keyset pagination, per-user idempotency keys (migration 0004), audit row per mutation, last-owner lock, no owner escalation, invitation token-holder RLS policy, `.test` emails allowed locally
+  - 2026-10-12 · T1.2 · migration 0003: forced RLS on every tenant table (owner bound too, D-014); RequestContext + `require_permission` + principal tokens; org-scoped stubs resolve tenant context (cross-org → 404); readiness checks the runtime role; `tenant_session` for workers; PR #12 (Cline) review items finished
+  - 2026-10-12 · T1.1 · OIDCVerifier (JWKS cache, rotation, alg allowlist), JIT users, `/v1/me`, bearer scheme in OpenAPI; test settings no longer leak `.env`
   - 2026-10-12 · T1.0 · PR #11 (merged; scanner/validator contract = T2.3's API): 11 provider Protocols + core models + 49 stub endpoints (501) + OpenAPI in `packages/contracts/openapi.json` + fakes in `tests/fakes/` + `docs/api/sse-events.md`
   - 2026-10-12 · T0.1 · PR #9: docs/AI_CONTEXT, ARCHITECTURE, TASKS, DECISIONS, TESTING, AGENT_WORKFLOW; worktrees; ports
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T1.4 frontend auth/client/shell (draft PR #17). Reviews posted: #13 changes requested, #15 PASS for T1.2 changes.
+- **Current task:** T1.4 frontend auth/client/shell (draft PR #17), resuming after merged demo PRs #22/#24. Reviews: #13/#19/#20 PASS; #25 changes requested.
 - **Last finished:** T2.2 ObjectStore providers (2026-10-12, PR #14; review MEDIUM fixed by Claude while Codex was at its usage limit)
 - **Blockers:** none
 - **Recent:**
@@ -58,11 +61,12 @@
 
 ### Cline: UI pages · scripts · local QA
 - **Worktree / ports:** `D:\projects\kos-cline` · API 8200 · web 3200
-- **Current task:** T4.3 RRF fusion module (wave 1)
-- **Last finished:** T4.5 demo corpus generator + T1.8 `get_token.py` (2026-10-12)
+- **Current task:** T4.3 RRF fusion module — draft PR #16 open, awaiting review
+- **Last finished:** T4.3 RRF fusion module (2026-10-12) · T4.5 + T1.8 merged in PR #12 (2026-10-12)
 - **Blockers:** none
 - **Recent:**
-  - 2026-10-12 · T4.5 + T1.8 · demo corpus file generator (16 synthetic docs across 8 formats) + `scripts/get_token.py` password grant script for dev Keycloak
+  - 2026-10-12 · T4.3 · weighted RRF fusion (`k0=60`, dense 0.55/lexical 0.45), dedupe by chunk id, near-duplicate cap by `content_hash`, per-document cap preserving continuity; pure functions in `app/rag/fusion/`, 27 unit tests, 100% branch coverage · PR #16
+  - 2026-10-12 · T4.5 + T1.8 · demo corpus file generator (16 synthetic docs across 8 formats) + `scripts/get_token.py` password grant script for dev Keycloak · PR #12 (merged)
 
 ---
 
@@ -602,4 +606,5 @@ All deviations (DV-001…) now live in **[`docs/DECISIONS.md`](docs/DECISIONS.md
 | MinIO (local container) | Object storage | `S3_ENDPOINT_URL`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_QUARANTINE`, `S3_BUCKET_TRUSTED`, `S3_BUCKET_ARTIFACTS`, `S3_PUBLIC_ENDPOINT_URL`, `S3_REGION`, `S3_FORCE_PATH_STYLE`, `S3_CONNECT_TIMEOUT_SECONDS`, `S3_READ_TIMEOUT_SECONDS`, `S3_MAX_ATTEMPTS`, `MINIO_PORT`, `MINIO_CONSOLE_PORT` | local | S02 |
 | Keycloak (local container) | OIDC | `KEYCLOAK_PORT`, `KEYCLOAK_ADMIN(_PASSWORD)`, `KEYCLOAK_DB_PASSWORD`, `OIDC_ISSUER`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL`, `OIDC_WEB_CLIENT_ID`, `OIDC_WEB_CLIENT_SECRET`, `OIDC_CLI_CLIENT_ID` | local | S02 |
 | Mailpit / ClamAV (local containers) | Email, malware scan | `SMTP_HOST`, `SMTP_PORT`, `MAILPIT_UI_PORT`, `CLAMAV_HOST`, `CLAMAV_PORT`, `CLAMAV_TIMEOUT_SECONDS`, `CLAMAV_MAX_STREAM_BYTES`, `REQUIRE_MALWARE_SCAN`, `WEB_ORIGIN` | local | S02, S14 |
+| API (organizations) | Invitation links, invitation and idempotency lifetimes | `WEB_BASE_URL`, `INVITATION_TTL_HOURS`, `IDEMPOTENCY_TTL_HOURS` | all | S09 (T1.3) |
 | *(more rows added as sessions introduce services: Neon, B2, Auth0, HF, Vercel, Groq, Gemini, Langfuse, Grafana Cloud, Google Drive OAuth)* | | | | |

@@ -224,3 +224,21 @@ class Invitation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class IdempotencyKey(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Stored response for an `Idempotency-Key` (plan §26.1).
+
+    Scoped to the user (not the org) so it also covers `POST /v1/organizations`, which runs before
+    any organization exists. RLS: a user only ever sees their own keys.
+    """
+
+    __tablename__ = "idempotency_keys"
+    __table_args__ = (UniqueConstraint("user_id", "key"),)
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    key: Mapped[str] = mapped_column(String(200))
+    request_fingerprint: Mapped[str] = mapped_column(String(64))  # sha256 of method+path+body
+    status_code: Mapped[int | None]
+    response_json: Mapped[Any | None] = mapped_column(JSONB)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

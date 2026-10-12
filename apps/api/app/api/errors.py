@@ -15,6 +15,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.api.middleware import REQUEST_ID_HEADER, current_request_id
 
@@ -27,6 +28,7 @@ class AppError(Exception):
     status_code: int = 500
     code: str = "internal_error"
     message: str = "An unexpected error occurred."
+    headers: Mapping[str, str] = {}
 
     def __init__(self, message: str | None = None, *, details: dict[str, Any] | None = None):
         super().__init__(message or self.message)
@@ -52,6 +54,45 @@ class NotFound(AppError):
 
 class Conflict(AppError):
     status_code, code, message = 409, "conflict", "The request conflicts with the current state."
+
+
+class Gone(AppError):
+    status_code, code, message = 410, "gone", "The resource is no longer available."
+
+
+# Domain-specific codes (docs/api/errors.md). Subclasses keep the HTTP status of their parent.
+class SlugTaken(Conflict):
+    code, message = "slug_taken", "That organization slug is already in use."
+
+
+class LastOwner(Conflict):
+    code, message = "last_owner", "An organization must keep at least one owner."
+
+
+class AlreadyMember(Conflict):
+    code, message = "already_member", "That person is already a member of this organization."
+
+
+class GroupNameTaken(Conflict):
+    code, message = "group_name_taken", "A group with that name already exists."
+
+
+class IdempotencyKeyReused(Conflict):
+    code, message = (
+        "idempotency_key_reused",
+        "This Idempotency-Key was already used for a different request.",
+    )
+
+
+class InvitationExpired(Gone):
+    code, message = "invitation_expired", "This invitation has expired."
+
+
+class InvitationEmailMismatch(Forbidden):
+    code, message = (
+        "invitation_email_mismatch",
+        "This invitation was sent to a different (or unverified) email address.",
+    )
 
 
 class RateLimited(AppError):
@@ -110,7 +151,9 @@ def error_response(
 
 async def _app_error(request: Request, exc: Exception) -> JSONResponse:
     exc = cast(AppError, exc)
-    return error_response(request, exc.status_code, exc.code, exc.message, exc.details)
+    return error_response(
+        request, exc.status_code, exc.code, exc.message, exc.details, headers=exc.headers
+    )
 
 
 async def _http_error(request: Request, exc: Exception) -> JSONResponse:
@@ -135,6 +178,40 @@ async def _validation_error(request: Request, exc: Exception) -> JSONResponse:
 async def _unhandled_error(request: Request, exc: Exception) -> JSONResponse:
     logger.exception("unhandled_error", error_type=type(exc).__name__)
     return error_response(request, 500, "internal_error", "An unexpected error occurred.")
+
+
+class UnhandledErrorMiddleware:
+    """Turns unhandled exceptions into the safe 500 envelope *inside* the middleware stack.
+
+    Starlette runs the `Exception` handler in its outermost ServerErrorMiddleware, i.e. outside
+    CORS, so browsers couldn't read those 500s. Installed inside CORS and the request-context
+    middleware, this one produces the same response with CORS and X-Request-ID headers applied.
+    If the response has already started, the exception is re-raised (nothing safe to send).
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        started = False
+
+        async def send_wrapper(message: Message) -> None:
+            nonlocal started
+            if message["type"] == "http.response.start":
+                started = True
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_wrapper)
+        except Exception as exc:
+            if started:
+                raise
+            logger.exception("unhandled_error", error_type=type(exc).__name__)
+            response = error_response(None, 500, "internal_error", "An unexpected error occurred.")
+            await response(scope, receive, send)
 
 
 def register_exception_handlers(app: FastAPI) -> None:

@@ -5,9 +5,12 @@ import uuid
 from datetime import date
 
 import pytest
+from fastapi import FastAPI
 from httpx import AsyncClient
 from pydantic import ValidationError
 
+from app.api.dependencies.tenancy import get_request_context
+from app.auth.authorization import RequestContext
 from app.ingestion.canonical import Block, CanonicalDocument, SourceLocation
 from app.ingestion.chunking.types import ChunkDraft, Chunker
 from app.ingestion.parsing.base import DocumentParser
@@ -193,16 +196,22 @@ async def test_fake_reranker_scores_overlap() -> None:
 @pytest.mark.parametrize(
     ("method", "path", "task"),
     [
-        ("GET", "/v1/me", "T1.1"),
-        ("GET", "/v1/organizations", "T1.3"),
         ("GET", "/v1/knowledge-bases", "T2.1"),
         ("POST", "/v1/knowledge-bases/{id}/search", "T4.6"),
         ("POST", "/v1/knowledge-bases/{id}/query", "T5.3"),
     ],
 )
 async def test_stub_routes_answer_501_with_task(
-    client: AsyncClient, method: str, path: str, task: str
+    app: FastAPI, client: AsyncClient, method: str, path: str, task: str
 ) -> None:
+    # Org-scoped stubs resolve the tenant context first (T1.2); stand in a member's context.
+    app.dependency_overrides[get_request_context] = lambda: RequestContext(
+        user_id=uuid.uuid4(),
+        organization_id=uuid.uuid4(),
+        role="member",
+        permissions=frozenset(),
+        group_ids=frozenset(),
+    )
     body = {"query": "leave"} if path.endswith("search") else {"question": "leave?"}
     response = await client.request(
         method,
@@ -214,6 +223,13 @@ async def test_stub_routes_answer_501_with_task(
     error = response.json()["error"]
     assert error["code"] == "not_implemented"
     assert error["details"] == {"task": task}
+
+
+async def test_org_scoped_stubs_require_authentication_first(client: AsyncClient) -> None:
+    response = await client.get(
+        "/v1/knowledge-bases", headers={"X-Organization-Id": str(uuid.uuid4())}
+    )
+    assert response.status_code == 401
 
 
 # ----------------------------------------------------------------------------- review regressions

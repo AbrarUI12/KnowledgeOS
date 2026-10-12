@@ -88,3 +88,9 @@ def test_permissions_update_does_not_accept_server_owned_fields() -> None:
     body = spec["paths"]["/v1/knowledge-bases/{kb_id}/permissions"]["put"]["requestBody"]
     ref = body["content"]["application/json"]["schema"]["$ref"].split("/")[-1]
     assert "propagated_at" not in spec["components"]["schemas"][ref]["properties"]
+
+
+def test_me_declares_bearer_auth() -> None:
+    spec = build_openapi()
+    assert spec["components"]["securitySchemes"]["bearerAuth"]["scheme"].lower() == "bearer"
+    assert {"bearerAuth": []} in spec["paths"]["/v1/me"]["get"]["security"]

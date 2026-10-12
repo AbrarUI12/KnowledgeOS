@@ -21,7 +21,12 @@ async def test_ready_is_200_when_all_dependencies_are_up(live_client: AsyncClien
     assert response.status_code == 200
     assert response.json() == {
         "status": "ok",
-        "checks": {"database": "ok", "redis": "ok", "object_storage": "ok"},
+        "checks": {
+            "database": "ok",
+            "database_role": "ok",
+            "redis": "ok",
+            "object_storage": "ok",
+        },
     }
 
 
@@ -48,3 +53,23 @@ async def test_ready_is_503_when_database_is_unreachable(migrated_settings: Sett
     assert body["checks"]["database"] == "unavailable"
     assert body["checks"]["redis"] == "ok"
     assert "wrong" not in response.text  # never leak connection details
+
+
+@pytest.mark.integration
+async def test_ready_is_503_when_the_runtime_role_could_bypass_rls(
+    migrated_settings: Settings,
+) -> None:
+    """Running the API as the schema owner (owns every table) must fail readiness."""
+    as_owner = migrated_settings.model_copy(
+        update={"database_url": migrated_settings.database_migration_url}
+    )
+    app = create_app(as_owner)
+    async with (
+        app.router.lifespan_context(app),
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
+    ):
+        response = await client.get("/health/ready")
+
+    assert response.status_code == 503
+    assert response.json()["checks"]["database"] == "ok"
+    assert response.json()["checks"]["database_role"] == "unavailable"

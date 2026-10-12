@@ -7,6 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
+from app.api.dependencies.tenancy import OrgContext
 from app.api.v1._stub import ERRORS, IdempotencyKeyHeader, OrgIdHeader, stub
 from app.domain.enums import Classification, DocumentStatus, IngestionState
 from app.domain.schemas.common import Page
@@ -40,7 +41,7 @@ Limit = Annotated[int, Query(ge=1, le=200)]
 
 
 @router.get("/knowledge-bases", tags=["knowledge_bases"], response_model=list[KnowledgeBaseOut])
-async def list_knowledge_bases(org: OrgIdHeader) -> list[KnowledgeBaseOut]:
+async def list_knowledge_bases(org: OrgIdHeader, ctx: OrgContext) -> list[KnowledgeBaseOut]:
     """KBs the caller may query (restricted KBs without an ACL match are invisible)."""
     stub("T2.1")
 
@@ -51,18 +52,22 @@ async def list_knowledge_bases(org: OrgIdHeader) -> list[KnowledgeBaseOut]:
     response_model=KnowledgeBaseOut,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_knowledge_base(org: OrgIdHeader, body: KnowledgeBaseCreate) -> KnowledgeBaseOut:
+async def create_knowledge_base(
+    org: OrgIdHeader, ctx: OrgContext, body: KnowledgeBaseCreate
+) -> KnowledgeBaseOut:
     stub("T2.1")
 
 
 @router.get("/knowledge-bases/{kb_id}", tags=["knowledge_bases"], response_model=KnowledgeBaseOut)
-async def get_knowledge_base(org: OrgIdHeader, kb_id: uuid.UUID) -> KnowledgeBaseOut:
+async def get_knowledge_base(
+    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID
+) -> KnowledgeBaseOut:
     stub("T2.1")
 
 
 @router.patch("/knowledge-bases/{kb_id}", tags=["knowledge_bases"], response_model=KnowledgeBaseOut)
 async def update_knowledge_base(
-    org: OrgIdHeader, kb_id: uuid.UUID, body: KnowledgeBaseUpdate
+    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID, body: KnowledgeBaseUpdate
 ) -> KnowledgeBaseOut:
     stub("T2.1")
 
@@ -72,7 +77,7 @@ async def update_knowledge_base(
     tags=["knowledge_bases"],
     status_code=status.HTTP_204_NO_CONTENT,
 )
-async def archive_knowledge_base(org: OrgIdHeader, kb_id: uuid.UUID) -> None:
+async def archive_knowledge_base(org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID) -> None:
     """Archive (soft-delete); content stops being retrievable immediately."""
     stub("T2.1")
 
@@ -83,7 +88,7 @@ async def archive_knowledge_base(org: OrgIdHeader, kb_id: uuid.UUID) -> None:
     response_model=KnowledgeBasePermissions,
 )
 async def get_knowledge_base_permissions(
-    org: OrgIdHeader, kb_id: uuid.UUID
+    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID
 ) -> KnowledgeBasePermissions:
     stub("T2.1")
 
@@ -94,7 +99,7 @@ async def get_knowledge_base_permissions(
     response_model=KnowledgeBasePermissions,
 )
 async def set_knowledge_base_permissions(
-    org: OrgIdHeader, kb_id: uuid.UUID, body: KnowledgeBasePermissionsUpdate
+    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID, body: KnowledgeBasePermissionsUpdate
 ) -> KnowledgeBasePermissions:
     """Replace the allow-only ACL (`kb.manage`). Emits `acl.changed`; chunks update
     asynchronously."""
@@ -106,7 +111,9 @@ async def set_knowledge_base_permissions(
     tags=["knowledge_bases"],
     response_model=list[IndexGenerationOut],
 )
-async def list_index_generations(org: OrgIdHeader, kb_id: uuid.UUID) -> list[IndexGenerationOut]:
+async def list_index_generations(
+    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID
+) -> list[IndexGenerationOut]:
     stub("T4.2")
 
 
@@ -119,7 +126,9 @@ async def list_index_generations(org: OrgIdHeader, kb_id: uuid.UUID) -> list[Ind
     response_model=UploadOut,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_upload(org: OrgIdHeader, kb_id: uuid.UUID, body: UploadCreate) -> UploadOut:
+async def create_upload(
+    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID, body: UploadCreate
+) -> UploadOut:
     """Start an upload (`document.upload`): returns a presigned PUT URL to the quarantine bucket."""
     stub("T2.4")
 
@@ -127,6 +136,7 @@ async def create_upload(org: OrgIdHeader, kb_id: uuid.UUID, body: UploadCreate) 
 @router.post("/uploads/{upload_id}/complete", tags=["uploads"], response_model=UploadCompleted)
 async def complete_upload(
     org: OrgIdHeader,
+    ctx: OrgContext,
     upload_id: uuid.UUID,
     body: UploadComplete,
     idempotency_key: IdempotencyKeyHeader = None,
@@ -144,6 +154,7 @@ async def complete_upload(
 )
 async def list_documents(
     org: OrgIdHeader,
+    ctx: OrgContext,
     kb_id: uuid.UUID,
     cursor: Cursor = None,
     limit: Limit = 50,
@@ -156,14 +167,14 @@ async def list_documents(
 
 
 @router.get("/documents/{document_id}", tags=["documents"], response_model=DocumentOut)
-async def get_document(org: OrgIdHeader, document_id: uuid.UUID) -> DocumentOut:
+async def get_document(org: OrgIdHeader, ctx: OrgContext, document_id: uuid.UUID) -> DocumentOut:
     stub("T2.4")
 
 
 @router.delete(
     "/documents/{document_id}", tags=["documents"], status_code=status.HTTP_204_NO_CONTENT
 )
-async def delete_document(org: OrgIdHeader, document_id: uuid.UUID) -> None:
+async def delete_document(org: OrgIdHeader, ctx: OrgContext, document_id: uuid.UUID) -> None:
     """Mark non-retrievable immediately (`document.delete`); full cascade in Session 49."""
     stub("T2.4")
 
@@ -174,7 +185,7 @@ async def delete_document(org: OrgIdHeader, document_id: uuid.UUID) -> None:
     response_model=list[DocumentVersionOut],
 )
 async def list_document_versions(
-    org: OrgIdHeader, document_id: uuid.UUID
+    org: OrgIdHeader, ctx: OrgContext, document_id: uuid.UUID
 ) -> list[DocumentVersionOut]:
     stub("T2.4")
 
@@ -186,7 +197,7 @@ async def list_document_versions(
     status_code=status.HTTP_201_CREATED,
 )
 async def start_document_replacement(
-    org: OrgIdHeader, document_id: uuid.UUID, body: UploadCreate
+    org: OrgIdHeader, ctx: OrgContext, document_id: uuid.UUID, body: UploadCreate
 ) -> UploadOut:
     """Start uploading a new version of an existing document."""
     stub("T2.4")
@@ -198,7 +209,11 @@ async def start_document_replacement(
     response_model=DocumentVersionOut,
 )
 async def approve_document_version(
-    org: OrgIdHeader, document_id: uuid.UUID, version_id: uuid.UUID, body: ApprovalDecision
+    org: OrgIdHeader,
+    ctx: OrgContext,
+    document_id: uuid.UUID,
+    version_id: uuid.UUID,
+    body: ApprovalDecision,
 ) -> DocumentVersionOut:
     stub("T3.5")
 
@@ -209,7 +224,11 @@ async def approve_document_version(
     response_model=DocumentVersionOut,
 )
 async def reject_document_version(
-    org: OrgIdHeader, document_id: uuid.UUID, version_id: uuid.UUID, body: ApprovalDecision
+    org: OrgIdHeader,
+    ctx: OrgContext,
+    document_id: uuid.UUID,
+    version_id: uuid.UUID,
+    body: ApprovalDecision,
 ) -> DocumentVersionOut:
     stub("T3.5")
 
@@ -220,7 +239,7 @@ async def reject_document_version(
     response_model=DocumentInspection,
 )
 async def inspect_document_version(
-    org: OrgIdHeader, document_id: uuid.UUID, version_id: uuid.UUID
+    org: OrgIdHeader, ctx: OrgContext, document_id: uuid.UUID, version_id: uuid.UUID
 ) -> DocumentInspection:
     """Canonical artifact, chunk boundaries and scan findings (`kb.manage`)."""
     stub("T3.6")
@@ -232,7 +251,7 @@ async def inspect_document_version(
     response_model=ContentUrl,
 )
 async def get_document_content_url(
-    org: OrgIdHeader, document_id: uuid.UUID, version_id: uuid.UUID
+    org: OrgIdHeader, ctx: OrgContext, document_id: uuid.UUID, version_id: uuid.UUID
 ) -> ContentUrl:
     stub("T5.4")
 
@@ -243,13 +262,16 @@ async def get_document_content_url(
     response_model=IngestionJobOut,
     status_code=status.HTTP_202_ACCEPTED,
 )
-async def reindex_document(org: OrgIdHeader, document_id: uuid.UUID) -> IngestionJobOut:
+async def reindex_document(
+    org: OrgIdHeader, ctx: OrgContext, document_id: uuid.UUID
+) -> IngestionJobOut:
     stub("T3.6")
 
 
 @router.get("/chunks/{chunk_id}/context", tags=["documents"], response_model=ChunkContext)
 async def get_chunk_context(
     org: OrgIdHeader,
+    ctx: OrgContext,
     chunk_id: uuid.UUID,
     before: Annotated[int, Query(ge=0, le=5)] = 1,
     after: Annotated[int, Query(ge=0, le=5)] = 1,
@@ -267,6 +289,7 @@ async def get_chunk_context(
 )
 async def list_ingestion_jobs(
     org: OrgIdHeader,
+    ctx: OrgContext,
     kb_id: uuid.UUID,
     cursor: Cursor = None,
     limit: Limit = 50,
@@ -276,7 +299,9 @@ async def list_ingestion_jobs(
 
 
 @router.get("/ingestion-jobs/{job_id}", tags=["ingestion"], response_model=IngestionJobOut)
-async def get_ingestion_job(org: OrgIdHeader, job_id: uuid.UUID) -> IngestionJobOut:
+async def get_ingestion_job(
+    org: OrgIdHeader, ctx: OrgContext, job_id: uuid.UUID
+) -> IngestionJobOut:
     stub("T2.4")
 
 
@@ -285,16 +310,22 @@ async def get_ingestion_job(org: OrgIdHeader, job_id: uuid.UUID) -> IngestionJob
     tags=["ingestion"],
     response_model=list[IngestionJobEvent],
 )
-async def list_ingestion_job_events(org: OrgIdHeader, job_id: uuid.UUID) -> list[IngestionJobEvent]:
+async def list_ingestion_job_events(
+    org: OrgIdHeader, ctx: OrgContext, job_id: uuid.UUID
+) -> list[IngestionJobEvent]:
     stub("T3.6")
 
 
 @router.post("/ingestion-jobs/{job_id}/retry", tags=["ingestion"], response_model=IngestionJobOut)
-async def retry_ingestion_job(org: OrgIdHeader, job_id: uuid.UUID) -> IngestionJobOut:
+async def retry_ingestion_job(
+    org: OrgIdHeader, ctx: OrgContext, job_id: uuid.UUID
+) -> IngestionJobOut:
     """Resume from the failed stage using checkpoints."""
     stub("T3.6")
 
 
 @router.post("/ingestion-jobs/{job_id}/cancel", tags=["ingestion"], response_model=IngestionJobOut)
-async def cancel_ingestion_job(org: OrgIdHeader, job_id: uuid.UUID) -> IngestionJobOut:
+async def cancel_ingestion_job(
+    org: OrgIdHeader, ctx: OrgContext, job_id: uuid.UUID
+) -> IngestionJobOut:
     stub("T3.6")

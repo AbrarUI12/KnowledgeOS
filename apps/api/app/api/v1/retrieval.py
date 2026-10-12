@@ -6,6 +6,7 @@ import uuid
 from fastapi import APIRouter, status
 from fastapi.responses import StreamingResponse
 
+from app.api.dependencies.tenancy import OrgContext
 from app.api.openapi import STREAM_EVENT_REF
 from app.api.v1._stub import ERRORS, OrgIdHeader, stub
 from app.domain.schemas.retrieval import (
@@ -24,20 +25,22 @@ router = APIRouter(responses=ERRORS)
 
 @router.post("/knowledge-bases/{kb_id}/search", tags=["search"], response_model=SearchResponse)
 async def search_knowledge_base(
-    org: OrgIdHeader, kb_id: uuid.UUID, body: SearchRequest
+    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID, body: SearchRequest
 ) -> SearchResponse:
     """Authorized hybrid search without generation (`query.execute`)."""
     stub("T4.6")
 
 
 @router.post("/search", tags=["search"], response_model=SearchResponse)
-async def search(org: OrgIdHeader, body: MultiSearchRequest) -> SearchResponse:
+async def search(org: OrgIdHeader, ctx: OrgContext, body: MultiSearchRequest) -> SearchResponse:
     """Hybrid search across several KBs the caller may query."""
     stub("T4.6")
 
 
 @router.post("/knowledge-bases/{kb_id}/query", tags=["query"], response_model=AnswerOut)
-async def query_knowledge_base(org: OrgIdHeader, kb_id: uuid.UUID, body: QueryRequest) -> AnswerOut:
+async def query_knowledge_base(
+    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID, body: QueryRequest
+) -> AnswerOut:
     """Grounded answer with validated citations (non-streaming)."""
     stub("T5.3")
 
@@ -55,13 +58,13 @@ async def query_knowledge_base(org: OrgIdHeader, kb_id: uuid.UUID, body: QueryRe
     },
 )
 async def query_knowledge_base_stream(
-    org: OrgIdHeader, kb_id: uuid.UUID, body: QueryRequest
+    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID, body: QueryRequest
 ) -> StreamingResponse:
     stub("T5.4")
 
 
 @router.get("/query-runs/{query_run_id}", tags=["query_runs"], response_model=QueryRunOut)
-async def get_query_run(org: OrgIdHeader, query_run_id: uuid.UUID) -> QueryRunOut:
+async def get_query_run(org: OrgIdHeader, ctx: OrgContext, query_run_id: uuid.UUID) -> QueryRunOut:
     """Run summary; the `debug` section is included only with `retrieval.debug`."""
     stub("T4.6")
 
@@ -73,6 +76,6 @@ async def get_query_run(org: OrgIdHeader, query_run_id: uuid.UUID) -> QueryRunOu
     status_code=status.HTTP_201_CREATED,
 )
 async def create_feedback(
-    org: OrgIdHeader, query_run_id: uuid.UUID, body: FeedbackCreate
+    org: OrgIdHeader, ctx: OrgContext, query_run_id: uuid.UUID, body: FeedbackCreate
 ) -> FeedbackOut:
     stub("T5.4")

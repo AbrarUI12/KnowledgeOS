@@ -44,3 +44,14 @@ def test_redaction_scrubs_sensitive_keys_recursively() -> None:
     assert result["items"] == [{"api_key": REDACTED}, {"name": "ok"}]
     assert result["user"] == "alice"
     assert result["event"] == "login"
+
+
+@pytest.mark.unit
+def test_make_settings_ignores_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OIDC_JWKS_URL", "http://leaked.example/certs")
+    monkeypatch.setenv("REDIS_URL", "redis://leaked:1/0")
+
+    settings = make_settings()
+
+    assert settings.oidc_jwks_url is None
+    assert "leaked" not in settings.redis_url.get_secret_value()
