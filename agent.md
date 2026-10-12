@@ -62,10 +62,11 @@
 
 ### Cline: UI pages · scripts · local QA
 - **Worktree / ports:** `D:\projects\kos-cline` · API 8200 · web 3200
-- **Current task:** T4.3 RRF fusion module — draft PR #16 open, awaiting review
+- **Current task:** T4.5 deterministic demo corpus regeneration — PR #32 open, awaiting review (T4.3 draft PR #16 also open)
 - **Last finished:** T4.3 RRF fusion module (2026-10-12) · T4.5 + T1.8 merged in PR #12 (2026-10-12)
 - **Blockers:** none
 - **Recent:**
+  - 2026-10-12 · T4.5 · `make demo-corpus` now byte-identical on every run: PDF `invariant=1`, OOXML ZIP/core-property timestamps pinned via `normalize_ooxml()`, two-run SHA-256 regression test (gap > ZIP 2s granularity); regenerated the 9 PDF/DOCX/PPTX/XLSX fixtures · PR #32
   - 2026-10-12 · T4.3 · weighted RRF fusion (`k0=60`, dense 0.55/lexical 0.45), dedupe by chunk id, near-duplicate cap by `content_hash`, per-document cap preserving continuity; pure functions in `app/rag/fusion/`, 27 unit tests, 100% branch coverage · PR #16
   - 2026-10-12 · T4.5 + T1.8 · demo corpus file generator (16 synthetic docs across 8 formats) + `scripts/get_token.py` password grant script for dev Keycloak · PR #12 (merged)
 
