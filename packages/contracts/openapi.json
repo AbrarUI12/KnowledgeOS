@@ -3494,6 +3494,13 @@
         "title": "Visibility",
         "type": "string"
       }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "description": "OIDC access token",
+        "scheme": "bearer",
+        "type": "http"
+      }
     }
   },
   "info": {
@@ -6651,6 +6658,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Get Me",
         "tags": [
           "me"

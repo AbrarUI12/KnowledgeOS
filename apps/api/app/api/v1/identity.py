@@ -5,7 +5,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
+from app.api.dependencies.auth import CurrentUser
 from app.api.v1._stub import ERRORS, IdempotencyKeyHeader, stub
+from app.db.session import DbSession
 from app.domain.schemas.common import Page
 from app.domain.schemas.identity import (
     GroupCreate,
@@ -21,6 +23,7 @@ from app.domain.schemas.identity import (
     OrganizationCreate,
     OrganizationOut,
 )
+from app.services.users import load_me
 
 router = APIRouter(responses=ERRORS)
 
@@ -29,9 +32,9 @@ Limit = Annotated[int, Query(ge=1, le=100)]
 
 
 @router.get("/me", tags=["me"], response_model=MeResponse)
-async def get_me() -> MeResponse:
+async def get_me(user: CurrentUser, session: DbSession) -> MeResponse:
     """The authenticated user and their organization memberships with effective permissions."""
-    stub("T1.1")
+    return await load_me(session, user)
 
 
 @router.get("/organizations", tags=["organizations"], response_model=list[OrganizationOut])

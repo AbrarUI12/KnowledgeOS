@@ -3,6 +3,7 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from redis.asyncio import Redis
@@ -16,6 +17,7 @@ from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
 from app.core.s3 import create_s3_client
 from app.db.session import create_engine, create_sessionmaker
+from app.providers.identity.oidc import OIDCVerifier
 
 
 def _operation_id(route: APIRoute) -> str:
@@ -41,9 +43,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.sessionmaker = create_sessionmaker(engine)
         app.state.redis = redis
         app.state.s3 = create_s3_client(settings)
+        http = httpx.AsyncClient(timeout=settings.oidc_http_timeout_seconds)
+        app.state.identity_verifier = OIDCVerifier(settings, http)
         try:
             yield
         finally:
+            await http.aclose()
             await redis.aclose()
             await engine.dispose()
 
