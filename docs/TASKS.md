@@ -30,8 +30,8 @@
 | T1.0 | Contracts: provider Protocols, core models, API + SSE schemas | 0 | – | DONE | ai/claude-t1.0-contracts | #11 |
 | T1.1 | OIDC authentication (backend) | 1 | S07 | DONE | ai/claude-t1.1-oidc | #13 |
 | T1.2 | Tenant context, RLS & permission engine | 1 | S08 | DONE | ai/claude-t1.2-rls | #23 (was #15) |
-| T1.3 | Org / member / group / invitation APIs + audit | 2 | S09 | REVIEW | ai/claude-t1.3-org-apis | #19 |
-| T2.1 | KB & document schema + KB APIs + RLS meta-test | 2 | S12 | REVIEW | ai/claude-t2.1-kb-schema | |
+| T1.3 | Org / member / group / invitation APIs + audit | 2 | S09 | DONE | ai/claude-t1.3-org-apis | #19 |
+| T2.1 | KB & document schema + KB APIs + RLS meta-test | 2 | S12 | REVIEW | ai/claude-t2.1-kb-schema | #25 |
 | T2.4 | Upload & document endpoints | 3 | S13 | TODO | | |
 | T3.1 | Outbox dispatcher, Celery & job state machine | 3 | S16 | TODO | | |
 | T3.5 | Ingestion stage wiring + chunks schema + approvals | 4 | S17–S19 | TODO | | |
