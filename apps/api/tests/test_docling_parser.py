@@ -1,6 +1,8 @@
+from io import BytesIO
 from pathlib import Path
 
 import pytest
+from docx import Document
 
 from app.ingestion.canonical import BlockType
 from app.ingestion.parsing.base import ParserError
@@ -24,7 +26,8 @@ CORPUS = Path(__file__).resolve().parents[3] / "evals" / "fixtures" / "corpus" /
     ],
 )
 def test_real_format_canonical_snapshot(filename: str, mime_type: str, snapshot: object) -> None:
-    document = DoclingParser().parse(
+    assets = Path(__file__).resolve().parents[1] / ".venv" / "docling-assets"
+    document = DoclingParser(artifacts_path=assets if assets.exists() else None).parse(
         (CORPUS / filename).read_bytes(), filename=filename, mime_type=mime_type
     )
     assert document.blocks
@@ -43,6 +46,36 @@ def test_real_child_timeout() -> None:
         run_isolated("tests.parser_probe", ["hang"], timeout_seconds=0.2, memory_bytes=1024**3)
     assert error.value.code == "parser_timeout"
     assert error.value.retryable
+
+
+def test_docx_hierarchy_lists_and_structured_table() -> None:
+    source = Document()
+    source.add_heading("Policy", level=1)
+    source.add_heading("Eligibility", level=2)
+    source.add_paragraph("Active employees", style="List Bullet")
+    table = source.add_table(rows=2, cols=2)
+    table.cell(0, 0).text = "Category"
+    table.cell(0, 1).text = "Weeks"
+    table.cell(1, 0).text = "Employee"
+    table.cell(1, 1).text = "16"
+    output = BytesIO()
+    source.save(output)
+    document = DoclingParser().parse(
+        output.getvalue(),
+        filename="policy.docx",
+        mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+    listing = next(block for block in document.blocks if block.type is BlockType.LIST)
+    assert listing.heading_path == ["Policy", "Eligibility"]
+    parsed_table = next(block for block in document.blocks if block.type is BlockType.TABLE)
+    assert parsed_table.table is not None
+    assert ["Employee", "16"] in parsed_table.table.rows
+    again = DoclingParser().parse(
+        output.getvalue(),
+        filename="policy.docx",
+        mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+    assert document == again
 
 
 def test_real_child_memory_limit() -> None:

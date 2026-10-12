@@ -32,6 +32,9 @@ jobs:
       - name: Install dependencies (locked)
         run: uv sync --frozen
 
+      - name: Docling model assets for real parser snapshots
+        run: uv run python ../../scripts/download_docling_models.py --output-dir .venv/docling-assets
+
       - name: Ruff lint
         run: uv run ruff check . ../../scripts
 

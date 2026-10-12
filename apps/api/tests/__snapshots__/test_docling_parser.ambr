@@ -621,7 +621,7 @@
         'block_id': 'bb98848fc8d93ccaeed6acd69c464a43e5db5884a34854e569ebd88d2eae088d',
         'extra': dict({
         }),
-        'heading_level': None,
+        'heading_level': 1,
         'heading_path': list([
         ]),
         'language': None,
@@ -635,7 +635,7 @@
         'source_order': 0,
         'table': None,
         'text': 'Acme Corp Employee Handbook 2026',
-        'type': 'paragraph',
+        'type': 'heading',
       }),
       dict({
         'bbox': list([
@@ -650,7 +650,7 @@
         'block_id': 'f783180dec0a5bbdb76211d271bce3e14f02f5a19858291b2ac564cd44dcd93d',
         'extra': dict({
         }),
-        'heading_level': None,
+        'heading_level': 1,
         'heading_path': list([
         ]),
         'language': None,
@@ -664,7 +664,7 @@
         'source_order': 1,
         'table': None,
         'text': 'Parental Leave Policy (Updated)',
-        'type': 'paragraph',
+        'type': 'heading',
       }),
       dict({
         'bbox': list([
@@ -673,14 +673,15 @@
             'x0': 78.0,
             'x1': 443.19,
             'y0': 190.82000000000005,
-            'y1': 200.07000000000005,
+            'y1': 248.07000000000005,
           }),
         ]),
-        'block_id': 'aac5558ced8abc90eee8d895e21db6a2f9df8db95758f3845011d46925cda177',
+        'block_id': 'f550ab511c8d67002bc5fb4a43a5681cf3ea3fbc3a02cd84f9d26154336e2b9e',
         'extra': dict({
         }),
         'heading_level': None,
         'heading_path': list([
+          'Parental Leave Policy (Updated)',
         ]),
         'language': None,
         'ocr_confidence': None,
@@ -692,65 +693,7 @@
         'slide': None,
         'source_order': 2,
         'table': None,
-        'text': 'Effective January 2026, employees are entitled to 16 weeks of paid parental leave.',
-        'type': 'paragraph',
-      }),
-      dict({
-        'bbox': list([
-          dict({
-            'page': 1,
-            'x0': 78.0,
-            'x1': 430.35000000000014,
-            'y0': 214.82000000000005,
-            'y1': 224.07000000000005,
-          }),
-        ]),
-        'block_id': '3b70a3cf5da4fd0b4c1639b25a53a068ea062ddb36931fee9deab3b72e8cf750',
-        'extra': dict({
-        }),
-        'heading_level': None,
-        'heading_path': list([
-        ]),
-        'language': None,
-        'ocr_confidence': None,
-        'page': 1,
-        'raw_text': None,
-        'row_end': None,
-        'row_start': None,
-        'sheet': None,
-        'slide': None,
-        'source_order': 3,
-        'table': None,
-        'text': 'This policy update (code HR-142-B) increases the previous 12-week allowance.',
-        'type': 'paragraph',
-      }),
-      dict({
-        'bbox': list([
-          dict({
-            'page': 1,
-            'x0': 78.0,
-            'x1': 372.57,
-            'y0': 238.82000000000005,
-            'y1': 248.07000000000005,
-          }),
-        ]),
-        'block_id': 'c09f937d10a0ee15eef8be1390e039ed08e403930dd5e4b65dd0b29a2bf6b2a8',
-        'extra': dict({
-        }),
-        'heading_level': None,
-        'heading_path': list([
-        ]),
-        'language': None,
-        'ocr_confidence': None,
-        'page': 1,
-        'raw_text': None,
-        'row_end': None,
-        'row_start': None,
-        'sheet': None,
-        'slide': None,
-        'source_order': 4,
-        'table': None,
-        'text': 'Applies to all employees who have completed 6 months of service.',
+        'text': 'Effective January 2026, employees are entitled to 16 weeks of paid parental leave. This policy update (code HR-142-B) increases the previous 12-week allowance. Applies to all employees who have completed 6 months of service.',
         'type': 'paragraph',
       }),
       dict({
@@ -763,10 +706,10 @@
             'y1': 275.726,
           }),
         ]),
-        'block_id': 'd1f8e181b79bae2dced36a1d2799b84be92706b41f4048ea4ba1da3b013968d3',
+        'block_id': '2e031e9c8b7a244edb2249398c9b430b8d96e2866f1f4689063fb64ea1566089',
         'extra': dict({
         }),
-        'heading_level': None,
+        'heading_level': 1,
         'heading_path': list([
         ]),
         'language': None,
@@ -777,39 +720,10 @@
         'row_start': None,
         'sheet': None,
         'slide': None,
-        'source_order': 5,
+        'source_order': 3,
         'table': None,
         'text': 'Remote Work Policy',
-        'type': 'paragraph',
-      }),
-      dict({
-        'bbox': list([
-          dict({
-            'page': 1,
-            'x0': 78.0,
-            'x1': 317.5300000000001,
-            'y0': 296.82,
-            'y1': 306.07,
-          }),
-        ]),
-        'block_id': '783e5b26f44a5563f1865732b72121bceb49d1cc281b8a4ae70e1af42edc4405',
-        'extra': dict({
-        }),
-        'heading_level': None,
-        'heading_path': list([
-        ]),
-        'language': None,
-        'ocr_confidence': None,
-        'page': 1,
-        'raw_text': None,
-        'row_end': None,
-        'row_start': None,
-        'sheet': None,
-        'slide': None,
-        'source_order': 6,
-        'table': None,
-        'text': 'Employees may work remotely up to 4 days per week.',
-        'type': 'paragraph',
+        'type': 'heading',
       }),
       dict({
         'bbox': list([
@@ -817,15 +731,16 @@
             'page': 1,
             'x0': 78.0,
             'x1': 339.2100000000001,
-            'y0': 320.82,
+            'y0': 296.82,
             'y1': 330.07,
           }),
         ]),
-        'block_id': '440295fa0a1363634663f8f4ea0972a29b9d25791a8b1591319b88f22c236521',
+        'block_id': '26a3815e88ab5703c125542dc2523ff25270340f348aaf2108eaeb486066a517',
         'extra': dict({
         }),
         'heading_level': None,
         'heading_path': list([
+          'Remote Work Policy',
         ]),
         'language': None,
         'ocr_confidence': None,
@@ -835,9 +750,9 @@
         'row_start': None,
         'sheet': None,
         'slide': None,
-        'source_order': 7,
+        'source_order': 4,
         'table': None,
-        'text': 'Manager approval is required for full remote arrangements.',
+        'text': 'Employees may work remotely up to 4 days per week. Manager approval is required for full remote arrangements.',
         'type': 'paragraph',
       }),
       dict({
@@ -850,10 +765,10 @@
             'y1': 357.726,
           }),
         ]),
-        'block_id': 'ac1da82fbacd31cf9b482e4a78db068d10f3f16b4f4d8c644ecc23966cd0e61c',
+        'block_id': '9dea54202f03d78fe9087458d3e639f3cba304800f5707aa6f43dabb6f4dffa4',
         'extra': dict({
         }),
-        'heading_level': None,
+        'heading_level': 1,
         'heading_path': list([
         ]),
         'language': None,
@@ -864,10 +779,10 @@
         'row_start': None,
         'sheet': None,
         'slide': None,
-        'source_order': 8,
+        'source_order': 5,
         'table': None,
         'text': 'Health Benefits',
-        'type': 'paragraph',
+        'type': 'heading',
       }),
       dict({
         'bbox': list([
@@ -876,43 +791,15 @@
             'x0': 78.0,
             'x1': 278.08000000000004,
             'y0': 378.82,
-            'y1': 388.07,
-          }),
-        ]),
-        'block_id': '5807b3e18cf791cf697e81524fdf23b5441f303aa269bfd7fe5dcac53363d196',
-        'extra': dict({
-        }),
-        'heading_level': None,
-        'heading_path': list([
-        ]),
-        'language': None,
-        'ocr_confidence': None,
-        'page': 1,
-        'raw_text': None,
-        'row_end': None,
-        'row_start': None,
-        'sheet': None,
-        'slide': None,
-        'source_order': 9,
-        'table': None,
-        'text': 'Comprehensive health insurance is provided.',
-        'type': 'paragraph',
-      }),
-      dict({
-        'bbox': list([
-          dict({
-            'page': 1,
-            'x0': 78.0,
-            'x1': 243.10000000000005,
-            'y0': 402.82,
             'y1': 412.07,
           }),
         ]),
-        'block_id': 'ddcc7f06a1354a1b66ca0a3bed88a746e203f1a0bd97adf3fed7a95c78a4cf88',
+        'block_id': '14a41163f075decb532030d1ce43a3190c3a56f87fc7d3de8bd5206f69a01f51',
         'extra': dict({
         }),
         'heading_level': None,
         'heading_path': list([
+          'Health Benefits',
         ]),
         'language': None,
         'ocr_confidence': None,
@@ -922,9 +809,9 @@
         'row_start': None,
         'sheet': None,
         'slide': None,
-        'source_order': 10,
+        'source_order': 6,
         'table': None,
-        'text': 'Mental health support added in 2026.',
+        'text': 'Comprehensive health insurance is provided. Mental health support added in 2026.',
         'type': 'paragraph',
       }),
     ]),
@@ -938,7 +825,7 @@
     'parser_name': 'docling',
     'parser_version': '2.138.0',
     'schema_version': 1,
-    'title': 'acme_hr_handbook_2026',
+    'title': 'Acme Corp Employee Handbook 2026',
     'warnings': list([
     ]),
   })
