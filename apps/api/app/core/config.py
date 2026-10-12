@@ -76,6 +76,18 @@ class Settings(BaseSettings):
 
     readiness_timeout_seconds: float = 2.0
 
+    # Browser origins allowed to call the API (CORS). Comma-separated, exact origins only: the
+    # web app sends a bearer token, never cookies, so credentials stay disabled (ADR-003).
+    web_origins: str = "http://localhost:3000,http://localhost:3100,http://localhost:3200"
+
+    @property
+    def web_origin_list(self) -> list[str]:
+        origins = [o.strip().rstrip("/") for o in self.web_origins.split(",") if o.strip()]
+        for origin in origins:
+            if "*" in origin or not origin.startswith(("http://", "https://")):
+                raise ValueError(f"WEB_ORIGINS entries must be exact http(s) origins: {origin!r}")
+        return origins
+
     @property
     def json_logs(self) -> bool:
         if self.log_json is not None:
