@@ -5,6 +5,11 @@ import { EvidenceRail } from "@/components/shell/evidence-rail";
 
 describe("evidence resize handle", () => {
   it("supports arrows and range endpoints by keyboard", async () => {
+    vi.stubGlobal("matchMedia", () => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
     localStorage.clear();
     const user = userEvent.setup();
     render(
