@@ -1,5 +1,6 @@
 """OIDCVerifier: every acceptance and rejection rule from session.md S07 (T1.1)."""
 
+import asyncio
 import base64
 import hashlib
 import hmac
@@ -281,6 +282,50 @@ async def test_malformed_idp_documents_are_unavailable_not_500(
 
     with pytest.raises(IdentityProviderUnavailableError):
         await verifier(http).verify(make_token(key))
+
+
+@respx.mock
+async def test_trailing_slash_issuer_is_matched_exactly(
+    http: httpx.AsyncClient, key: SigningKey
+) -> None:
+    """Review #13 (HIGH): Auth0-style issuers end in "/"; iss must match exactly, either way."""
+    slash_issuer = ISSUER + "/"
+    respx.get(DISCOVERY_URL).respond(json={"issuer": slash_issuer, "jwks_uri": JWKS_URL})
+    respx.get(JWKS_URL).respond(json=jwks(key))
+    v = verifier(http, oidc_issuer=slash_issuer)
+
+    accepted = await v.verify(make_token(key, issuer=slash_issuer))
+    assert accepted.issuer == slash_issuer
+    with pytest.raises(TokenInvalidError):
+        await v.verify(make_token(key, issuer=ISSUER))  # same host, missing slash
+
+
+@respx.mock
+async def test_issuer_without_slash_rejects_slashed_tokens_and_discovery(
+    http: httpx.AsyncClient, key: SigningKey
+) -> None:
+    respx.get(DISCOVERY_URL).respond(json=discovery())
+    respx.get(JWKS_URL).respond(json=jwks(key))
+    with pytest.raises(TokenInvalidError):
+        await verifier(http).verify(make_token(key, issuer=ISSUER + "/"))
+
+    respx.get(DISCOVERY_URL).respond(json={"issuer": ISSUER + "/", "jwks_uri": JWKS_URL})
+    with pytest.raises(IdentityProviderUnavailableError):
+        await verifier(http).verify(make_token(key))
+
+
+@respx.mock
+async def test_concurrent_cold_requests_share_one_jwks_fetch(
+    http: httpx.AsyncClient, key: SigningKey
+) -> None:
+    discovery_route = respx.get(DISCOVERY_URL).respond(json=discovery())
+    jwks_route = respx.get(JWKS_URL).respond(json=jwks(key))
+    v = verifier(http)
+
+    results = await asyncio.gather(*(v.verify(make_token(key, sub=f"u{i}")) for i in range(10)))
+
+    assert {r.subject for r in results} == {f"u{i}" for i in range(10)}
+    assert (discovery_route.call_count, jwks_route.call_count) == (1, 1)
 
 
 def test_symmetric_algorithms_cannot_be_configured() -> None:
