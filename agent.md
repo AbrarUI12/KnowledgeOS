@@ -40,8 +40,8 @@
 
 ### Claude: architect · security/DB/integration · reviewer
 - **Worktree / ports:** `D:\projects\kos-claude` · API 8000 · web 3000
-- **Current task:** T1.1, T1.2, T1.3 in REVIEW (stacked: #13 ← #15 ← T1.3); next T2.1 KB schema + CORS (issue #18)
-- **Last finished:** T1.0 contracts (2026-10-12, PR #11, Codex review PASS)
+- **Current task:** T1.3 in REVIEW (#19, fixes for Codex's review pushed); next T2.1 KB & document schema
+- **Last finished:** T1.1 (#13), T1.2 (#23), CORS (#20), Pages showcase (#21); live at https://abrarui12.github.io/KnowledgeOS/
 - **Blockers:** none
 - **Recent:**
   - 2026-10-12 · T1.3 · org/member/group/invitation APIs, keyset pagination, per-user idempotency keys (migration 0004), audit row per mutation, last-owner lock, no owner escalation, invitation token-holder RLS policy, `.test` emails allowed locally
