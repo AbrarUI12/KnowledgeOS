@@ -26,6 +26,13 @@ Every error response uses one envelope:
 | 404 | `not_found` | Resource doesn't exist **or** isn't visible to the caller (cross-tenant access also returns 404) |
 | 405 | `method_not_allowed` | Wrong HTTP method |
 | 409 | `conflict` | Conflicts with current state |
+| 409 | `slug_taken` | Organization slug already in use |
+| 409 | `last_owner` | The change would leave the organization without an owner |
+| 409 | `already_member` | The invited or joining person is already a member |
+| 409 | `group_name_taken` | A group with that name exists in the organization |
+| 409 | `idempotency_key_reused` | The `Idempotency-Key` was used for a different request (or the original is still in flight) |
+| 410 | `invitation_expired` | The invitation link has expired |
+| 403 | `invitation_email_mismatch` | The signed-in email doesn't match the invitation |
 | 413 | `payload_too_large` | Request body too large |
 | 415 | `unsupported_media_type` | Unsupported content type |
 | 422 | `validation_failed` | Body/query validation failed; `details.errors[]` has `loc`, `msg`, `type` |
@@ -34,4 +41,6 @@ Every error response uses one envelope:
 | 501 | `not_implemented` | Contract stub (T1.0): endpoint exists with its final schema; `details.task` names the task implementing it |
 | 503 | `service_unavailable` | A dependency is unavailable |
 
-Domain-specific codes (uploads, ingestion, retrieval) are added here as sessions introduce them.
+Domain-specific codes keep the HTTP status of their generic parent (`last_owner` is a 409 like `conflict`), so clients can fall back to the status. Uploads, ingestion and retrieval codes are added as sessions introduce them.
+
+**Idempotency (plan §26.1):** `POST /v1/organizations`, `POST .../invitations` and `POST .../groups` accept an `Idempotency-Key` header (8–200 chars, per user, kept for `IDEMPOTENCY_TTL_HOURS`). Retrying with the same key and body returns the original status and body; a failed request doesn't consume the key.

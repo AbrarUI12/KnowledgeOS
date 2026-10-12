@@ -55,6 +55,45 @@ class Conflict(AppError):
     status_code, code, message = 409, "conflict", "The request conflicts with the current state."
 
 
+class Gone(AppError):
+    status_code, code, message = 410, "gone", "The resource is no longer available."
+
+
+# Domain-specific codes (docs/api/errors.md). Subclasses keep the HTTP status of their parent.
+class SlugTaken(Conflict):
+    code, message = "slug_taken", "That organization slug is already in use."
+
+
+class LastOwner(Conflict):
+    code, message = "last_owner", "An organization must keep at least one owner."
+
+
+class AlreadyMember(Conflict):
+    code, message = "already_member", "That person is already a member of this organization."
+
+
+class GroupNameTaken(Conflict):
+    code, message = "group_name_taken", "A group with that name already exists."
+
+
+class IdempotencyKeyReused(Conflict):
+    code, message = (
+        "idempotency_key_reused",
+        "This Idempotency-Key was already used for a different request.",
+    )
+
+
+class InvitationExpired(Gone):
+    code, message = "invitation_expired", "This invitation has expired."
+
+
+class InvitationEmailMismatch(Forbidden):
+    code, message = (
+        "invitation_email_mismatch",
+        "This invitation was sent to a different email address.",
+    )
+
+
 class RateLimited(AppError):
     status_code, code, message = 429, "rate_limited", "Too many requests."
 

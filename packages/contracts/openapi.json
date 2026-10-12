@@ -5064,6 +5064,7 @@
     },
     "/v1/invitations/{token}/accept": {
       "post": {
+        "description": "Join the inviting organization. The signed-in email must match the invitation\n(403 `invitation_email_mismatch`); 410 `invitation_expired`.",
         "operationId": "invitations_accept_invitation",
         "parameters": [
           {
@@ -5138,6 +5139,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Accept Invitation",
         "tags": [
           "invitations"
@@ -6879,13 +6885,18 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Organizations",
         "tags": [
           "organizations"
         ]
       },
       "post": {
-        "description": "Create an organization; the caller becomes its owner. Supports `Idempotency-Key`.",
+        "description": "Create an organization; the caller becomes its owner (409 `slug_taken`).\nSupports `Idempotency-Key`.",
         "operationId": "organizations_create_organization",
         "parameters": [
           {
@@ -6981,6 +6992,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Create Organization",
         "tags": [
           "organizations"
@@ -7105,6 +7121,7 @@
         ]
       },
       "post": {
+        "description": "Create a group (`groups.manage`; 409 `group_name_taken`). Supports `Idempotency-Key`.",
         "operationId": "groups_create_group",
         "parameters": [
           {
@@ -7115,6 +7132,26 @@
               "format": "uuid",
               "title": "Org Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Client-generated unique key (e.g. a UUID). Retrying with the same key and body returns the original response instead of repeating the operation (plan §26.1).",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client-generated unique key (e.g. a UUID). Retrying with the same key and body returns the original response instead of repeating the operation (plan §26.1).",
+              "title": "Idempotency-Key"
             }
           }
         ],
@@ -7728,7 +7765,7 @@
     },
     "/v1/organizations/{org_id}/invitations": {
       "post": {
-        "description": "Invite by email; returns a one-time `accept_url` (the token is stored hashed).",
+        "description": "Invite by email (`members.manage`); returns a one-time `accept_url` (the token is stored\nhashed). 409 `already_member`. Supports `Idempotency-Key`.",
         "operationId": "invitations_create_invitation",
         "parameters": [
           {
@@ -7739,6 +7776,26 @@
               "format": "uuid",
               "title": "Org Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Client-generated unique key (e.g. a UUID). Retrying with the same key and body returns the original response instead of repeating the operation (plan §26.1).",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client-generated unique key (e.g. a UUID). Retrying with the same key and body returns the original response instead of repeating the operation (plan §26.1).",
+              "title": "Idempotency-Key"
             }
           }
         ],
@@ -7827,6 +7884,7 @@
     },
     "/v1/organizations/{org_id}/members": {
       "get": {
+        "description": "Members of the organization (any member may list them).",
         "operationId": "members_list_members",
         "parameters": [
           {
@@ -7945,6 +8003,7 @@
     },
     "/v1/organizations/{org_id}/members/{user_id}": {
       "delete": {
+        "description": "Remove a member and their group memberships (`members.manage`; 409 `last_owner`).",
         "operationId": "members_remove_member",
         "parameters": [
           {
@@ -8034,7 +8093,7 @@
         ]
       },
       "patch": {
-        "description": "Change a member's role (`members.manage`). The last owner can't be demoted (409).",
+        "description": "Change a member's role (`members.manage`). Granting or removing `owner` needs\n`org.manage`; the last owner can't be demoted (409 `last_owner`).",
         "operationId": "members_update_member",
         "parameters": [
           {
