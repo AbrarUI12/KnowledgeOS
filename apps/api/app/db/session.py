@@ -8,8 +8,9 @@ Rules (see plan §8.2):
 """
 
 from collections.abc import AsyncIterator
+from typing import Annotated
 
-from fastapi import Request
+from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -38,3 +39,6 @@ async def get_db(request: Request) -> AsyncIterator[AsyncSession]:
     sessionmaker: async_sessionmaker[AsyncSession] = request.app.state.sessionmaker
     async with sessionmaker() as session, session.begin():
         yield session
+
+
+DbSession = Annotated[AsyncSession, Depends(get_db)]

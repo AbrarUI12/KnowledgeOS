@@ -55,7 +55,42 @@ async def test_error_responses_carry_cors_and_expose_request_id() -> None:
     assert "x-request-id" in response.headers["access-control-expose-headers"].lower()
 
 
-@pytest.mark.parametrize("value", ["*", "localhost:3000", "https://*.example.com"])
+@pytest.mark.parametrize(
+    "value",
+    [
+        "*",
+        "localhost:3000",
+        "https://*.example.com",
+        "https://web.test/app",
+        "https://web.test/?x=1",
+        "https://user:pw@web.test",
+        "https://web.test#frag",
+        "ftp://web.test",
+    ],
+)
 def test_wildcards_and_bare_hosts_are_rejected(value: str) -> None:
     with pytest.raises(ValueError, match="exact"):
         create_app(make_settings(web_origins=value))
+
+
+def test_trailing_slash_origin_is_normalized() -> None:
+    assert make_settings(web_origins="https://web.test/").web_origin_list == ["https://web.test"]
+
+
+async def test_unhandled_500_carries_cors_and_request_id() -> None:
+    """Review #20 (MEDIUM): crashes must still be readable by the browser."""
+    app = create_app(make_settings())
+
+    @app.get("/boom")
+    async def boom() -> None:
+        raise RuntimeError("secret detail")
+
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        response = await c.get("/boom", headers={"Origin": ALLOWED})
+
+    assert response.status_code == 500
+    assert response.json()["error"]["code"] == "internal_error"
+    assert "secret detail" not in response.text
+    assert response.headers["access-control-allow-origin"] == ALLOWED
+    assert response.headers["x-request-id"]

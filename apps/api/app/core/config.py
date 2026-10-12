@@ -4,6 +4,7 @@ from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -74,6 +75,22 @@ class Settings(BaseSettings):
     clamav_max_stream_bytes: int = 50 * 1024 * 1024
     require_malware_scan: bool = Field(default_factory=_malware_scan_required)
 
+    # OIDC (Keycloak locally, Auth0 deployed). Only tokens whose `iss` equals oidc_issuer and whose
+    # `aud` contains oidc_audience are accepted (ADR-003).
+    oidc_issuer: str = "http://localhost:8080/realms/knowledgeos"
+    oidc_audience: str = "knowledgeos-api"
+    oidc_jwks_url: str | None = Field(
+        default=None, description="Override; normally taken from the issuer's discovery document"
+    )
+    oidc_algorithms: tuple[str, ...] = ("RS256", "ES256")
+    oidc_leeway_seconds: int = Field(default=30, ge=0, le=60)
+    oidc_jwks_cache_seconds: int = Field(default=600, ge=30)
+    oidc_jwks_min_refresh_seconds: int = Field(
+        default=30, ge=0, description="Rate limit for JWKS refreshes triggered by unknown key IDs"
+    )
+    oidc_http_timeout_seconds: float = 5.0
+    user_last_seen_write_interval_seconds: int = 300
+
     readiness_timeout_seconds: float = 2.0
 
     # Browser origins allowed to call the API (CORS). Comma-separated, exact origins only: the
@@ -82,11 +99,22 @@ class Settings(BaseSettings):
 
     @property
     def web_origin_list(self) -> list[str]:
-        origins = [o.strip().rstrip("/") for o in self.web_origins.split(",") if o.strip()]
+        """Exact origins (scheme://host[:port]); anything else fails fast at startup."""
+        origins = [o.strip() for o in self.web_origins.split(",") if o.strip()]
         for origin in origins:
-            if "*" in origin or not origin.startswith(("http://", "https://")):
+            parts = urlsplit(origin)
+            if (
+                "*" in origin
+                or parts.scheme not in {"http", "https"}
+                or not parts.hostname
+                or parts.username is not None
+                or parts.password is not None
+                or parts.path not in {"", "/"}
+                or parts.query
+                or parts.fragment
+            ):
                 raise ValueError(f"WEB_ORIGINS entries must be exact http(s) origins: {origin!r}")
-        return origins
+        return [o.rstrip("/") for o in origins]
 
     @property
     def json_logs(self) -> bool:
