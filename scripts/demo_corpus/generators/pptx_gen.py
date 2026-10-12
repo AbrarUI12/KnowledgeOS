@@ -6,6 +6,12 @@ from pathlib import Path
 
 from pptx import Presentation
 
+from scripts.demo_corpus.generators.determinism import (
+    CREATOR,
+    FIXED_DATE,
+    normalize_ooxml,
+)
+
 
 def generate_pptx(
     output_path: Path,
@@ -15,6 +21,9 @@ def generate_pptx(
     """Generate a PPTX presentation with the given title and slides.
 
     Each slide is a dict with 'title' and 'bullets' (list of strings).
+
+    Core properties are pinned and the ZIP container is normalized so the file is
+    byte-identical on every run (see ``determinism.py``).
     """
     prs = Presentation()
 
@@ -40,4 +49,12 @@ def generate_pptx(
                 p = body.add_paragraph()
                 p.text = str(bullet)
 
+    # Pin core properties (python-pptx honors these on save).
+    core = prs.core_properties
+    core.author = CREATOR
+    core.last_modified_by = CREATOR
+    core.created = FIXED_DATE
+    core.modified = FIXED_DATE
+
     prs.save(str(output_path))
+    normalize_ooxml(output_path)
