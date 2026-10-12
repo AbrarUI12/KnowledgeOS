@@ -40,10 +40,11 @@
 
 ### Claude: architect · security/DB/integration · reviewer
 - **Worktree / ports:** `D:\projects\kos-claude` · API 8000 · web 3000
-- **Current task:** T1.1 in REVIEW (reviewer Codex); next T1.2 RLS + permission engine
+- **Current task:** T1.1 + T1.2 in REVIEW (reviewer Codex; T1.2 is stacked on T1.1); next T1.3 org/member/group APIs
 - **Last finished:** T1.0 contracts (2026-10-12, PR #11, Codex review PASS)
 - **Blockers:** none
 - **Recent:**
+  - 2026-10-12 · T1.2 · migration 0003: forced RLS on every tenant table (owner bound too, D-014); RequestContext + `require_permission` + principal tokens; org-scoped stubs resolve tenant context (cross-org → 404); readiness checks the runtime role; `tenant_session` for workers; PR #12 (Cline) review items finished
   - 2026-10-12 · T1.1 · OIDCVerifier (JWKS cache, rotation, alg allowlist), JIT users, `/v1/me`, bearer scheme in OpenAPI; test settings no longer leak `.env`
   - 2026-10-12 · T1.0 · PR #11 (merged; scanner/validator contract = T2.3's API): 11 provider Protocols + core models + 49 stub endpoints (501) + OpenAPI in `packages/contracts/openapi.json` + fakes in `tests/fakes/` + `docs/api/sse-events.md`
   - 2026-10-12 · T0.1 · PR #9: docs/AI_CONTEXT, ARCHITECTURE, TASKS, DECISIONS, TESTING, AGENT_WORKFLOW; worktrees; ports

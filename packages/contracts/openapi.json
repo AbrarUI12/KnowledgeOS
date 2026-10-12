@@ -3680,6 +3680,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Get Chunk Context",
         "tags": [
           "documents"
@@ -3769,6 +3774,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Delete Document",
         "tags": [
           "documents"
@@ -3862,6 +3872,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Get Document",
         "tags": [
           "documents"
@@ -3957,6 +3972,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Reindex Document",
         "tags": [
           "documents"
@@ -4056,6 +4076,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Document Versions",
         "tags": [
           "documents"
@@ -4160,6 +4185,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Start Document Replacement",
         "tags": [
           "documents"
@@ -4275,6 +4305,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Approve Document Version",
         "tags": [
           "documents"
@@ -4380,6 +4415,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Get Document Content Url",
         "tags": [
           "documents"
@@ -4486,6 +4526,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Inspect Document Version",
         "tags": [
           "documents"
@@ -4601,6 +4646,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Reject Document Version",
         "tags": [
           "documents"
@@ -4696,6 +4746,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Get Ingestion Job",
         "tags": [
           "ingestion"
@@ -4791,6 +4846,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Cancel Ingestion Job",
         "tags": [
           "ingestion"
@@ -4890,6 +4950,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Ingestion Job Events",
         "tags": [
           "ingestion"
@@ -4986,6 +5051,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Retry Ingestion Job",
         "tags": [
           "ingestion"
@@ -5158,6 +5228,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Knowledge Bases",
         "tags": [
           "knowledge_bases"
@@ -5251,6 +5326,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Create Knowledge Base",
         "tags": [
           "knowledge_bases"
@@ -5340,6 +5420,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Archive Knowledge Base",
         "tags": [
           "knowledge_bases"
@@ -5433,6 +5518,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Get Knowledge Base",
         "tags": [
           "knowledge_bases"
@@ -5536,6 +5626,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Update Knowledge Base",
         "tags": [
           "knowledge_bases"
@@ -5721,6 +5816,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Documents",
         "tags": [
           "documents"
@@ -5820,6 +5920,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Index Generations",
         "tags": [
           "knowledge_bases"
@@ -5964,6 +6069,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Ingestion Jobs",
         "tags": [
           "ingestion"
@@ -6059,6 +6169,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Get Knowledge Base Permissions",
         "tags": [
           "knowledge_bases"
@@ -6163,6 +6278,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Set Knowledge Base Permissions",
         "tags": [
           "knowledge_bases"
@@ -6269,6 +6389,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Query Knowledge Base",
         "tags": [
           "query"
@@ -6374,6 +6499,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Query Knowledge Base Stream",
         "tags": [
           "query"
@@ -6480,6 +6610,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Search Knowledge Base",
         "tags": [
           "search"
@@ -6586,6 +6721,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Create Upload",
         "tags": [
           "uploads"
@@ -6954,6 +7094,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Groups",
         "tags": [
           "groups"
@@ -7045,6 +7190,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Create Group",
         "tags": [
           "groups"
@@ -7131,6 +7281,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Delete Group",
         "tags": [
           "groups"
@@ -7232,6 +7387,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Update Group",
         "tags": [
           "groups"
@@ -7355,6 +7515,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Group Members",
         "tags": [
           "groups"
@@ -7449,6 +7614,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Add Group Member",
         "tags": [
           "groups"
@@ -7545,6 +7715,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Remove Group Member",
         "tags": [
           "groups"
@@ -7639,6 +7814,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Create Invitation",
         "tags": [
           "invitations"
@@ -7752,6 +7932,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "List Members",
         "tags": [
           "members"
@@ -7838,6 +8023,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Remove Member",
         "tags": [
           "members"
@@ -7940,6 +8130,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Update Member",
         "tags": [
           "members"
@@ -8036,6 +8231,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Get Query Run",
         "tags": [
           "query_runs"
@@ -8141,6 +8341,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Create Feedback",
         "tags": [
           "query_runs"
@@ -8237,6 +8442,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Search",
         "tags": [
           "search"
@@ -8363,6 +8573,11 @@
             "description": "Contract stub, not implemented yet"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "summary": "Complete Upload",
         "tags": [
           "uploads"

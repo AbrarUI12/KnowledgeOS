@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query, status
 
 from app.api.dependencies.auth import CurrentUser
+from app.api.dependencies.tenancy import OrgContext
 from app.api.v1._stub import ERRORS, IdempotencyKeyHeader, stub
 from app.db.session import DbSession
 from app.domain.schemas.common import Page
@@ -58,7 +59,7 @@ async def create_organization(
 
 @router.get("/organizations/{org_id}/members", tags=["members"], response_model=Page[MemberOut])
 async def list_members(
-    org_id: uuid.UUID, cursor: Cursor = None, limit: Limit = 50
+    org_id: uuid.UUID, ctx: OrgContext, cursor: Cursor = None, limit: Limit = 50
 ) -> Page[MemberOut]:
     stub("T1.3")
 
@@ -66,7 +67,9 @@ async def list_members(
 @router.patch(
     "/organizations/{org_id}/members/{user_id}", tags=["members"], response_model=MemberOut
 )
-async def update_member(org_id: uuid.UUID, user_id: uuid.UUID, body: MemberUpdate) -> MemberOut:
+async def update_member(
+    org_id: uuid.UUID, ctx: OrgContext, user_id: uuid.UUID, body: MemberUpdate
+) -> MemberOut:
     """Change a member's role (`members.manage`). The last owner can't be demoted (409)."""
     stub("T1.3")
 
@@ -76,7 +79,7 @@ async def update_member(org_id: uuid.UUID, user_id: uuid.UUID, body: MemberUpdat
     tags=["members"],
     status_code=status.HTTP_204_NO_CONTENT,
 )
-async def remove_member(org_id: uuid.UUID, user_id: uuid.UUID) -> None:
+async def remove_member(org_id: uuid.UUID, ctx: OrgContext, user_id: uuid.UUID) -> None:
     stub("T1.3")
 
 
@@ -86,7 +89,9 @@ async def remove_member(org_id: uuid.UUID, user_id: uuid.UUID) -> None:
     response_model=InvitationOut,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_invitation(org_id: uuid.UUID, body: InvitationCreate) -> InvitationOut:
+async def create_invitation(
+    org_id: uuid.UUID, ctx: OrgContext, body: InvitationCreate
+) -> InvitationOut:
     """Invite by email; returns a one-time `accept_url` (the token is stored hashed)."""
     stub("T1.3")
 
@@ -98,7 +103,7 @@ async def accept_invitation(token: str) -> InvitationAccepted:
 
 @router.get("/organizations/{org_id}/groups", tags=["groups"], response_model=Page[GroupOut])
 async def list_groups(
-    org_id: uuid.UUID, cursor: Cursor = None, limit: Limit = 50
+    org_id: uuid.UUID, ctx: OrgContext, cursor: Cursor = None, limit: Limit = 50
 ) -> Page[GroupOut]:
     stub("T1.3")
 
@@ -109,12 +114,14 @@ async def list_groups(
     response_model=GroupOut,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_group(org_id: uuid.UUID, body: GroupCreate) -> GroupOut:
+async def create_group(org_id: uuid.UUID, ctx: OrgContext, body: GroupCreate) -> GroupOut:
     stub("T1.3")
 
 
 @router.patch("/organizations/{org_id}/groups/{group_id}", tags=["groups"], response_model=GroupOut)
-async def update_group(org_id: uuid.UUID, group_id: uuid.UUID, body: GroupUpdate) -> GroupOut:
+async def update_group(
+    org_id: uuid.UUID, ctx: OrgContext, group_id: uuid.UUID, body: GroupUpdate
+) -> GroupOut:
     stub("T1.3")
 
 
@@ -123,7 +130,7 @@ async def update_group(org_id: uuid.UUID, group_id: uuid.UUID, body: GroupUpdate
     tags=["groups"],
     status_code=status.HTTP_204_NO_CONTENT,
 )
-async def delete_group(org_id: uuid.UUID, group_id: uuid.UUID) -> None:
+async def delete_group(org_id: uuid.UUID, ctx: OrgContext, group_id: uuid.UUID) -> None:
     stub("T1.3")
 
 
@@ -133,7 +140,11 @@ async def delete_group(org_id: uuid.UUID, group_id: uuid.UUID) -> None:
     response_model=Page[MemberOut],
 )
 async def list_group_members(
-    org_id: uuid.UUID, group_id: uuid.UUID, cursor: Cursor = None, limit: Limit = 50
+    org_id: uuid.UUID,
+    ctx: OrgContext,
+    group_id: uuid.UUID,
+    cursor: Cursor = None,
+    limit: Limit = 50,
 ) -> Page[MemberOut]:
     stub("T1.3")
 
@@ -143,7 +154,9 @@ async def list_group_members(
     tags=["groups"],
     status_code=status.HTTP_204_NO_CONTENT,
 )
-async def add_group_member(org_id: uuid.UUID, group_id: uuid.UUID, body: GroupMemberAdd) -> None:
+async def add_group_member(
+    org_id: uuid.UUID, ctx: OrgContext, group_id: uuid.UUID, body: GroupMemberAdd
+) -> None:
     stub("T1.3")
 
 
@@ -152,5 +165,7 @@ async def add_group_member(org_id: uuid.UUID, group_id: uuid.UUID, body: GroupMe
     tags=["groups"],
     status_code=status.HTTP_204_NO_CONTENT,
 )
-async def remove_group_member(org_id: uuid.UUID, group_id: uuid.UUID, user_id: uuid.UUID) -> None:
+async def remove_group_member(
+    org_id: uuid.UUID, ctx: OrgContext, group_id: uuid.UUID, user_id: uuid.UUID
+) -> None:
     stub("T1.3")

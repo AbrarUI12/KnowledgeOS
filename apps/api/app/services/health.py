@@ -1,4 +1,5 @@
-"""Readiness checks for the API's hard dependencies (database, Redis, object storage)."""
+"""Readiness checks for the API's hard dependencies (database, Redis, object storage) and the
+runtime database role's safety (it must be subject to row-level security)."""
 
 import asyncio
 from collections.abc import Awaitable, Callable
@@ -28,6 +29,30 @@ async def _database(engine: AsyncEngine) -> None:
         await conn.execute(text("SELECT 1"))
 
 
+# The runtime role must not be a superuser, must not have BYPASSRLS and must own no tables in the
+# schema (owners skip non-forced RLS and could ALTER the policies away). Plan §8.2, ADR-004.
+_ROLE_CHECK = text(
+    """
+    SELECT r.rolsuper OR r.rolbypassrls
+           OR EXISTS (
+             SELECT 1 FROM pg_class c
+             WHERE c.relowner = r.oid AND c.relnamespace = 'public'::regnamespace
+           ) AS unsafe
+    FROM pg_roles r WHERE r.rolname = current_user
+    """
+)
+
+
+class UnsafeDatabaseRole(RuntimeError):
+    """The API connects with a role that can bypass row-level security."""
+
+
+async def _database_role(engine: AsyncEngine) -> None:
+    async with engine.connect() as conn:
+        if (await conn.execute(_ROLE_CHECK)).scalar_one():
+            raise UnsafeDatabaseRole
+
+
 async def _redis(redis: Redis) -> None:
     await redis.ping()
 
@@ -42,6 +67,7 @@ async def check_readiness(
 ) -> ReadinessReport:
     checks: dict[str, Callable[[], Awaitable[None]]] = {
         "database": lambda: _database(engine),
+        "database_role": lambda: _database_role(engine),
         "redis": lambda: _redis(redis),
         "object_storage": lambda: _object_storage(s3, settings.s3_buckets),
     }
