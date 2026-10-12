@@ -15,6 +15,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.api.middleware import REQUEST_ID_HEADER, current_request_id
 
@@ -205,6 +206,40 @@ async def _validation_error(request: Request, exc: Exception) -> JSONResponse:
 async def _unhandled_error(request: Request, exc: Exception) -> JSONResponse:
     logger.exception("unhandled_error", error_type=type(exc).__name__)
     return error_response(request, 500, "internal_error", "An unexpected error occurred.")
+
+
+class UnhandledErrorMiddleware:
+    """Turns unhandled exceptions into the safe 500 envelope *inside* the middleware stack.
+
+    Starlette runs the `Exception` handler in its outermost ServerErrorMiddleware, i.e. outside
+    CORS, so browsers couldn't read those 500s. Installed inside CORS and the request-context
+    middleware, this one produces the same response with CORS and X-Request-ID headers applied.
+    If the response has already started, the exception is re-raised (nothing safe to send).
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        started = False
+
+        async def send_wrapper(message: Message) -> None:
+            nonlocal started
+            if message["type"] == "http.response.start":
+                started = True
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_wrapper)
+        except Exception as exc:
+            if started:
+                raise
+            logger.exception("unhandled_error", error_type=type(exc).__name__)
+            response = error_response(None, 500, "internal_error", "An unexpected error occurred.")
+            await response(scope, receive, send)
 
 
 def register_exception_handlers(app: FastAPI) -> None:
