@@ -35,6 +35,7 @@ Every error response uses one envelope:
 | 403 | `invitation_email_mismatch` | The signed-in email doesn't match the invitation |
 | 413 | `payload_too_large` | Request body too large |
 | 415 | `unsupported_media_type` | Unsupported content type |
+| 422 | `invalid_principal` | An ACL entry names a user, group or role that doesn't belong to the organization (`details.principals`) |
 | 422 | `validation_failed` | Body/query validation failed; `details.errors[]` has `loc`, `msg`, `type` |
 | 429 | `rate_limited` | Too many requests (`Retry-After` header when known) |
 | 500 | `internal_error` | Unexpected server error |

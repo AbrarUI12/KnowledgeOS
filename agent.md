@@ -40,10 +40,11 @@
 
 ### Claude: architect · security/DB/integration · reviewer
 - **Worktree / ports:** `D:\projects\kos-claude` · API 8000 · web 3000
-- **Current task:** T1.3 in REVIEW (#19, fixes for Codex's review pushed); next T2.1 KB & document schema
+- **Current task:** T1.3 (#19) and T2.1 in REVIEW (T2.1 stacked on #19); next T2.4 upload endpoints (needs T2.1)
 - **Last finished:** T1.1 (#13), T1.2 (#23), CORS (#20), Pages showcase (#21); live at https://abrarui12.github.io/KnowledgeOS/
 - **Blockers:** none
 - **Recent:**
+  - 2026-10-12 · T2.1 · migration 0005 (10 tenant tables: KBs, ACLs, sources, documents, versions, uploads, ingestion jobs, outbox; composite FKs, forced RLS), KB CRUD + permissions API, view/query/manage rules, doc-ACL narrow-only validator, chunk principal stub, acl.changed outbox events
   - 2026-10-12 · T1.3 · org/member/group/invitation APIs, keyset pagination, per-user idempotency keys (migration 0004), audit row per mutation, last-owner lock, no owner escalation, invitation token-holder RLS policy, `.test` emails allowed locally
   - 2026-10-12 · T1.2 · migration 0003: forced RLS on every tenant table (owner bound too, D-014); RequestContext + `require_permission` + principal tokens; org-scoped stubs resolve tenant context (cross-org → 404); readiness checks the runtime role; `tenant_session` for workers; PR #12 (Cline) review items finished
   - 2026-10-12 · T1.1 · OIDCVerifier (JWKS cache, rotation, alg allowlist), JIT users, `/v1/me`, bearer scheme in OpenAPI; test settings no longer leak `.env`

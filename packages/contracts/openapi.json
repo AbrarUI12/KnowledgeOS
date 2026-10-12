@@ -5152,7 +5152,7 @@
     },
     "/v1/knowledge-bases": {
       "get": {
-        "description": "KBs the caller may query (restricted KBs without an ACL match are invisible).",
+        "description": "Active KBs the caller may query or manage (restricted KBs without an ACL match are\ninvisible).",
         "operationId": "knowledge_bases_list_knowledge_bases",
         "parameters": [
           {
@@ -5245,6 +5245,7 @@
         ]
       },
       "post": {
+        "description": "Create a KB (`kb.create`). The creator gets a `manage` ACL entry; an upload source is\ncreated with it.",
         "operationId": "knowledge_bases_create_knowledge_base",
         "parameters": [
           {
@@ -5535,6 +5536,7 @@
         ]
       },
       "patch": {
+        "description": "Update (`kb.manage` or a `manage` ACL entry). A visibility change emits `acl.changed`.",
         "operationId": "knowledge_bases_update_knowledge_base",
         "parameters": [
           {
@@ -6186,7 +6188,7 @@
         ]
       },
       "put": {
-        "description": "Replace the allow-only ACL (`kb.manage`). Emits `acl.changed`; chunks update\nasynchronously.",
+        "description": "Replace the allow-only ACL (manage access). Principals must belong to the organization\n(422 `invalid_principal`). Emits `acl.changed`; chunks update asynchronously.",
         "operationId": "knowledge_bases_set_knowledge_base_permissions",
         "parameters": [
           {
