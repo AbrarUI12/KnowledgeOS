@@ -229,6 +229,60 @@ async def test_discovery_issuer_mismatch_is_unavailable(
         await verifier(http).verify(make_token(key))
 
 
+@respx.mock
+async def test_idp_outage_with_expired_cache_is_rate_limited(
+    http: httpx.AsyncClient, key: SigningKey
+) -> None:
+    """Review #13 (HIGH): after a failed expiry refresh, requests keep using the cached keys
+    instead of each making a blocking call to the down IdP."""
+    respx.get(DISCOVERY_URL).respond(json=discovery())
+    jwks_route = respx.get(JWKS_URL)
+    jwks_route.side_effect = [httpx.Response(200, json=jwks(key))] + [
+        httpx.ConnectError("down")
+    ] * 10
+    v = verifier(http, oidc_jwks_cache_seconds=30, oidc_jwks_min_refresh_seconds=3600)
+    await v.verify(make_token(key))
+    v._fetched_at -= 3600  # cache expired, IdP now down
+
+    for i in range(5):
+        assert (await v.verify(make_token(key, sub=f"u{i}"))).subject == f"u{i}"
+    assert jwks_route.call_count == 2  # initial load + one failed refresh, then backoff
+
+
+@respx.mock
+async def test_idp_outage_without_keys_backs_off(http: httpx.AsyncClient, key: SigningKey) -> None:
+    discovery_route = respx.get(DISCOVERY_URL).mock(side_effect=httpx.ConnectError("down"))
+    v = verifier(http, oidc_jwks_min_refresh_seconds=3600)
+
+    for _ in range(5):
+        with pytest.raises(IdentityProviderUnavailableError):
+            await v.verify(make_token(key))
+    assert discovery_route.call_count == 1
+
+
+@respx.mock
+@pytest.mark.parametrize(
+    ("discovery_body", "jwks_body"),
+    [
+        pytest.param(["not", "an", "object"], None, id="discovery-list"),
+        pytest.param({"issuer": 123, "jwks_uri": JWKS_URL}, None, id="discovery-issuer-type"),
+        pytest.param(None, ["not", "an", "object"], id="jwks-list"),
+        pytest.param(None, {"keys": "nope"}, id="jwks-keys-type"),
+    ],
+)
+async def test_malformed_idp_documents_are_unavailable_not_500(
+    http: httpx.AsyncClient, key: SigningKey, discovery_body: object, jwks_body: object
+) -> None:
+    """Review #13 (MEDIUM): well-formed JSON of the wrong shape must map to 503, not crash."""
+    respx.get(DISCOVERY_URL).respond(
+        json=discovery_body if discovery_body is not None else discovery()
+    )
+    respx.get(JWKS_URL).respond(json=jwks_body if jwks_body is not None else jwks(key))
+
+    with pytest.raises(IdentityProviderUnavailableError):
+        await verifier(http).verify(make_token(key))
+
+
 def test_symmetric_algorithms_cannot_be_configured() -> None:
     with pytest.raises(ValueError, match="asymmetric"):
         OIDCVerifier(make_settings(oidc_algorithms=("RS256", "HS256")), httpx.AsyncClient())

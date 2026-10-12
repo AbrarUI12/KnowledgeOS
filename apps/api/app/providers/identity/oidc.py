@@ -50,6 +50,7 @@ class OIDCVerifier:
         self._keys: dict[str, PyJWK] = {}
         self._fetched_at = 0.0
         self._last_refresh_attempt = 0.0
+        self._last_refresh_failed = False
         self._lock = asyncio.Lock()
 
     async def verify(self, token: str) -> VerifiedToken:
@@ -114,27 +115,43 @@ class OIDCVerifier:
     async def _refresh(self, *, force: bool) -> None:
         async with self._lock:
             now = time.monotonic()
-            if not force and now - self._last_refresh_attempt < self._min_refresh_seconds:
+            if force and self._keys and now - self._fetched_at <= self._cache_seconds:
+                return  # another request refreshed while we waited for the lock
+            # Rate limit: unknown-kid refreshes always; forced (expiry) refreshes after a failure,
+            # so an IdP outage doesn't turn every request into a blocking network call.
+            if (not force or self._last_refresh_failed) and (
+                now - self._last_refresh_attempt < self._min_refresh_seconds
+            ):
+                if not self._keys:
+                    raise IdentityProviderUnavailableError("signing keys unavailable")
                 return
             self._last_refresh_attempt = now
             try:
                 jwks_url = self._configured_jwks_url or await self._discover_jwks_url()
                 response = await self._http.get(jwks_url)
                 response.raise_for_status()
-                key_set = PyJWKSet.from_dict(response.json())
+                document = response.json()
+                if not isinstance(document, dict):
+                    raise ValueError("JWKS document is not a JSON object")
+                key_set = PyJWKSet.from_dict(document)
             except (httpx.HTTPError, ValueError, PyJWKError, PyJWKSetError) as exc:
+                self._last_refresh_failed = True
                 logger.warning("oidc_jwks_refresh_failed", error_type=type(exc).__name__)
                 if not self._keys:
                     raise IdentityProviderUnavailableError("signing keys unavailable") from exc
                 return  # keep serving the last known keys
             self._keys = {k.key_id: k for k in key_set.keys if k.key_id}
             self._fetched_at = now
+            self._last_refresh_failed = False
 
     async def _discover_jwks_url(self) -> str:
         response = await self._http.get(f"{self._issuer}/.well-known/openid-configuration")
         response.raise_for_status()
         document = response.json()
-        if document.get("issuer", "").rstrip("/") != self._issuer:
+        if not isinstance(document, dict):
+            raise ValueError("discovery document is not a JSON object")
+        issuer = document.get("issuer")
+        if not isinstance(issuer, str) or issuer.rstrip("/") != self._issuer:
             raise ValueError("discovery document issuer mismatch")
         jwks_uri = document.get("jwks_uri")
         if not isinstance(jwks_uri, str):
