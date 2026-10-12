@@ -1,14 +1,16 @@
 """Knowledge base, upload, document and ingestion endpoints (contracts from T1.0; implemented in
-T2.1,
-T2.4, T3.5, T3.6, T4.2, T5.4)."""
+T2.1, T2.4, T3.5, T3.6, T4.2, T5.4)."""
 
 import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
-from app.api.dependencies.tenancy import OrgContext
+from app.api.dependencies.tenancy import OrgContext, require_permission
 from app.api.v1._stub import ERRORS, IdempotencyKeyHeader, OrgIdHeader, stub
+from app.auth.authorization import RequestContext
+from app.auth.permissions import Permission
+from app.db.session import DbSession
 from app.domain.enums import Classification, DocumentStatus, IngestionState
 from app.domain.schemas.common import Page
 from app.domain.schemas.knowledge import (
@@ -31,8 +33,11 @@ from app.domain.schemas.knowledge import (
     UploadCreate,
     UploadOut,
 )
+from app.services import knowledge_bases
 
 router = APIRouter(responses=ERRORS)
+
+CreateKb = Annotated[RequestContext, require_permission(Permission.KB_CREATE)]
 
 Cursor = Annotated[str | None, Query(description="Opaque cursor from a previous page")]
 Limit = Annotated[int, Query(ge=1, le=200)]
@@ -41,9 +46,12 @@ Limit = Annotated[int, Query(ge=1, le=200)]
 
 
 @router.get("/knowledge-bases", tags=["knowledge_bases"], response_model=list[KnowledgeBaseOut])
-async def list_knowledge_bases(org: OrgIdHeader, ctx: OrgContext) -> list[KnowledgeBaseOut]:
-    """KBs the caller may query (restricted KBs without an ACL match are invisible)."""
-    stub("T2.1")
+async def list_knowledge_bases(
+    org: OrgIdHeader, ctx: OrgContext, session: DbSession
+) -> list[KnowledgeBaseOut]:
+    """Active KBs the caller may query or manage (restricted KBs without an ACL match are
+    invisible)."""
+    return await knowledge_bases.list_knowledge_bases(session, ctx)
 
 
 @router.post(
@@ -53,23 +61,30 @@ async def list_knowledge_bases(org: OrgIdHeader, ctx: OrgContext) -> list[Knowle
     status_code=status.HTTP_201_CREATED,
 )
 async def create_knowledge_base(
-    org: OrgIdHeader, ctx: OrgContext, body: KnowledgeBaseCreate
+    org: OrgIdHeader, ctx: CreateKb, session: DbSession, body: KnowledgeBaseCreate
 ) -> KnowledgeBaseOut:
-    stub("T2.1")
+    """Create a KB (`kb.create`). The creator gets a `manage` ACL entry; an upload source is
+    created with it."""
+    return await knowledge_bases.create_knowledge_base(session, ctx, body)
 
 
 @router.get("/knowledge-bases/{kb_id}", tags=["knowledge_bases"], response_model=KnowledgeBaseOut)
 async def get_knowledge_base(
-    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID
+    org: OrgIdHeader, ctx: OrgContext, session: DbSession, kb_id: uuid.UUID
 ) -> KnowledgeBaseOut:
-    stub("T2.1")
+    return await knowledge_bases.get_knowledge_base(session, ctx, kb_id)
 
 
 @router.patch("/knowledge-bases/{kb_id}", tags=["knowledge_bases"], response_model=KnowledgeBaseOut)
 async def update_knowledge_base(
-    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID, body: KnowledgeBaseUpdate
+    org: OrgIdHeader,
+    ctx: OrgContext,
+    session: DbSession,
+    kb_id: uuid.UUID,
+    body: KnowledgeBaseUpdate,
 ) -> KnowledgeBaseOut:
-    stub("T2.1")
+    """Update (`kb.manage` or a `manage` ACL entry). A visibility change emits `acl.changed`."""
+    return await knowledge_bases.update_knowledge_base(session, ctx, kb_id, body)
 
 
 @router.delete(
@@ -77,9 +92,11 @@ async def update_knowledge_base(
     tags=["knowledge_bases"],
     status_code=status.HTTP_204_NO_CONTENT,
 )
-async def archive_knowledge_base(org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID) -> None:
+async def archive_knowledge_base(
+    org: OrgIdHeader, ctx: OrgContext, session: DbSession, kb_id: uuid.UUID
+) -> None:
     """Archive (soft-delete); content stops being retrievable immediately."""
-    stub("T2.1")
+    await knowledge_bases.archive_knowledge_base(session, ctx, kb_id)
 
 
 @router.get(
@@ -88,9 +105,9 @@ async def archive_knowledge_base(org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.
     response_model=KnowledgeBasePermissions,
 )
 async def get_knowledge_base_permissions(
-    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID
+    org: OrgIdHeader, ctx: OrgContext, session: DbSession, kb_id: uuid.UUID
 ) -> KnowledgeBasePermissions:
-    stub("T2.1")
+    return await knowledge_bases.get_permissions(session, ctx, kb_id)
 
 
 @router.put(
@@ -99,11 +116,15 @@ async def get_knowledge_base_permissions(
     response_model=KnowledgeBasePermissions,
 )
 async def set_knowledge_base_permissions(
-    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID, body: KnowledgeBasePermissionsUpdate
+    org: OrgIdHeader,
+    ctx: OrgContext,
+    session: DbSession,
+    kb_id: uuid.UUID,
+    body: KnowledgeBasePermissionsUpdate,
 ) -> KnowledgeBasePermissions:
-    """Replace the allow-only ACL (`kb.manage`). Emits `acl.changed`; chunks update
-    asynchronously."""
-    stub("T2.1")
+    """Replace the allow-only ACL (manage access). Principals must belong to the organization
+    (422 `invalid_principal`). Emits `acl.changed`; chunks update asynchronously."""
+    return await knowledge_bases.set_permissions(session, ctx, kb_id, body.entries)
 
 
 @router.get(
