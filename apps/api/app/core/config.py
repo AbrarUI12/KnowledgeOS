@@ -3,7 +3,7 @@
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -73,6 +73,9 @@ class Settings(BaseSettings):
     s3_read_timeout_seconds: float = 30.0
     s3_max_attempts: int = 3  # total attempts including the first
 
+    # "clamav" (default; the `full` Compose profile runs clamd) or "none" for the `core` profile.
+    # Staging/production require a real scan regardless (require_malware_scan).
+    malware_scanner: Literal["clamav", "none"] = "clamav"
     clamav_host: str = "localhost"
     clamav_port: int = 3310
     clamav_timeout_seconds: float = 30.0

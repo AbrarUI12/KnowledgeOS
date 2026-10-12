@@ -43,3 +43,15 @@ def backoff_seconds(
         raise ValueError("attempt is 1-based")
     ceiling = min(cap, base * 2 ** (attempt - 1))
     return (rng or random).uniform(0, ceiling)
+
+
+class Quarantined(StageError):
+    """Malicious or policy-violating content: the job ends QUARANTINED (terminal). The original
+    stays in the quarantine bucket for forensics."""
+
+    code = "quarantined"
+
+
+APPROVAL_HOLD = "approval"
+"""A stage returns a checkpoint with `{"hold": APPROVAL_HOLD}` to park the job in
+PENDING_APPROVAL; approving it re-queues the job, which resumes after that stage."""

@@ -49,4 +49,9 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-
 # Celery worker (S16). Parser/OCR system packages are added with the real stages (T3.5).
 # The dispatcher and beat run from this same image with a different command (docker-compose.yml).
 FROM runtime AS worker
+USER root
+# OCR (Tesseract + English/Spanish for the demo corpus) and the GL/GLib libraries Docling's
+# layout models need. Parsing runs only in workers, so the API image stays lean.
+RUN apt-get update  && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng tesseract-ocr-spa libgl1 libglib2.0-0  && rm -rf /var/lib/apt/lists/*
+USER app
 CMD ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel", "info", "--concurrency", "2", "-Q", "ingestion,sync,maintenance,eval,llm"]

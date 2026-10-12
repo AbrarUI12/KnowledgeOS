@@ -21,6 +21,7 @@ from sqlalchemy import func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.errors import (
+    Conflict,
     FileTooLarge,
     KnowledgeBaseArchived,
     NotFound,
@@ -45,6 +46,7 @@ from app.domain.schemas.knowledge import (
     UploadCreate,
     UploadOut,
 )
+from app.ingestion.state_machine import ensure_transition
 from app.providers.storage import ObjectStore, quarantine_original_key
 from app.security.file_validation import SUPPORTED_EXTENSIONS
 from app.services import audit, outbox
@@ -456,6 +458,72 @@ async def list_versions(
         )
         for v in versions
     ]
+
+
+async def decide_approval(
+    session: AsyncSession,
+    ctx: RequestContext,
+    document_id: uuid.UUID,
+    version_id: uuid.UUID,
+    *,
+    approve: bool,
+    reason: str | None,
+) -> DocumentVersionOut:
+    """Approve (resume ingestion at CHUNKING) or reject (cancel) a version that the content scan
+    or its source's trust level held for review (S19)."""
+    document = await _visible_document(session, ctx, document_id)
+    version = await session.scalar(
+        select(DocumentVersion).where(
+            DocumentVersion.id == version_id,
+            DocumentVersion.document_id == document.id,
+            DocumentVersion.organization_id == ctx.organization_id,
+        )
+    )
+    if version is None:
+        raise NotFound("The document version was not found.")
+    job = await session.scalar(
+        select(IngestionJob)
+        .where(
+            IngestionJob.document_version_id == version.id,
+            IngestionJob.state == IngestionState.PENDING_APPROVAL.value,
+        )
+        .with_for_update()
+    )
+    if job is None or version.approval_status != ApprovalStatus.PENDING.value:
+        raise Conflict("This version isn't waiting for approval.")
+
+    target = IngestionState.CHUNKING if approve else IngestionState.CANCELLED
+    ensure_transition(IngestionState.PENDING_APPROVAL, target)
+    job.state = target.value
+    job.updated_at = datetime.now(UTC)
+    version.ingestion_status = target.value
+    version.approval_status = (
+        ApprovalStatus.APPROVED if approve else ApprovalStatus.REJECTED
+    ).value
+    if approve:
+        await outbox.emit(
+            session,
+            ctx,
+            "ingestion.requested",
+            "ingestion_job",
+            job.id,
+            {"document_version_id": str(version.id), "approved": True},
+        )
+    else:
+        job.error_code = "rejected_by_reviewer"
+        job.error_detail_safe = "A knowledge manager rejected this version."
+        job.completed_at = datetime.now(UTC)
+    await audit.record(
+        session,
+        ctx,
+        "document.approved" if approve else "document.rejected",
+        "document_version",
+        version.id,
+        {"reason": reason} if reason else {},
+    )
+    await session.flush()
+    versions = await list_versions(session, ctx, document.id)
+    return next(v for v in versions if v.id == version.id)
 
 
 async def delete_document(

@@ -4198,6 +4198,7 @@
     },
     "/v1/documents/{document_id}/versions/{version_id}/approve": {
       "post": {
+        "description": "Approve a version held for review (`document.publish`): ingestion resumes at chunking.\n409 unless the version is pending approval.",
         "operationId": "documents_approve_document_version",
         "parameters": [
           {
@@ -4539,6 +4540,7 @@
     },
     "/v1/documents/{document_id}/versions/{version_id}/reject": {
       "post": {
+        "description": "Reject a version held for review (`document.publish`): its ingestion job is cancelled.\n409 unless the version is pending approval.",
         "operationId": "documents_reject_document_version",
         "parameters": [
           {
