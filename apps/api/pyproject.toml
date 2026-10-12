@@ -27,6 +27,8 @@ dependencies = [
     "uvicorn[standard]>=0.54.0",
     "pyjwt[crypto]>=2.15.1",
     "psutil>=7.0.0",
+    "openpyxl>=3.1.5",
+    "python-pptx>=1.0.2",
 ]
 
 [build-system]
@@ -102,4 +104,5 @@ dev = [
     "openpyxl>=3.1.0",
     "python-pptx>=1.0.0",
     "types-psutil>=7.2.2.20260906",
+    "types-openpyxl>=3.1.5.20260827",
 ]
