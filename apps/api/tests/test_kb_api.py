@@ -1,5 +1,6 @@
 """Knowledge-base lifecycle and access control through the API (T2.1, S12)."""
 
+import asyncio
 import uuid
 from collections.abc import AsyncIterator
 from typing import Any
@@ -366,3 +367,52 @@ async def test_other_orgs_kbs_are_404(org: Org) -> None:
     assert foreign not in {
         k["id"] for k in (await org.api.get("/v1/knowledge-bases", headers=org.h("alice"))).json()
     }
+
+
+# --------------------------------------------------------------------------- review #25 fixes
+
+
+async def test_concurrent_acl_replacements_never_merge(org: Org) -> None:
+    """Review #25 (HIGH): the final ACL is exactly one PUT's payload, never their union."""
+    kb = await org.create_kb("Board", "restricted")
+    url = f"/v1/knowledge-bases/{kb['id']}/permissions"
+    alice_manage = {
+        "principal_type": "user",
+        "principal_id": str(org.users["alice"]),
+        "permission": "manage",
+    }
+    payload_a = [
+        alice_manage,
+        {"principal_type": "group", "principal_id": str(org.hr), "permission": "query"},
+    ]
+    payload_b = [
+        alice_manage,
+        {"principal_type": "user", "principal_id": str(org.users["carol"]), "permission": "query"},
+    ]
+
+    for _ in range(5):
+        first, second = await asyncio.gather(
+            org.api.put(url, json={"entries": payload_a}, headers=org.h("alice")),
+            org.api.put(url, json={"entries": payload_b}, headers=org.h("alice")),
+        )
+        assert first.status_code == second.status_code == 200
+        final = (await org.api.get(url, headers=org.h("alice"))).json()["entries"]
+        key = lambda e: (e["principal_type"], e["principal_id"], e["permission"])  # noqa: E731
+        assert sorted(final, key=key) in (sorted(payload_a, key=key), sorted(payload_b, key=key))
+
+
+async def test_concurrent_same_name_creations_get_distinct_slugs(org: Org) -> None:
+    """Review #25 (MEDIUM): no IntegrityError/500 when two KBs with one name race."""
+    responses = await asyncio.gather(
+        *(
+            org.api.post("/v1/knowledge-bases", json={"name": "Shared"}, headers=org.h("alice"))
+            for _ in range(4)
+        )
+    )
+    assert {r.status_code for r in responses} == {201}
+    assert sorted(r.json()["slug"] for r in responses) == [
+        "shared",
+        "shared-2",
+        "shared-3",
+        "shared-4",
+    ]

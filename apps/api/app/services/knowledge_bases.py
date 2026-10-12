@@ -115,15 +115,21 @@ async def list_knowledge_bases(
     return [_out(kb, acl[kb.id], ctx, counts.get(kb.id, 0)) for kb in visible]
 
 
-async def _load(
+async def load_kb(
     session: AsyncSession, ctx: RequestContext, kb_id: uuid.UUID, *, manage: bool = False
 ) -> tuple[KnowledgeBase, list[AclRule]]:
-    """The KB if the caller may see it (else 404); with `manage`, 403 if they may only see it."""
-    kb = await session.scalar(
-        select(KnowledgeBase).where(
-            KnowledgeBase.id == kb_id, KnowledgeBase.organization_id == ctx.organization_id
-        )
+    """The KB if the caller may see it (else 404); with `manage`, 403 if they may only see it.
+
+    With `manage`, the KB row is locked FOR UPDATE *before* its ACL is read, so concurrent
+    mutations (permission replacements, updates, archive) serialize and each one authorizes and
+    writes against the ACL the previous one committed.
+    """
+    query = select(KnowledgeBase).where(
+        KnowledgeBase.id == kb_id, KnowledgeBase.organization_id == ctx.organization_id
     )
+    if manage:
+        query = query.with_for_update()
+    kb = await session.scalar(query)
     if kb is None:
         raise NotFound(_NOT_FOUND)
     acl = (await _acl_by_kb(session, ctx, [kb.id]))[kb.id]
@@ -139,12 +145,19 @@ async def _load(
 async def get_knowledge_base(
     session: AsyncSession, ctx: RequestContext, kb_id: uuid.UUID
 ) -> KnowledgeBaseOut:
-    kb, acl = await _load(session, ctx, kb_id)
+    kb, acl = await load_kb(session, ctx, kb_id)
     counts = await _document_counts(session, ctx, [kb.id])
     return _out(kb, acl, ctx, counts.get(kb.id, 0))
 
 
 async def _unique_slug(session: AsyncSession, ctx: RequestContext, name: str) -> str:
+    """Pick a free slug. A transaction-scoped advisory lock per organization serializes slug
+    allocation, so two concurrent creations with the same name can't both pick `base`."""
+    await session.execute(
+        select(
+            func.pg_advisory_xact_lock(func.hashtextextended(f"kb-slug:{ctx.organization_id}", 0))
+        )
+    )
     base = _slugify(name)
     taken = set(
         await session.scalars(
@@ -200,7 +213,7 @@ async def create_knowledge_base(
 async def update_knowledge_base(
     session: AsyncSession, ctx: RequestContext, kb_id: uuid.UUID, body: KnowledgeBaseUpdate
 ) -> KnowledgeBaseOut:
-    kb, acl = await _load(session, ctx, kb_id, manage=True)
+    kb, acl = await load_kb(session, ctx, kb_id, manage=True)
     changes = body.model_dump(exclude_unset=True)
     if changes.get("name") is None:
         changes.pop("name", None)  # required column: null means "unchanged"
@@ -227,7 +240,7 @@ async def update_knowledge_base(
 async def archive_knowledge_base(
     session: AsyncSession, ctx: RequestContext, kb_id: uuid.UUID
 ) -> None:
-    kb, _ = await _load(session, ctx, kb_id, manage=True)
+    kb, _ = await load_kb(session, ctx, kb_id, manage=True)
     if kb.archived_at is not None:
         return  # already archived: idempotent, no new audit row
     kb.archived_at = datetime.now(UTC)
@@ -246,7 +259,7 @@ def _entries(acl: list[AclRule]) -> list[AclEntry]:
 async def get_permissions(
     session: AsyncSession, ctx: RequestContext, kb_id: uuid.UUID
 ) -> KnowledgeBasePermissions:
-    kb, acl = await _load(session, ctx, kb_id, manage=True)
+    kb, acl = await load_kb(session, ctx, kb_id, manage=True)
     return KnowledgeBasePermissions(entries=_entries(acl), propagated_at=kb.acl_propagated_at)
 
 
@@ -314,7 +327,7 @@ async def set_permissions(
     session: AsyncSession, ctx: RequestContext, kb_id: uuid.UUID, entries: list[AclEntry]
 ) -> KnowledgeBasePermissions:
     """Replace the KB's allow-only ACL (PUT semantics)."""
-    kb, current = await _load(session, ctx, kb_id, manage=True)
+    kb, current = await load_kb(session, ctx, kb_id, manage=True)
     desired = sorted(
         {AclRule(e.principal_type, e.principal_id, e.permission) for e in entries},
         key=lambda r: (r.principal_type, r.principal_id, r.permission),

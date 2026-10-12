@@ -117,9 +117,8 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     document_type: Mapped[str | None] = mapped_column(String(64))
     classification: Mapped[str] = mapped_column(String(16), server_default="internal")
     status: Mapped[str] = mapped_column(String(16), server_default="active")
-    active_version_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("document_versions.id", ondelete="SET NULL", use_alter=True)
-    )
+    # Composite FK to document_versions (id, organization_id, document_id): see migration 0005.
+    active_version_id: Mapped[uuid.UUID | None]
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )
