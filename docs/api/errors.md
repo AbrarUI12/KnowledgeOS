@@ -32,6 +32,12 @@ Every error response uses one envelope:
 | 409 | `group_name_taken` | A group with that name exists in the organization |
 | 409 | `idempotency_key_reused` | The `Idempotency-Key` was used for a different request (or the original is still in flight) |
 | 410 | `invitation_expired` | The invitation link has expired |
+| 410 | `upload_expired` | The upload's presigned window passed; start a new upload |
+| 409 | `upload_not_received` | `complete` was called before the file was PUT to the presigned URL |
+| 409 | `kb_archived` | The knowledge base is archived |
+| 413 | `file_too_large` | Declared or received size exceeds `UPLOAD_MAX_BYTES` (`details.max_bytes`) |
+| 422 | `unsupported_file_type` | Extension not in the allowlist (plan §5.3) |
+| 422 | `size_mismatch` | Received object size differs from the declared size; the object is discarded |
 | 403 | `invitation_email_mismatch` | The signed-in email doesn't match the invitation |
 | 413 | `payload_too_large` | Request body too large |
 | 415 | `unsupported_media_type` | Unsupported content type |

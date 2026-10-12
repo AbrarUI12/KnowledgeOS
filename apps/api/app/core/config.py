@@ -97,6 +97,10 @@ class Settings(BaseSettings):
     invitation_ttl_hours: int = Field(default=168, ge=1, le=24 * 30)
     idempotency_ttl_hours: int = Field(default=24, ge=1, le=24 * 7)
 
+    # Uploads (T2.4)
+    upload_max_bytes: int = Field(default=50 * 1024 * 1024, gt=0)
+    upload_url_ttl_seconds: int = Field(default=900, ge=60, le=3600)
+
     readiness_timeout_seconds: float = 2.0
 
     @property
