@@ -118,12 +118,18 @@ async def list_knowledge_bases(
 async def load_kb(
     session: AsyncSession, ctx: RequestContext, kb_id: uuid.UUID, *, manage: bool = False
 ) -> tuple[KnowledgeBase, list[AclRule]]:
-    """The KB if the caller may see it (else 404); with `manage`, 403 if they may only see it."""
-    kb = await session.scalar(
-        select(KnowledgeBase).where(
-            KnowledgeBase.id == kb_id, KnowledgeBase.organization_id == ctx.organization_id
-        )
+    """The KB if the caller may see it (else 404); with `manage`, 403 if they may only see it.
+
+    With `manage`, the KB row is locked FOR UPDATE *before* its ACL is read, so concurrent
+    mutations (permission replacements, updates, archive) serialize and each one authorizes and
+    writes against the ACL the previous one committed.
+    """
+    query = select(KnowledgeBase).where(
+        KnowledgeBase.id == kb_id, KnowledgeBase.organization_id == ctx.organization_id
     )
+    if manage:
+        query = query.with_for_update()
+    kb = await session.scalar(query)
     if kb is None:
         raise NotFound(_NOT_FOUND)
     acl = (await _acl_by_kb(session, ctx, [kb.id]))[kb.id]
@@ -145,6 +151,13 @@ async def get_knowledge_base(
 
 
 async def _unique_slug(session: AsyncSession, ctx: RequestContext, name: str) -> str:
+    """Pick a free slug. A transaction-scoped advisory lock per organization serializes slug
+    allocation, so two concurrent creations with the same name can't both pick `base`."""
+    await session.execute(
+        select(
+            func.pg_advisory_xact_lock(func.hashtextextended(f"kb-slug:{ctx.organization_id}", 0))
+        )
+    )
     base = _slugify(name)
     taken = set(
         await session.scalars(

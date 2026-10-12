@@ -164,14 +164,18 @@ _DDL = [
       CONSTRAINT uq_document_versions_document_id_version_number
         UNIQUE (document_id, version_number),
       CONSTRAINT uq_document_versions_id_organization_id UNIQUE (id, organization_id),
+      CONSTRAINT uq_document_versions_id_organization_id_document_id
+        UNIQUE (id, organization_id, document_id),
       FOREIGN KEY (document_id, organization_id)
         REFERENCES documents (id, organization_id) ON DELETE CASCADE
     )
     """,
-    # The service layer guarantees the active version belongs to the document.
+    # The active version must belong to this document and this organization (D-012). MATCH SIMPLE:
+    # a NULL active_version_id skips the check; deleting the version clears only that column.
     "ALTER TABLE documents ADD CONSTRAINT fk_documents_active_version_id_document_versions "
-    "FOREIGN KEY (active_version_id) REFERENCES document_versions (id) ON DELETE SET NULL "
-    "DEFERRABLE INITIALLY DEFERRED",
+    "FOREIGN KEY (active_version_id, organization_id, id) "
+    "REFERENCES document_versions (id, organization_id, document_id) "
+    "ON DELETE SET NULL (active_version_id) DEFERRABLE INITIALLY DEFERRED",
     """
     CREATE TABLE source_objects (
       id uuid PRIMARY KEY,
