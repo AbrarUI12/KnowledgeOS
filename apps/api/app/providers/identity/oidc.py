@@ -39,7 +39,9 @@ class OIDCVerifier:
         unsafe = set(settings.oidc_algorithms) - _ASYMMETRIC_ALGORITHMS
         if unsafe:
             raise ValueError(f"only asymmetric JWT algorithms are allowed, got {sorted(unsafe)}")
-        self._issuer = settings.oidc_issuer.rstrip("/")
+        # Exact string, never normalized: `iss` must match it byte for byte (Auth0 issuers end in
+        # "/", Keycloak's don't). Only the discovery URL is built from a slash-trimmed copy.
+        self._issuer = settings.oidc_issuer
         self._audience = settings.oidc_audience
         self._algorithms = list(settings.oidc_algorithms)
         self._leeway = settings.oidc_leeway_seconds
@@ -145,13 +147,14 @@ class OIDCVerifier:
             self._last_refresh_failed = False
 
     async def _discover_jwks_url(self) -> str:
-        response = await self._http.get(f"{self._issuer}/.well-known/openid-configuration")
+        base = self._issuer.rstrip("/")
+        response = await self._http.get(f"{base}/.well-known/openid-configuration")
         response.raise_for_status()
         document = response.json()
         if not isinstance(document, dict):
             raise ValueError("discovery document is not a JSON object")
         issuer = document.get("issuer")
-        if not isinstance(issuer, str) or issuer.rstrip("/") != self._issuer:
+        if not isinstance(issuer, str) or issuer != self._issuer:
             raise ValueError("discovery document issuer mismatch")
         jwks_uri = document.get("jwks_uri")
         if not isinstance(jwks_uri, str):
