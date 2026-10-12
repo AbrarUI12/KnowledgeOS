@@ -52,19 +52,21 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** reviewing Claude's T1.0 contracts in PR #11
-- **Last finished:** T2.3 file-safety validation & malware scanners (2026-10-12, PR #10)
+- **Current task:** Demo walkthrough (PR #22) for Pages; T1.4 remains in draft PR #17. Reviews: #13 PASS, #19 changes requested, #20 PASS with findings.
+- **Last finished:** T2.2 ObjectStore providers (2026-10-12, PR #14; review MEDIUM fixed by Claude while Codex was at its usage limit)
 - **Blockers:** none
 - **Recent:**
+  - 2026-10-12 · T2.2 · S3/MinIO/B2 + in-memory ObjectStore providers and safe key helpers; explicit S3 timeouts/retries · PR #14 (merged)
   - 2026-10-12 · T2.3 · strict file validator, valid-format fixtures, ClamAV/Noop scanners · PR #10
 
 ### Cline: UI pages · scripts · local QA
 - **Worktree / ports:** `D:\projects\kos-cline` · API 8200 · web 3200
-- **Current task:** T4.5 demo corpus generator, then T1.8 `get_token.py` (wave 0)
-- **Last finished:** –
+- **Current task:** T4.3 RRF fusion module — draft PR #16 open, awaiting review
+- **Last finished:** T4.3 RRF fusion module (2026-10-12) · T4.5 + T1.8 merged in PR #12 (2026-10-12)
 - **Blockers:** none
 - **Recent:**
-  - –
+  - 2026-10-12 · T4.3 · weighted RRF fusion (`k0=60`, dense 0.55/lexical 0.45), dedupe by chunk id, near-duplicate cap by `content_hash`, per-document cap preserving continuity; pure functions in `app/rag/fusion/`, 27 unit tests, 100% branch coverage · PR #16
+  - 2026-10-12 · T4.5 + T1.8 · demo corpus file generator (16 synthetic docs across 8 formats) + `scripts/get_token.py` password grant script for dev Keycloak · PR #12 (merged)
 
 ---
 
@@ -601,7 +603,7 @@ All deviations (DV-001…) now live in **[`docs/DECISIONS.md`](docs/DECISIONS.md
 |---|---|---|---|---|
 | PostgreSQL (local container) | Main DB | `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_SUPERUSER(_PASSWORD)`, `KOS_OWNER_PASSWORD`, `KOS_APP_PASSWORD`, `KOS_DISPATCHER_PASSWORD`, `DATABASE_URL`, `DATABASE_MIGRATION_URL` | local | S02 |
 | Redis (local container) | Celery broker, rate limits | `REDIS_PORT`, `REDIS_URL` | local | S02 |
-| MinIO (local container) | Object storage | `S3_ENDPOINT_URL`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_QUARANTINE`, `S3_BUCKET_TRUSTED`, `S3_BUCKET_ARTIFACTS`, `S3_PUBLIC_ENDPOINT_URL`, `S3_REGION`, `S3_FORCE_PATH_STYLE`, `MINIO_PORT`, `MINIO_CONSOLE_PORT` | local | S02 |
+| MinIO (local container) | Object storage | `S3_ENDPOINT_URL`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_QUARANTINE`, `S3_BUCKET_TRUSTED`, `S3_BUCKET_ARTIFACTS`, `S3_PUBLIC_ENDPOINT_URL`, `S3_REGION`, `S3_FORCE_PATH_STYLE`, `S3_CONNECT_TIMEOUT_SECONDS`, `S3_READ_TIMEOUT_SECONDS`, `S3_MAX_ATTEMPTS`, `MINIO_PORT`, `MINIO_CONSOLE_PORT` | local | S02 |
 | Keycloak (local container) | OIDC | `KEYCLOAK_PORT`, `KEYCLOAK_ADMIN(_PASSWORD)`, `KEYCLOAK_DB_PASSWORD`, `OIDC_ISSUER`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL`, `OIDC_WEB_CLIENT_ID`, `OIDC_WEB_CLIENT_SECRET`, `OIDC_CLI_CLIENT_ID` | local | S02 |
 | Mailpit / ClamAV (local containers) | Email, malware scan | `SMTP_HOST`, `SMTP_PORT`, `MAILPIT_UI_PORT`, `CLAMAV_HOST`, `CLAMAV_PORT`, `CLAMAV_TIMEOUT_SECONDS`, `CLAMAV_MAX_STREAM_BYTES`, `REQUIRE_MALWARE_SCAN`, `WEB_ORIGIN` | local | S02, S14 |
 | API (organizations) | Invitation links, invitation and idempotency lifetimes | `WEB_BASE_URL`, `INVITATION_TTL_HOURS`, `IDEMPOTENCY_TTL_HOURS` | all | S09 (T1.3) |

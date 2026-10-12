@@ -10,7 +10,7 @@ API_PORT ?= 8000
 WEB_PORT ?= 3000
 
 # openapi: regenerate packages/contracts/openapi.json (T1.0 contract)
-.PHONY: openapi help install lint format typecheck test test-unit test-int migrate migration api web hooks env up up-full down reset logs ps psql infra-check
+.PHONY: openapi help install lint format typecheck test test-unit test-int migrate migration api web hooks env up up-full down reset logs ps psql infra-check demo-corpus
 
 help:
 	@echo "install    Install backend (uv) and frontend (pnpm) dependencies + git hooks"
@@ -29,6 +29,7 @@ help:
 	@echo "down       Stop services (keeps data)"
 	@echo "reset      Stop services and DELETE all local data volumes"
 	@echo "infra-check  Verify every local service is healthy and configured"
+	@echo "demo-corpus  Regenerate the demo corpus fixtures (T4.5)"
 
 install:
 	$(UV) sync
@@ -104,6 +105,9 @@ ps:
 
 psql:
 	$(COMPOSE) exec postgres psql -U postgres -d knowledgeos
+
+demo-corpus:
+	$(UV) run python ../../scripts/demo_corpus/generate.py
 
 infra-check:
 	$(UV) run python ../../scripts/check_infra.py

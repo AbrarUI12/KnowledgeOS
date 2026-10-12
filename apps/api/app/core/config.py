@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     s3_bucket_quarantine: str = "kos-quarantine"
     s3_bucket_trusted: str = "kos-trusted"
     s3_bucket_artifacts: str = "kos-artifacts"
+    # Explicit timeouts/retries for every storage call (plan §34.1).
+    s3_connect_timeout_seconds: float = 5.0
+    s3_read_timeout_seconds: float = 30.0
+    s3_max_attempts: int = 3  # total attempts including the first
 
     clamav_host: str = "localhost"
     clamav_port: int = 3310
