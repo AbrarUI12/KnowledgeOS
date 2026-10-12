@@ -136,9 +136,9 @@ async def test_member_reaches_org_routes_by_path_and_header(
     api: AsyncClient, world: dict[str, uuid.UUID]
 ) -> None:
     acme = world["acme"]
-    assert (
-        await api.get(f"/v1/organizations/{acme}/members", headers=auth("alice"))
-    ).status_code == (501)
+    by_path = await api.get(f"/v1/organizations/{acme}/members", headers=auth("alice"))
+    assert by_path.status_code == 200
+    # Header-scoped routes resolve the same context (still a stub until T2.1).
     assert (await api.get("/v1/knowledge-bases", headers=auth("alice", acme))).status_code == 501
 
 

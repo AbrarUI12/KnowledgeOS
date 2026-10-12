@@ -15,6 +15,7 @@ from app.api.middleware import REQUEST_ID_HEADER, RequestContextMiddleware
 from app.api.openapi import install_openapi
 from app.api.v1.router import api_v1_router
 from app.core.config import Settings, get_settings
+from app.core.email import configure_email_validation
 from app.core.logging import configure_logging
 from app.core.s3 import create_s3_client
 from app.db.session import create_engine, create_sessionmaker
@@ -31,6 +32,7 @@ def _operation_id(route: APIRoute) -> str:
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(level=settings.log_level, json_logs=settings.json_logs)
+    configure_email_validation(settings)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:

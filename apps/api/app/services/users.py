@@ -27,6 +27,8 @@ class AuthenticatedUser:
     email: str | None
     display_name: str | None
     status: str
+    # Only an IdP-verified email may be used for email-based authorization (invitations).
+    email_verified: bool = False
 
     @property
     def is_active(self) -> bool:
@@ -67,6 +69,7 @@ async def provision_user(
         email=row.email,
         display_name=row.display_name,
         status=row.status,
+        email_verified=token.claims.get("email_verified") is True,
     )
 
 

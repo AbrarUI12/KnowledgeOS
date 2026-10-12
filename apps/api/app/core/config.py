@@ -91,6 +91,13 @@ class Settings(BaseSettings):
     oidc_http_timeout_seconds: float = 5.0
     user_last_seen_write_interval_seconds: int = 300
 
+    # Organizations (T1.3)
+    web_base_url: str = Field(
+        default="http://localhost:3000", description="Public web app URL, for invitation links"
+    )
+    invitation_ttl_hours: int = Field(default=168, ge=1, le=24 * 30)
+    idempotency_ttl_hours: int = Field(default=24, ge=1, le=24 * 7)
+
     readiness_timeout_seconds: float = 2.0
 
     # Browser origins allowed to call the API (CORS). Comma-separated, exact origins only: the
