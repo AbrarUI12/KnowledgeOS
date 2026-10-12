@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AnswerWalkthrough } from "@/components/dev/answer-walkthrough";
 
 const sources = [
   {
@@ -26,9 +27,16 @@ const sources = [
     page: 7,
     text: "Before an extended absence, assign an on-call backup and document service ownership and open incidents.",
   },
+  {
+    id: "S4",
+    title: "Employee handbook · 2025",
+    library: "People",
+    page: 11,
+    text: "HR-142-B (2025): eligible employees receive 12 weeks of paid parental leave. This archived sample conflicts with the 2026 handbook; confirm the effective policy before relying on either.",
+  },
 ];
 
-// Placeholder until the interactive demo lands (Codex replaces this file).
+// Fictional preview; independent of the live authenticated application.
 export default function DemoWalkthrough() {
   const [view, setView] = useState("Ask");
   const [answered, setAnswered] = useState(false);
@@ -141,6 +149,9 @@ export default function DemoWalkthrough() {
                   </p>
                 </article>
               )}
+              <AnswerWalkthrough
+                inspect={(id) => setSelected(sources.find((item) => item.id === id)!)}
+              />
             </>
           )}
           {view === "Search" && (
@@ -191,6 +202,48 @@ export default function DemoWalkthrough() {
                   </li>
                 ))}
             </ul>
+          )}
+          {view === "Library" && (
+            <section
+              aria-label="Ingestion pipeline examples"
+              className="mt-6 border-t border-line pt-6"
+            >
+              <h3 className="mb-4 font-semibold">Pipeline status examples</h3>
+              <p className="mb-4 text-sm text-ink-secondary">
+                Illustrative states for additional sample uploads.
+              </p>
+              <ul className="space-y-3">
+                {[
+                  { name: "Handbook", state: "READY", detail: "Indexed and searchable" },
+                  { name: "Office slides", state: "PARSING", detail: "Extracting slide text" },
+                  {
+                    name: "Encrypted report",
+                    state: "FAILED",
+                    detail: "Password protection prevents parsing",
+                  },
+                  {
+                    name: "External policy",
+                    state: "PENDING_APPROVAL",
+                    detail: "A knowledge manager must approve this source",
+                  },
+                ].map((item) => (
+                  <li
+                    key={item.state}
+                    className="flex flex-wrap justify-between gap-2 rounded-control border border-line p-3"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{item.name}</p>
+                      <p className="text-xs text-ink-secondary">{item.detail}</p>
+                    </div>
+                    <span
+                      className={`self-start rounded-control px-2 py-1 font-mono text-xs ${item.state === "FAILED" ? "bg-danger-soft text-danger" : item.state === "READY" ? "bg-success-soft text-success" : "bg-warning-soft text-warning"}`}
+                    >
+                      {item.state}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
         </section>
         <aside
