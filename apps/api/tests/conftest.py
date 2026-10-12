@@ -109,6 +109,9 @@ def integration_settings(
         database_migration_url=SecretStr(
             _pg_url(postgres_container, "knowledgeos_owner", OWNER_PW)
         ),
+        dispatcher_database_url=SecretStr(
+            _pg_url(postgres_container, "knowledgeos_dispatcher", DISPATCHER_PW)
+        ),
         redis_url=SecretStr(f"redis://{redis_host}:{redis_port}/0"),
         s3_endpoint_url=s3_endpoint,
         s3_public_endpoint_url=s3_endpoint,

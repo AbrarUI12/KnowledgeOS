@@ -1,7 +1,7 @@
 # KnowledgeOS local development stack.
 #
 #   make up        -> core services (postgres, redis, minio, keycloak, mailpit)
-#   make up-full   -> core + clamav (workers are added to `full` in Session 16)
+#   make up-full   -> core + clamav + worker, dispatcher, beat (Session 16)
 #
 # Profiles `obs` (Session 43) and `local-models` (Session 53) are added later.
 # Values come from `.env` (copy `.env.example`). Everything here is for local development only.
@@ -138,6 +138,39 @@ services:
       timeout: 10s
       retries: 20
       start_period: 120s
+
+  # Background work (S16). Same backend image; in-network hostnames instead of localhost ports.
+  worker: &backend-worker
+    <<: *restart
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: infra/docker/backend.Dockerfile
+      target: worker
+    environment: &backend-env
+      ENVIRONMENT: local
+      DATABASE_URL: postgresql+asyncpg://knowledgeos_app:${KOS_APP_PASSWORD:-app_dev_password}@postgres:5432/knowledgeos
+      DATABASE_MIGRATION_URL: postgresql+asyncpg://knowledgeos_owner:${KOS_OWNER_PASSWORD:-owner_dev_password}@postgres:5432/knowledgeos
+      DISPATCHER_DATABASE_URL: postgresql+asyncpg://knowledgeos_dispatcher:${KOS_DISPATCHER_PASSWORD:-dispatcher_dev_password}@postgres:5432/knowledgeos
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_PUBLIC_ENDPOINT_URL: http://localhost:${MINIO_PORT:-9000}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-kos_minio}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-kos_minio_dev_secret}
+      CLAMAV_HOST: clamav
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  dispatcher:
+    <<: *backend-worker
+    command: ["python", "-m", "app.workers.dispatcher"]
+
+  beat:
+    <<: *backend-worker
+    command: ["celery", "-A", "app.workers.celery_app", "beat", "--loglevel", "info", "--schedule", "/tmp/celerybeat-schedule"]
 
 volumes:
   postgres-data:

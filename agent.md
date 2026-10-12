@@ -40,10 +40,11 @@
 
 ### Claude: architect · security/DB/integration · reviewer
 - **Worktree / ports:** `D:\projects\kos-claude` · API 8000 · web 3000
-- **Current task:** T2.1 (#25) and T2.4 in REVIEW (T2.4 stacked on #25); next T3.1 outbox dispatcher + Celery
+- **Current task:** batch in REVIEW: T2.1 (#25) ← T2.4 (#27) ← T3.1 (stacked); next T3.5 stage wiring
 - **Last finished:** T1.1 (#13), T1.2 (#23), CORS (#20), Pages showcase (#21); live at https://abrarui12.github.io/KnowledgeOS/
 - **Blockers:** none
 - **Recent:**
+  - 2026-10-12 · T3.1 · state machine (transition table), lease + checkpointed runner (DB time, advisory lock, retry/permanent errors, backoff), outbox dispatcher as least-privilege role (migration 0006, ADR-004 exception), Celery app + stub stages; verified live: outbox → Redis → Celery worker in Docker → READY
   - 2026-10-12 · T2.4 · presigned upload → HEAD-verified complete (document + version + job + outbox + audit in one transaction, idempotent, uploader-only), replacement versions, document list (keyset per sort)/get/versions/archive, ingestion job read; object store in app state
   - 2026-10-12 · T2.1 · migration 0005 (10 tenant tables: KBs, ACLs, sources, documents, versions, uploads, ingestion jobs, outbox; composite FKs, forced RLS), KB CRUD + permissions API, view/query/manage rules, doc-ACL narrow-only validator, chunk principal stub, acl.changed outbox events
   - 2026-10-12 · T1.3 · org/member/group/invitation APIs, keyset pagination, per-user idempotency keys (migration 0004), audit row per mutation, last-owner lock, no owner escalation, invitation token-holder RLS policy, `.test` emails allowed locally
@@ -610,4 +611,5 @@ All deviations (DV-001…) now live in **[`docs/DECISIONS.md`](docs/DECISIONS.md
 | Mailpit / ClamAV (local containers) | Email, malware scan | `SMTP_HOST`, `SMTP_PORT`, `MAILPIT_UI_PORT`, `CLAMAV_HOST`, `CLAMAV_PORT`, `CLAMAV_TIMEOUT_SECONDS`, `CLAMAV_MAX_STREAM_BYTES`, `REQUIRE_MALWARE_SCAN`, `WEB_ORIGIN` | local | S02, S14 |
 | API (organizations) | Invitation links, invitation and idempotency lifetimes | `WEB_BASE_URL`, `INVITATION_TTL_HOURS`, `IDEMPOTENCY_TTL_HOURS` | all | S09 (T1.3) |
 | API (uploads) | Upload size limit, presigned URL lifetime | `UPLOAD_MAX_BYTES`, `UPLOAD_URL_TTL_SECONDS` | all | S13 (T2.4) |
+| Workers (Celery) | Dispatcher DB role URL, broker, lease/retry tuning | `DISPATCHER_DATABASE_URL`, `CELERY_BROKER_URL` (defaults to `REDIS_URL`), `INGESTION_LEASE_SECONDS`, `INGESTION_MAX_ATTEMPTS`, `DISPATCHER_BATCH_SIZE`, `DISPATCHER_POLL_SECONDS` | all | S16 (T3.1) |
 | *(more rows added as sessions introduce services: Neon, B2, Auth0, HF, Vercel, Groq, Gemini, Langfuse, Grafana Cloud, Google Drive OAuth)* | | | | |
