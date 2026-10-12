@@ -22,7 +22,9 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.demo_corpus import generate  # type: ignore[import-untyped]  # noqa: E402
+# mypy resolves `scripts` differently per platform (import-not-found on CI Linux,
+# import-untyped on Windows), so the ignore has no code bracket to stay valid on both.
+from scripts.demo_corpus import generate  # type: ignore  # noqa: E402
 
 # Longer than ZIP's 2-second DOS timestamp granularity: two runs this far apart
 # would embed different timestamps if the generators were non-deterministic.
