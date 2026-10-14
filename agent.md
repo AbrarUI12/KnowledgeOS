@@ -56,7 +56,7 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T4.1 draft #36 implemented: lazy Qwen local encoder, bounded compatible HTTP adapter, deterministic fake and downloader. 20 targeted tests including real CPU 1024-d inference pass; lint/types green, full suite running. T3.4 (#35) ready; next T5.1/T5.2. #34 latest re-review PASS; user ADR approval still required.
+- **Current task:** T4.1 #36 ready: lazy Qwen local encoder, bounded compatible HTTP adapter, deterministic fake and downloader. Real CPU 1024-d inference verified; 426 backend / 105 frontend / nine snapshots and all lint/types green. T3.4 (#35) ready; next T5.1/T5.2. #34 latest re-review PASS; user ADR approval still required.
 - **Last finished:** T3.3 parsers/normalization (#28, merge 6e725fb); T3.4 implementation (#35) in review. T3.2 (#26, 0c1f49f) and T1.4 (#17, 961cb0a) also merged.
 - **Blockers:** none
 - **Recent:**
