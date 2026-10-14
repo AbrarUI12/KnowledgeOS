@@ -151,6 +151,7 @@ class DoclingParser:
                 [str(request)],
                 timeout_seconds=self.timeout_seconds,
                 memory_bytes=self.memory_bytes,
+                offline=self.artifacts_path is not None,
             )
             if not output.exists() or output.stat().st_size > 64 * 1024**2:
                 raise ParserError(

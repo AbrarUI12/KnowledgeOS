@@ -671,12 +671,12 @@
           dict({
             'page': 1,
             'x0': 78.0,
-            'x1': 443.19,
+            'x1': 430.35000000000014,
             'y0': 190.82000000000005,
             'y1': 248.07000000000005,
           }),
         ]),
-        'block_id': 'f550ab511c8d67002bc5fb4a43a5681cf3ea3fbc3a02cd84f9d26154336e2b9e',
+        'block_id': '77f4b2ad83864de00714af2f6547b88129a145eb299504f56e479b682520d082',
         'extra': dict({
         }),
         'heading_level': None,
@@ -693,7 +693,7 @@
         'slide': None,
         'source_order': 2,
         'table': None,
-        'text': 'Effective January 2026, employees are entitled to 16 weeks of paid parental leave. This policy update (code HR-142-B) increases the previous 12-week allowance. Applies to all employees who have completed 6 months of service.',
+        'text': 'Effective January 2026, employees get 16 weeks of paid parental leave. This policy update (code HR-142-B) increases the previous 12-week allowance. Applies to all employees who have completed 6 months of service.',
         'type': 'paragraph',
       }),
       dict({
