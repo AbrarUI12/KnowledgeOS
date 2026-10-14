@@ -34,7 +34,10 @@ async def _stub(ctx: StageContext, checkpoint: Checkpoint | None) -> Checkpoint:
 
 STUB_STAGES: Mapping[IngestionState, StageFn] = dict.fromkeys(STAGES, _stub)
 
-# (module, attribute) of each library implementation, discovered at runtime.
+# Optional extra parsers, registered after the required one when importable (first match wins).
+_EXTRA_PARSERS: tuple[tuple[str, str], ...] = (("app.ingestion.parsing.office", "OfficeParser"),)
+
+# (module, attribute) of each required library implementation, discovered at runtime.
 _COMPONENTS: dict[str, tuple[str, str]] = {
     "parser": ("app.ingestion.parsing.docling", "DoclingParser"),
     "normalize": ("app.ingestion.normalize", "normalize"),
@@ -52,6 +55,16 @@ def _discover() -> dict[str, Any] | None:
             logger.info("ingestion_component_missing", component=name)
             return None
     return found
+
+
+def _extra_parsers() -> list[Any]:
+    parsers = []
+    for module, attribute in _EXTRA_PARSERS:
+        try:
+            parsers.append(getattr(importlib.import_module(module), attribute)())
+        except (ImportError, AttributeError):
+            logger.info("ingestion_parser_missing", parser=attribute)
+    return parsers
 
 
 def malware_scanner(settings: Settings) -> MalwareScanner:
@@ -91,7 +104,7 @@ def default_stages(settings: Settings, store: ObjectStore) -> Mapping[IngestionS
         settings=settings,
         store=store,
         malware_scanner=scanner,
-        parsers=(components["parser"](),),
+        parsers=(components["parser"](), *_extra_parsers()),
         normalize=components["normalize"],
         content_scanner=components["content_scanner"](),
         chunker=components["chunker"](),

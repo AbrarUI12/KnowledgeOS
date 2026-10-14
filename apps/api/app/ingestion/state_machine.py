@@ -37,8 +37,9 @@ def _build() -> dict[IngestionState, frozenset[IngestionState]]:
     table[S.MALWARE_SCAN].add(S.QUARANTINED)  # infected file
     table[S.SECURITY_SCAN] |= {S.QUARANTINED, S.PENDING_APPROVAL}  # content-scan policy outcome
     table[S.PENDING_APPROVAL] = {S.CHUNKING, S.QUARANTINED, S.CANCELLED}  # approve / reject
-    # A retryable failure resumes at any stage (the runner continues after the last checkpoint).
-    table[S.FAILED_RETRYABLE] = {*STAGES, S.FAILED_PERMANENT, S.CANCELLED}
+    # A retryable failure resumes at any stage (the runner continues after the last checkpoint),
+    # or re-parks if its SECURITY_SCAN checkpoint holds for approval that was never given.
+    table[S.FAILED_RETRYABLE] = {*STAGES, S.PENDING_APPROVAL, S.FAILED_PERMANENT, S.CANCELLED}
     for terminal in TERMINAL_INGESTION_STATES:
         table[terminal] = set()
     return {state: frozenset(targets) for state, targets in table.items()}

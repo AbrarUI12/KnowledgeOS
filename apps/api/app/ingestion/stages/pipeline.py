@@ -12,6 +12,8 @@ the trusted key. Infected files stay in quarantine for forensics.
 """
 
 import asyncio
+import functools
+import hashlib
 import io
 import json
 from collections.abc import Callable, Mapping
@@ -88,9 +90,37 @@ async def _load(ctx: StageContext) -> _Version:
 
 
 def _is_trusted(v: _Version) -> bool:
-    return v.version.object_key == trusted_original_key(
-        v.version.organization_id, v.kb.id, v.document.id, v.version.id
-    )
+    return v.version.object_key == _trusted_key(v)
+
+
+def _frozen_key(v: _Version) -> str:
+    """Server-only quarantine key holding the exact bytes this version is validated, scanned and
+    promoted from. No presigned URL is ever issued for it, so the uploader can't change it."""
+    return f"{v.version.organization_id}/{v.kb.id}/{v.document.id}/{v.version.id}/frozen"
+
+
+async def _freeze(deps: StageDeps, v: _Version) -> None:
+    """Copy the uploaded object (still writable through its presigned PUT URL until it expires)
+    to the frozen key, and point the version at it. Everything downstream reads the frozen
+    copy, so bytes swapped in later via the upload URL are never scanned or promoted."""
+    if v.version.object_key in (_frozen_key(v), _trusted_key(v)):
+        return
+    if not v.version.object_key:
+        raise PermanentError("The uploaded file is missing.", code="original_missing")
+    try:
+        await deps.store.copy(
+            deps.settings.s3_bucket_quarantine,
+            v.version.object_key,
+            deps.settings.s3_bucket_quarantine,
+            _frozen_key(v),
+        )
+    except ObjectStoreError as exc:
+        raise RetryableError("Object storage is unavailable.", code="storage_unavailable") from exc
+    v.version.object_key = _frozen_key(v)
+
+
+def _trusted_key(v: _Version) -> str:
+    return trusted_original_key(v.version.organization_id, v.kb.id, v.document.id, v.version.id)
 
 
 async def _original_bytes(deps: StageDeps, v: _Version) -> bytes:
@@ -133,11 +163,14 @@ async def _save_canonical(deps: StageDeps, v: _Version, document: CanonicalDocum
 
 
 def validating(deps: StageDeps) -> StageFn:
-    """Stream the quarantined original through file-safety validation (S14); record its sha256
-    and detected type. Rejections end the job; flags (e.g. in-KB duplicate) travel on."""
+    """Freeze the upload, then run the frozen bytes through file-safety validation (S14) and
+    record their sha256 and detected type, in the same transaction as the frozen `object_key`.
+    Rejections end the job; flags (e.g. in-KB duplicate) travel on."""
 
     async def stage(ctx: StageContext, checkpoint: Checkpoint | None) -> Checkpoint:
         v = await _load(ctx)
+        await _freeze(deps, v)
+        await ctx.session.flush()
         data = await _original_bytes(deps, v)
         filename = (
             await ctx.session.scalar(
@@ -183,17 +216,19 @@ def validating(deps: StageDeps) -> StageFn:
 
 
 def malware_scan(deps: StageDeps) -> StageFn:
-    """ClamAV (T2.3). Infected → QUARANTINED (original kept in quarantine). Clean → promote the
-    original to the trusted bucket and drop the quarantine copy."""
+    """ClamAV (T2.3) over the frozen bytes VALIDATING hashed. Infected → QUARANTINED (frozen copy
+    kept for forensics). Clean → promote exactly those bytes to the trusted bucket; the
+    quarantine copies are deleted only after this stage's transaction commits."""
 
     async def stage(ctx: StageContext, checkpoint: Checkpoint | None) -> Checkpoint:
         v = await _load(ctx)
-        trusted_key = trusted_original_key(
-            v.version.organization_id, v.kb.id, v.document.id, v.version.id
-        )
         if _is_trusted(v):
             return {"status": "clean", "promoted": True}  # already promoted before a crash
+        if v.version.object_key != _frozen_key(v):
+            raise PermanentError("The upload was never frozen.", code="integrity_unfrozen")
         data = await _original_bytes(deps, v)
+        if hashlib.sha256(data).hexdigest() != v.version.sha256:
+            raise PermanentError("The file changed after validation.", code="integrity_mismatch")
         result = await deps.malware_scanner.scan(io.BytesIO(data))
         if result.status is MalwareScanStatus.INFECTED:
             raise Quarantined("The file contains malware.", code="malware_detected")
@@ -203,18 +238,23 @@ def malware_scan(deps: StageDeps) -> StageFn:
             raise RetryableError(
                 "Malware scanning is required but unavailable.", code="scan_required"
             )
-        quarantine_key = v.version.object_key
-        assert quarantine_key is not None  # noqa: S101 (checked by _original_bytes)
+        # The frozen key is server-only, so the copied bytes are the scanned bytes.
         await deps.store.copy(
             deps.settings.s3_bucket_quarantine,
-            quarantine_key,
+            _frozen_key(v),
             deps.settings.s3_bucket_trusted,
-            trusted_key,
+            _trusted_key(v),
         )
-        v.version.object_key = trusted_key
-        await ctx.session.flush()
-        await deps.store.delete(deps.settings.s3_bucket_quarantine, quarantine_key)
-        return {"status": result.status.value, "promoted": True}
+        v.version.object_key = _trusted_key(v)
+        upload_key = await ctx.session.scalar(
+            select(Upload.object_key).where(Upload.document_version_id == v.version.id)
+        )
+        for key in (_frozen_key(v), upload_key):
+            if key:
+                ctx.after_commit.append(
+                    functools.partial(deps.store.delete, deps.settings.s3_bucket_quarantine, key)
+                )
+        return {"status": result.status.value, "promoted": True, "sha256": v.version.sha256}
 
     return stage
 

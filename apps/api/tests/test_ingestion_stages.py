@@ -20,6 +20,7 @@ from app.api.dependencies.auth import get_identity_verifier
 from app.api.dependencies.storage import get_object_store
 from app.core.config import Settings
 from app.domain.enums import IngestionState
+from app.ingestion.errors import RetryableError
 from app.ingestion.runner import run_job
 from app.ingestion.stages import STUB_STAGES, default_stages
 from app.ingestion.stages.pipeline import StageDeps, build_stages
@@ -126,14 +127,32 @@ class World:
         body["quarantine_key"] = key
         return body
 
-    async def run(self, job: dict[str, Any], **deps: Any) -> IngestionState | None:
+    async def run(
+        self,
+        job: dict[str, Any],
+        *,
+        wrap: dict[IngestionState, Any] | None = None,
+        **deps: Any,
+    ) -> IngestionState | None:
+        """Run the job; `wrap` maps a stage to `f(real_stage) -> stage` to inject faults."""
+        stages = build_stages(self.deps(**deps), STUB_STAGES)
+        for state, wrapper in (wrap or {}).items():
+            stages[state] = wrapper(stages[state])
         return await run_job(
             self.app.state.sessionmaker,
             organization_id=uuid.UUID(self.org),
             job_id=uuid.UUID(job["ingestion_job_id"]),
             worker_id="test-worker",
-            stages=build_stages(self.deps(**deps), STUB_STAGES),
+            stages=stages,
         )
+
+    def keys(self, job: dict[str, Any]) -> dict[str, str]:
+        base = f"{self.org}/{self.kb}/{job['document_id']}/{job['document_version_id']}"
+        return {
+            "upload": job["quarantine_key"],
+            "frozen": f"{base}/frozen",
+            "trusted": f"{base}/original",
+        }
 
 
 @pytest.fixture
@@ -386,3 +405,146 @@ def test_default_stages_never_half_wire_the_pipeline(migrated_settings: Settings
         for s in (S.PARSING, S.NORMALIZING, S.SECURITY_SCAN, S.CHUNKING)
     ]
     assert len(set(real_from_parsing)) == 1  # all or nothing
+
+
+# --------------------------------------------------------------------------- review #31 fixes
+
+
+async def test_bytes_swapped_before_freezing_are_what_gets_scanned(world: World) -> None:
+    """Review #31 (BLOCKER): the presigned PUT URL still works after `complete`. Whatever bytes
+    the upload key holds when VALIDATING freezes it are exactly what's scanned and promoted."""
+    job = await world.upload(HANDBOOK)
+    await world.store.put(
+        world.settings.s3_bucket_quarantine,
+        world.keys(job)["upload"],
+        HANDBOOK + b"KOS-FAKE-MALWARE",
+        content_type="text/markdown",
+    )
+
+    assert await world.run(job) is S.QUARANTINED
+    assert not await world.store.exists(
+        world.settings.s3_bucket_trusted, world.keys(job)["trusted"]
+    )
+
+
+async def test_bytes_swapped_after_freezing_never_reach_trusted_storage(world: World) -> None:
+    """Review #31 (BLOCKER): a swap through the upload URL during/after scanning can't affect the
+    promoted object, because promotion copies the server-only frozen key."""
+    job = await world.upload(HANDBOOK)
+    keys = world.keys(job)
+
+    class SwappingScanner(FakeMalwareScanner):
+        async def scan(self, stream: Any) -> Any:
+            await world.store.put(
+                world.settings.s3_bucket_quarantine,
+                keys["upload"],
+                b"KOS-FAKE-MALWARE evil",
+                content_type="text/markdown",
+            )
+            return await super().scan(stream)
+
+    assert await world.run(job, malware_scanner=SwappingScanner()) is S.READY
+    promoted = await world.store.get_bytes(
+        world.settings.s3_bucket_trusted, keys["trusted"], max_bytes=10**6
+    )
+    assert promoted == HANDBOOK
+
+
+async def test_frozen_bytes_changed_after_validation_fail_integrity(
+    world: World, admin: asyncpg.Connection
+) -> None:
+    job = await world.upload(HANDBOOK)
+    keys = world.keys(job)
+
+    def tamper(real: Any) -> Any:
+        async def stage(ctx: Any, checkpoint: Any) -> Any:
+            result = await real(ctx, checkpoint)
+            await world.store.put(
+                world.settings.s3_bucket_quarantine,
+                keys["frozen"],
+                b"different",
+                content_type="text/plain",
+            )
+            return result
+
+        return stage
+
+    assert await world.run(job, wrap={S.VALIDATING: tamper}) is S.FAILED_PERMANENT
+    assert (
+        await admin.fetchval(
+            "SELECT error_code FROM ingestion_jobs WHERE id = $1",
+            uuid.UUID(job["ingestion_job_id"]),
+        )
+        == "integrity_mismatch"
+    )
+
+
+async def test_quarantine_copies_survive_a_rolled_back_promotion(
+    world: World, admin: asyncpg.Connection
+) -> None:
+    """Review #31 (HIGH): deleting quarantine objects waits for the stage's commit, so a rollback
+    after the trusted copy leaves everything needed to retry."""
+    job = await world.upload(HANDBOOK)
+    keys = world.keys(job)
+
+    def fail_after(real: Any) -> Any:
+        async def stage(ctx: Any, checkpoint: Any) -> Any:
+            await real(ctx, checkpoint)
+            raise RetryableError("Connection lost before commit.", code="db_unavailable")
+
+        return stage
+
+    assert await world.run(job, wrap={S.MALWARE_SCAN: fail_after}) is S.FAILED_RETRYABLE
+    assert await world.store.exists(world.settings.s3_bucket_quarantine, keys["frozen"])
+    assert await world.store.exists(world.settings.s3_bucket_quarantine, keys["upload"])
+    object_key = await admin.fetchval(
+        "SELECT object_key FROM document_versions WHERE id = $1",
+        uuid.UUID(job["document_version_id"]),
+    )
+    assert object_key == keys["frozen"]
+
+    assert await world.run(job) is S.READY
+    assert await world.store.exists(world.settings.s3_bucket_trusted, keys["trusted"])
+    assert not await world.store.exists(world.settings.s3_bucket_quarantine, keys["frozen"])
+    assert not await world.store.exists(world.settings.s3_bucket_quarantine, keys["upload"])
+
+
+async def test_a_stored_approval_hold_binds_on_resume(
+    world: World, admin: asyncpg.Connection
+) -> None:
+    """Review #31 (BLOCKER): if a held SECURITY_SCAN checkpoint exists but the job isn't parked
+    (crash, or a failure afterwards), resuming re-parks it instead of chunking unapproved content."""
+    job = await world.upload(POISONED, name="notes.md")
+    assert await world.run(job) is S.PENDING_APPROVAL
+    job_id, version_id = uuid.UUID(job["ingestion_job_id"]), uuid.UUID(job["document_version_id"])
+    held = await admin.fetchrow(
+        "SELECT state, lease_owner FROM ingestion_jobs WHERE id = $1", job_id
+    )
+    assert held is not None
+    assert (held["state"], held["lease_owner"]) == ("PENDING_APPROVAL", None)  # parked atomically
+
+    # Simulate the gap the old code had: checkpoint stored, job not parked, approval pending.
+    await admin.execute(
+        "UPDATE ingestion_jobs SET state = 'FAILED_RETRYABLE' WHERE id = $1", job_id
+    )
+
+    assert await world.run(job) is S.PENDING_APPROVAL
+    assert (
+        await admin.fetchval(
+            "SELECT count(*) FROM chunks WHERE document_version_id = $1", version_id
+        )
+        == 0
+    )
+
+
+def test_optional_parsers_are_registered_when_available(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review #31 (MEDIUM): extra parsers (e.g. #28's OfficeParser) join the registry."""
+    from app.ingestion import stages as registry
+
+    monkeypatch.setattr(
+        registry,
+        "_EXTRA_PARSERS",
+        (("tests.fakes.providers", "FakeParser"), ("no.such.module", "X")),
+    )
+    parsers = registry._extra_parsers()
+    assert [p.name for p in parsers] == ["fake-text"]

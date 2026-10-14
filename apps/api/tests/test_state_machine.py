@@ -57,7 +57,12 @@ def test_retryable_failures_resume_at_any_stage() -> None:
 def test_quarantine_and_approval_come_only_from_scans() -> None:
     sources = {s for s, targets in TRANSITIONS.items() if S.QUARANTINED in targets}
     assert sources == {S.MALWARE_SCAN, S.SECURITY_SCAN, S.PENDING_APPROVAL}
-    assert {s for s, t in TRANSITIONS.items() if S.PENDING_APPROVAL in t} == {S.SECURITY_SCAN}
+    # SECURITY_SCAN parks a job; a failed job whose stored scan checkpoint holds for approval
+    # re-parks on resume (review #31). Nothing else can reach PENDING_APPROVAL.
+    assert {s for s, t in TRANSITIONS.items() if S.PENDING_APPROVAL in t} == {
+        S.SECURITY_SCAN,
+        S.FAILED_RETRYABLE,
+    }
 
 
 def test_progress_increases_with_each_stage() -> None:
