@@ -55,7 +55,7 @@
 | T3.3 | Office/tabular formats, OCR & normalization library | 3 | S18 | REVIEW | ai/codex-t3.3-office-normalize | #28 |
 | T3.4 | Content-security scanner & structure-aware chunker | 4 | S19 | TODO | | |
 | T4.1 | Embedding providers | 4 | S22 | TODO | | |
-| T5.1 | Reranker, context packer & source aliases | 5 | S27 | TODO | | |
+| T5.1 | Reranker, context packer & source aliases | 5 | S27 | IN PROGRESS | ai/codex-t5.1-reranker-context | draft pending |
 | T5.2 | LLM gateway, prompts, abstention & citation validator | 5 | S28 | TODO | | |
 | T4.8 | Retrieval debugger UI | 6 | S26 | TODO | | |
 | T5.5 | Ask workspace UI | 7 | S30 | TODO | | |
