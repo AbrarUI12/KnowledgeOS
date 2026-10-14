@@ -1,7 +1,8 @@
 """Local cross encoder with bounded admission and caller latency, never an implicit fallback.
 
 Python cannot stop native inference in-process. A timed-out inference retains the one global
-slot until it actually completes; later callers fail fast rather than queue more work/threads.
+slot until it actually completes; later callers wait within their deadline and a bounded
+coroutine admission capacity, without queuing additional native work/threads.
 Model downloads/ONNX exports should be warmed before serving. A stuck native operation requires
 process replacement by the supervisor, not unbounded additional inference threads.
 """
@@ -10,7 +11,7 @@ import asyncio
 import math
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
-from threading import Lock
+from threading import BoundedSemaphore, Lock
 from typing import TYPE_CHECKING, Literal, cast
 
 from app.providers.rerankers.base import RerankerUnavailableError
@@ -21,6 +22,7 @@ if TYPE_CHECKING:
 
 _EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="kos-reranker")
 _INFERENCE = Lock()
+_WAITERS = BoundedSemaphore(32)
 _MODELS: dict[
     tuple[str, str, str, str | None, str | None, str | None, int, int], "CrossEncoder"
 ] = {}
@@ -164,8 +166,25 @@ class CrossEncoderReranker:
             raise ValueError("invalid reranker inputs or candidate count")
         if not passages:
             return []
-        if not _INFERENCE.acquire(blocking=False):
-            raise RerankerUnavailableError("Reranker is busy.")
+        deadline = asyncio.get_running_loop().time() + self.timeout_seconds
+        if not _WAITERS.acquire(blocking=False):
+            raise RerankerUnavailableError("Reranker waiting capacity is full.")
+        try:
+            # Native completion releases a process-global thread lock, even after the request
+            # loop is cancelled/closed. An asyncio semaphore would bind to one event loop and
+            # cannot safely serve independent loops; poll this bounded gate without native
+            # waiter threads. Only the admitted inference is submitted to the executor.
+            while not _INFERENCE.acquire(blocking=False):
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    raise RerankerUnavailableError("Reranker timed out awaiting a slot.")
+                await asyncio.sleep(min(0.01, remaining))
+        finally:
+            _WAITERS.release()
+        remaining = deadline - asyncio.get_running_loop().time()
+        if remaining <= 0:
+            _INFERENCE.release()
+            raise RerankerUnavailableError("Reranker timed out awaiting a slot.")
         try:
             future = _EXECUTOR.submit(self._predict, query, list(passages))
         except Exception:
@@ -176,7 +195,7 @@ class CrossEncoderReranker:
             wrapped.add_done_callback(lambda done: None if done.cancelled() else done.exception())
             return await asyncio.wait_for(
                 asyncio.shield(wrapped),
-                timeout=self.timeout_seconds,
+                timeout=remaining,
             )
         except TimeoutError:
             raise RerankerUnavailableError("Reranker timed out.") from None

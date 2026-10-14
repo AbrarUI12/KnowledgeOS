@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import json
 import uuid
 from collections.abc import Sequence
 
@@ -50,6 +51,31 @@ async def test_budget_uses_rendered_context_not_untrusted_stored_counts() -> Non
     assert result.aliases[0].alias == "S1"  # no gaps from skipped candidates
     assert result.aliases[0].content_hash == small.content_hash
     assert result.aliases[0].document_version_id == VERSION
+
+
+async def test_model_view_omits_internal_ids_hashes_and_source_urls() -> None:
+    source = candidate("Employees receive sixteen weeks.").model_copy(
+        update={"source_url": "https://internal.example/private/object"}
+    )
+    result = await pack_context(hits(source), count_tokens=len)
+    rendered = render_context(result.items)
+    view = json.loads(rendered)[0]
+    assert source.source_url is not None
+    assert set(view) == {"alias", "title", "section_path", "location", "content"}
+    assert view["alias"] == "S1"
+    assert view["content"] == source.content
+    for private in (
+        str(source.chunk_id),
+        str(source.document_id),
+        str(VERSION),
+        source.content_hash,
+        source.source_url,
+    ):
+        assert private not in rendered
+    assert result.aliases[0].chunk_id == source.chunk_id
+    assert result.aliases[0].content_hash == source.content_hash
+    assert result.aliases[0].source_url == source.source_url
+    assert result.token_count == len(rendered)
 
 
 async def test_caps_hash_and_shingle_redundancy_preserve_stable_aliases() -> None:

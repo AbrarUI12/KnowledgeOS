@@ -71,13 +71,56 @@ async def test_timeout_keeps_bounded_slot_until_native_work_finishes(
             await provider.rerank("q", ["passage"])
         assert dependency.started.is_set()
         for _ in range(10):
-            with pytest.raises(RerankerUnavailableError, match="busy"):
+            with pytest.raises(RerankerUnavailableError, match="timed out awaiting a slot"):
                 await provider.rerank("q", ["passage"])
         assert len(dependency.calls) == 1
     finally:
         dependency.release.set()
         await asyncio.wait_for(asyncio.wrap_future(local._EXECUTOR.submit(lambda: None)), 2)
     assert await provider.rerank("q", ["passage"]) == [0]
+
+
+async def test_two_overlapping_requests_wait_without_queuing_native_work(
+    encoder: tuple[EncoderDependency, list[tuple[object, ...]]],
+) -> None:
+    dependency, _ = encoder
+    dependency.release.clear()
+    provider = local.CrossEncoderReranker(model_id="fixture", timeout_seconds=1)
+    first = asyncio.create_task(provider.rerank("q", ["first"]))
+    assert await asyncio.to_thread(dependency.started.wait, 1)
+    second = asyncio.create_task(provider.rerank("q", ["second"]))
+    try:
+        await asyncio.sleep(0.02)
+        assert len(dependency.calls) == 1
+        assert not second.done()
+    finally:
+        dependency.release.set()
+    first_result, second_result = await asyncio.gather(first, second)
+    assert first_result == [0]
+    assert second_result == [0]
+    assert len(dependency.calls) == 2
+
+
+async def test_cancelling_a_waiter_never_submits_work_or_leaks_the_slot(
+    encoder: tuple[EncoderDependency, list[tuple[object, ...]]],
+) -> None:
+    dependency, _ = encoder
+    dependency.release.clear()
+    provider = local.CrossEncoderReranker(model_id="fixture", timeout_seconds=1)
+    first = asyncio.create_task(provider.rerank("q", ["first"]))
+    assert await asyncio.to_thread(dependency.started.wait, 1)
+    waiting = asyncio.create_task(provider.rerank("q", ["cancelled"]))
+    await asyncio.sleep(0.02)
+    waiting.cancel()
+    try:
+        with pytest.raises(asyncio.CancelledError):
+            await waiting
+        assert len(dependency.calls) == 1
+    finally:
+        dependency.release.set()
+    assert await first == [0]
+    assert await provider.rerank("q", ["third"]) == [0]
+    assert [call[0][0][1] for call in dependency.calls] == ["first", "third"]
 
 
 @pytest.mark.parametrize("scores", [[float("nan")], [float("inf")], [0, 1]])

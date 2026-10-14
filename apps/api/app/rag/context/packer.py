@@ -63,7 +63,13 @@ def render_context(items: Sequence[EvidenceItem]) -> str:
     """Stable JSON data, NOT prompt instructions. The generation prompt must delimit it."""
     return json.dumps(
         [
-            {"source": item.source.model_dump(mode="json"), "content": item.content}
+            {
+                "alias": item.source.alias,
+                "title": item.source.title,
+                "section_path": item.source.section_path,
+                "location": item.source.location.model_dump(mode="json", exclude_none=True),
+                "content": item.content,
+            }
             for item in items
         ],
         ensure_ascii=False,
