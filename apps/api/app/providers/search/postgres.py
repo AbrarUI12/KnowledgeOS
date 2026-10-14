@@ -401,8 +401,9 @@ class PostgresSearchBackend:
     async def neighbors(
         self, scope: SearchScope, chunk_id: uuid.UUID, *, before: int = 1, after: int = 1
     ) -> list[RankedHit]:
-        """The authorized child chunks right before and after `chunk_id` in its version and
-        generation (context expansion, plan §20.1). Empty if the chunk itself isn't readable."""
+        """The authorized sibling chunks right before and after `chunk_id`: same version,
+        generation and parent section, so they're always ±1 in ordinal (context expansion, plan
+        §20.1; the packer rejects anything else). Empty if the chunk itself isn't readable."""
 
         async def load(session: AsyncSession) -> list[RankedHit]:
             target = (
@@ -411,6 +412,7 @@ class PostgresSearchBackend:
                         scope,
                         Chunk.document_version_id,
                         Chunk.index_generation_id,
+                        Chunk.parent_chunk_id,
                         Chunk.ordinal,
                     ).where(Chunk.id == chunk_id)
                 )
@@ -420,6 +422,7 @@ class PostgresSearchBackend:
             same = (
                 Chunk.document_version_id == target.document_version_id,
                 Chunk.index_generation_id == target.index_generation_id,
+                Chunk.parent_chunk_id.is_not_distinct_from(target.parent_chunk_id),
             )
             preceding = (
                 await session.execute(

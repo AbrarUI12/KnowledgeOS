@@ -7,6 +7,7 @@ a superseded version, an archived document, a retired index generation and a res
 """
 
 import asyncio
+import hashlib
 import re
 import uuid
 from dataclasses import dataclass
@@ -431,3 +432,53 @@ async def test_a_document_acl_narrows_search_results(
 
     assert policy not in {h.candidate.document_id for h in for_bob.dense + for_bob.lexical}
     assert policy in {h.candidate.document_id for h in for_alice.lexical}
+
+
+class SectionChunker(FakeChunker):
+    """Pairs of fake children under one parent each: P0 c1 c2 | P3 c4 c5 (S19 parent/child)."""
+
+    def chunk(self, document: CanonicalDocument) -> list[ChunkDraft]:
+        drafts: list[ChunkDraft] = []
+        children = super().chunk(document)
+        for start in range(0, len(children), 2):
+            pair = children[start : start + 2]
+            parent_ordinal = len(drafts)
+            text = "\n\n".join(c.content for c in pair)
+            drafts.append(
+                pair[0].model_copy(
+                    update={
+                        "ordinal": parent_ordinal,
+                        "is_parent": True,
+                        "content": text,
+                        "embedding_text": text,
+                        "content_hash": hashlib.sha256(text.encode()).hexdigest(),
+                    }
+                )
+            )
+            drafts += [
+                c.model_copy(update={"ordinal": len(drafts) + i, "parent_ordinal": parent_ordinal})
+                for i, c in enumerate(pair)
+            ]
+        return drafts
+
+
+async def test_neighbors_stay_inside_the_parent_section(
+    corpus: Corpus, admin: asyncpg.Connection
+) -> None:
+    """Expansion never crosses a section: the packer requires ±1 neighbors (T5.1)."""
+    text = b"# Sections\n\nAlpha one.\n\nAlpha two.\n\nBeta one.\n\nBeta two.\n"
+    job = await corpus.world.upload(text, name="sections.md")
+    assert await corpus.world.run(job, chunker=SectionChunker()) is S.READY
+    children = [
+        r["id"]
+        for r in await admin.fetch(
+            "SELECT id FROM chunks WHERE document_version_id = $1 AND NOT is_parent ORDER BY ordinal",
+            uuid.UUID(job["document_version_id"]),
+        )
+    ]
+    alpha_one, alpha_two, beta_one, _ = children
+    scope = corpus.scope(corpus.alice)
+
+    assert ids(await backend(corpus).neighbors(scope, alpha_one, after=1)) == {alpha_two}
+    assert await backend(corpus).neighbors(scope, alpha_two, before=0, after=1) == []
+    assert await backend(corpus).neighbors(scope, beta_one, before=1, after=0) == []
