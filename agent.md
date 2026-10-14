@@ -58,7 +58,7 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T5.1 draft #37: packer/aliases/bounded encoder complete; 21 targeted tests, lint and types pass. Real ONNX/int8 export and relevance verified; CPU medians 1.819 s (20) / 2.484 s (30), I-003 remains open. Full/parser checks running with compatible dependencies. T3.4 #35 review fixes green; #38 worker-config HIGH open.
+- **Current task:** T5.1 #37 ready: real ONNX/int8 relevance and CPU timings verified, I-003 recorded; 464 backend / 105 frontend / nine snapshots and all required lint/types green (three existing skips). Next T5.2. T3.4 #35 re-review pending; #38 worker-config HIGH remains open.
 - **Last finished:** T4.1 #36 merged (a25389f): real Qwen CPU 1024-d verified. T3.3 #28 (6e725fb), T3.2 #26 (0c1f49f), T1.4 #17 (961cb0a) also merged.
 - **Blockers:** none
 - **Recent:**
