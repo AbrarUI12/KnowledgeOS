@@ -90,7 +90,7 @@ def prose_units(
     recursive: bool,
     following_budget: int | None = None,
 ) -> list[Unit]:
-    result = []
+    result: list[Unit] = []
     start = 0
     all_offsets = tokenizer.offsets(block.text)
     while start < len(block.text):
