@@ -37,6 +37,16 @@ def test_real_format_canonical_snapshot(filename: str, mime_type: str, snapshot:
         assert document.page_count
         assert all(block.page for block in document.blocks)
         assert any(block.bbox for block in document.blocks)
+        text = " ".join(block.text for block in document.blocks)
+        for phrase in (
+            "16 weeks of paid parental leave",
+            "HR-142-B",
+            "previous 12-week allowance",
+            "completed 6 months of service",
+            "4 days per week",
+            "Manager approval is required",
+        ):
+            assert phrase in text
     if filename.endswith(".md"):
         assert any(block.type is BlockType.HEADING for block in document.blocks)
 

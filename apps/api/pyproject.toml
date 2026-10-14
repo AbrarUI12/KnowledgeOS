@@ -29,6 +29,9 @@ dependencies = [
     "psutil>=7.0.0",
     "openpyxl>=3.1.5",
     "python-pptx>=1.0.2",
+    "lingua-language-detector>=2.2.0",
+    "beautifulsoup4>=4.15.0",
+    "onnxruntime>=1.31.0",
 ]
 
 [build-system]
@@ -105,4 +108,5 @@ dev = [
     "python-pptx>=1.0.0",
     "types-psutil>=7.2.2.20260906",
     "types-openpyxl>=3.1.5.20260827",
+    "types-reportlab>=5.0.0.20261008",
 ]

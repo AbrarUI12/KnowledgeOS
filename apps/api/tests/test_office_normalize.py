@@ -46,6 +46,15 @@ def test_semicolon_csv_row_ranges_and_caps() -> None:
     assert error.value.code == "parser_table_limit"
 
 
+def test_office_conversion_runs_in_a_bounded_child() -> None:
+    with pytest.raises(ParserError) as error:
+        OfficeParser(timeout_seconds=0.01).parse(
+            b"Name;Weeks\nAlice;16", filename="leave.csv", mime_type="text/csv"
+        )
+    assert error.value.code == "parser_timeout"
+    assert error.value.retryable
+
+
 def test_normalization_preserves_code_and_original_input() -> None:
     document = CanonicalDocument(
         title="test",

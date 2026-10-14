@@ -1,6 +1,8 @@
 """DB-free Office/tabular adapters preserving source positions and reading order."""
 
 import csv
+import json
+import tempfile
 from io import BytesIO, StringIO
 from itertools import islice
 from pathlib import Path
@@ -13,6 +15,7 @@ from pptx import Presentation
 from app.ingestion.canonical import Block, BlockType, CanonicalDocument, TableData
 from app.ingestion.parsing.base import ParserError
 from app.ingestion.parsing.docling import block_id
+from app.ingestion.parsing.isolation import run_isolated
 
 PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -23,18 +26,66 @@ class OfficeParser:
     version = "1"
 
     def __init__(
-        self, *, max_rows: int = 50_000, max_columns: int = 200, row_group_size: int = 30
+        self,
+        *,
+        max_rows: int = 50_000,
+        max_columns: int = 200,
+        row_group_size: int = 30,
+        timeout_seconds: float = 120,
+        memory_bytes: int = 4 * 1024**3,
     ) -> None:
         if min(max_rows, max_columns, row_group_size) < 1:
             raise ValueError("tabular limits must be positive")
         self.max_rows = max_rows
         self.max_columns = max_columns
         self.row_group_size = row_group_size
+        self.timeout_seconds = timeout_seconds
+        self.memory_bytes = memory_bytes
 
     def supports(self, mime_type: str) -> bool:
         return mime_type in {PPTX, XLSX, "text/csv", "text/plain"}
 
     def parse(self, data: bytes, *, filename: str, mime_type: str) -> CanonicalDocument:
+        if not self.supports(mime_type):
+            raise ParserError("Unsupported format.", code="unsupported_format")
+        if not data or len(data) > 50 * 1024**2:
+            raise ParserError("Invalid document size.", code="parser_input_limit")
+        with tempfile.TemporaryDirectory(prefix="kos-office-") as temporary:
+            directory = Path(temporary)
+            source, output = directory / "source", directory / "result.json"
+            source.write_bytes(data)
+            request = directory / "request.json"
+            request.write_text(
+                json.dumps(
+                    {
+                        "source": str(source),
+                        "output": str(output),
+                        "filename": filename,
+                        "mime_type": mime_type,
+                        "max_rows": self.max_rows,
+                        "max_columns": self.max_columns,
+                        "row_group_size": self.row_group_size,
+                        "memory_bytes": self.memory_bytes,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            run_isolated(
+                "app.ingestion.parsing.office_worker",
+                [str(request)],
+                timeout_seconds=self.timeout_seconds,
+                memory_bytes=self.memory_bytes,
+            )
+            if not output.exists() or output.stat().st_size > 64 * 1024**2:
+                raise ParserError(
+                    "Parser output is missing or too large.", code="parser_output_limit"
+                )
+            result = json.loads(output.read_bytes())
+            if "error" in result:
+                raise ParserError("Office document could not be parsed.", code=result["error"])
+            return CanonicalDocument.model_validate(result["document"])
+
+    def _parse_document(self, data: bytes, *, filename: str, mime_type: str) -> CanonicalDocument:
         if not self.supports(mime_type):
             raise ParserError("Unsupported format.", code="unsupported_format")
         if not data or len(data) > 50 * 1024**2:

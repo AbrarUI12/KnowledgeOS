@@ -53,7 +53,7 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** Batch checkpoint: T1.4 (#17) and T3.2 (#26) ready; stacked T3.3 (#28) draft with Office/tabular + normalization tests. Next: finish OCR/language/boilerplate/furniture, then T3.4/T4.1/T5.1/T5.2. Review #25 posted (changes requested).
+- **Current task:** T3.3 (#28): Office/OCR/normalization implemented, final main-integrated checks pending. T1.4 (#17) merged after PASS and green CI. #27/#30/#31 re-reviewed PASS (61 stack tests). Next: T3.4, T4.1, T5.1, T5.2.
 - **Last finished:** T2.2 ObjectStore providers (2026-10-12, PR #14; review MEDIUM fixed by Claude while Codex was at its usage limit)
 - **Blockers:** none
 - **Recent:**
