@@ -3,8 +3,9 @@
 import hashlib
 import json
 from pathlib import Path
+from typing import cast
 
-from tokenizers import Tokenizer
+from tokenizers import Tokenizer  # type: ignore[import-untyped]  # 0.22 lacks py.typed
 
 
 class ModelTokenizer:
@@ -31,7 +32,9 @@ class ModelTokenizer:
         return len(self.backend.encode(text, add_special_tokens=False).ids)
 
     def offsets(self, text: str) -> list[tuple[int, int]]:
-        return self.backend.encode(text, add_special_tokens=False).offsets
+        return cast(
+            list[tuple[int, int]], self.backend.encode(text, add_special_tokens=False).offsets
+        )
 
     @property
     def fingerprint(self) -> str:

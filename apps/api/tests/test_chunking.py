@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from tokenizers import Tokenizer, models, pre_tokenizers
+from tokenizers import Tokenizer, models, pre_tokenizers  # type: ignore[import-untyped]
 
 from app.ingestion.canonical import Block, BlockType, CanonicalDocument, TableData
 from app.ingestion.chunking.recursive_fixed import RecursiveFixedChunker

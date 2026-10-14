@@ -58,8 +58,8 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T5.1 draft #37 next. T3.4 #35 HIGH scanner fixes verified: 508 backend / 105 frontend / nine snapshots and required lint/types green (three existing platform/opt-in skips); 16-file corpus correct. Re-review requested. #38 reviewed (16 tests), one HIGH worker-config finding remains open; #34 merged after user approval.
-- **Last finished:** T4.1 #36 merged (a25389f): real Qwen CPU 1024-d inference, 426 backend / 105 frontend / nine snapshots and required checks green. T3.3 #28 (6e725fb), T3.2 #26 (0c1f49f), T1.4 #17 (961cb0a) merged.
+- **Current task:** T5.1 #37 review follow-ups: bounded waiting for native slot, lean model-facing evidence view; #35 merged and dependency floor reconciled. Re-running full checks before re-review. #38 re-review PASS; #39 reviewed (19 tests), generation-switch race HIGH reproduced. Next T5.2.
+- **Last finished:** T4.1 #36 merged (a25389f): real Qwen CPU 1024-d verified. T3.3 #28 (6e725fb), T3.2 #26 (0c1f49f), T1.4 #17 (961cb0a) also merged.
 - **Blockers:** none
 - **Recent:**
   - 2026-10-12 · T2.2 · S3/MinIO/B2 + in-memory ObjectStore providers and safe key helpers; explicit S3 timeouts/retries · PR #14 (merged)
@@ -582,7 +582,7 @@ A gate is passed only when **every** exit criterion in `session.md` → *Gates &
 |---|---|---|---|---|---|
 | I-001 | Risk | Free-tier limits change. Re-verify HF Spaces, Neon, Groq, Gemini, B2 and Auth0 terms before deploying | 00 | – | Open, revisit in S32 and S60 |
 | I-002 | Risk | Developer laptop RAM: the full Compose stack (Postgres, Redis, MinIO, Keycloak, ClamAV, worker with models) may need 10+ GB. Use the `core` profile when RAM is tight. **Measured S02:** Docker has 7.4 GB; Keycloak ≈ 1.8 GB, ClamAV ≈ 1.9 GB, the others < 100 MB each; another local project (`retailops-bd`) uses ≈ 1.5 GB. Stop ClamAV (`docker compose stop clamav`) and other projects when running workers/Ollama | 00 | – | Open (measured), revisit in S16/S22 |
-| I-003 | Risk | CPU-only reranking may miss the plan's retrieval P95 < 500 ms target. Measure, then tune (ONNX int8, fewer candidates) or revise the target with evidence | 00 | – | Open, revisit in S27 and S58 |
+| I-003 | Risk | CPU-only reranking exceeds the retrieval 500 ms target: S27 real BGE ONNX AVX2 int8, CPU 2 threads/batch 8/max length 512, warmed short synthetic passages; medians 1819.07 ms (20 candidates) / 2484.31 ms (30), three samples each. Not a P95 or production-length benchmark; longer chunks need separate measurement. Explicit timeout/degraded mode remains required; tune candidate count or revisit the target with evidence | 00 | – | Open, measured in T5.1 #37; revisit S58 |
 | I-005 | Tech debt | Dependabot opened major-version PRs #2–#6 (Redis 8, Node 25 image, ESLint 10, TypeScript 7, @types/node 26). Not merged: review deliberately. Node 25 is not LTS (keep Node 24); @types/node should track Node 24; TS 7 / ESLint 10 need compatibility checks with Next 16 | 05 | – | Open |
 | I-004 | Risk | Windows MAX_PATH: `next typegen` fails when the repo sits in a very deep folder. Keep the clone at a short path such as `D:\projects\KnowledgeOS` | 01 | – | Open (workaround documented) |
 
