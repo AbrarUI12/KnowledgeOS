@@ -35,6 +35,8 @@ dependencies = [
     "celery[redis]>=5.5",
     "sentence-transformers[onnx]>=5.2,<6",
     "huggingface-hub>=0.34,<1",
+    "pyyaml>=6.0.3",
+    "tokenizers>=0.22.2",
 ]
 
 [build-system]
@@ -111,4 +113,5 @@ dev = [
     "types-psutil>=7.2.2.20260906",
     "types-openpyxl>=3.1.5.20260827",
     "types-reportlab>=5.0.0.20261008",
+    "types-pyyaml>=6.0.12.20260906",
 ]

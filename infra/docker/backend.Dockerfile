@@ -23,6 +23,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY apps/api/app ./app
 COPY apps/api/migrations ./migrations
 COPY apps/api/alembic.ini ./
+COPY configs/policies/content_scan.yaml ./configs/policies/content_scan.yaml
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 

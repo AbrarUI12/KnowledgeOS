@@ -58,7 +58,7 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T5.1 #37 ready: real ONNX/int8 relevance and CPU timings verified, I-003 recorded; 464 backend / 105 frontend / nine snapshots and all required lint/types green (three existing skips). Next T5.2. T3.4 #35 re-review pending; #38 worker-config HIGH remains open.
+- **Current task:** T5.1 #37 review follow-ups: bounded waiting for native slot, lean model-facing evidence view; #35 merged and dependency floor reconciled. Re-running full checks before re-review. #38 re-review PASS; #39 reviewed (19 tests), generation-switch race HIGH reproduced. Next T5.2.
 - **Last finished:** T4.1 #36 merged (a25389f): real Qwen CPU 1024-d verified. T3.3 #28 (6e725fb), T3.2 #26 (0c1f49f), T1.4 #17 (961cb0a) also merged.
 - **Blockers:** none
 - **Recent:**
