@@ -53,7 +53,7 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** Demo v2 and Pages primitives-route fix (PR #24); T1.4 remains in draft PR #17. Reviews: #13, #19 and #20 PASS after fixes.
+- **Current task:** T1.4 review fixes (#17): workspace contracts Docker build and live auth walkthrough pass; final main-integrated checks running. Next: finish stacked T3.3 (#28), then remaining batch libraries. #25 PASS; #27/#30/#31 changes requested.
 - **Last finished:** T2.2 ObjectStore providers (2026-10-12, PR #14; review MEDIUM fixed by Claude while Codex was at its usage limit)
 - **Blockers:** none
 - **Recent:**

@@ -28,7 +28,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Drop server-only routes (Pages has no server)
-        run: rm -rf apps/web/app/api apps/web/proxy.ts apps/web/middleware.ts
+        run: rm -rf apps/web/app/api 'apps/web/app/(app)' apps/web/app/signin apps/web/app/signout apps/web/proxy.ts apps/web/middleware.ts
       - name: Static build
         env:
           KOS_STATIC_EXPORT: "1"

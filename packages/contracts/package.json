@@ -1,0 +1,10 @@
+{
+  "name": "@knowledgeos/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    ".": {
+      "types": "./src/schema.d.ts"
+    }
+  }
+}
