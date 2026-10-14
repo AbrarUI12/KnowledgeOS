@@ -32,10 +32,11 @@ class OcrParser(DoclingParser):
 
 
 def add_ocr_provenance(document: CanonicalDocument, result: ConversionResult) -> None:
+    pages = {page.page_no: page for page in result.pages}
     for block in document.blocks:
         confidences: list[float] = []
         for box in block.bbox:
-            page = next((page for page in result.pages if page.page_no == box.page), None)
+            page = pages.get(box.page)
             if page is None or page.size is None:
                 continue
             for cell in page.cells:

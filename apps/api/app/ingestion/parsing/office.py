@@ -3,14 +3,20 @@
 import csv
 import json
 import tempfile
+from collections.abc import Iterable, Iterator
 from io import BytesIO, StringIO
 from itertools import islice
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from charset_normalizer import from_bytes
 from openpyxl import load_workbook
 from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE_TYPE
+from pptx.shapes.autoshape import Shape
+from pptx.shapes.base import BaseShape
+from pptx.shapes.graphfrm import GraphicFrame
+from pptx.shapes.group import GroupShape
 
 from app.ingestion.canonical import Block, BlockType, CanonicalDocument, TableData
 from app.ingestion.parsing.base import ParserError
@@ -31,14 +37,18 @@ class OfficeParser:
         max_rows: int = 50_000,
         max_columns: int = 200,
         row_group_size: int = 30,
+        max_scanned_rows: int = 250_000,
+        max_sheets: int = 100,
         timeout_seconds: float = 120,
         memory_bytes: int = 4 * 1024**3,
     ) -> None:
-        if min(max_rows, max_columns, row_group_size) < 1:
+        if min(max_rows, max_columns, row_group_size, max_scanned_rows, max_sheets) < 1:
             raise ValueError("tabular limits must be positive")
         self.max_rows = max_rows
         self.max_columns = max_columns
         self.row_group_size = row_group_size
+        self.max_scanned_rows = max_scanned_rows
+        self.max_sheets = max_sheets
         self.timeout_seconds = timeout_seconds
         self.memory_bytes = memory_bytes
 
@@ -65,6 +75,8 @@ class OfficeParser:
                         "max_rows": self.max_rows,
                         "max_columns": self.max_columns,
                         "row_group_size": self.row_group_size,
+                        "max_scanned_rows": self.max_scanned_rows,
+                        "max_sheets": self.max_sheets,
                         "memory_bytes": self.memory_bytes,
                     }
                 ),
@@ -102,8 +114,19 @@ class OfficeParser:
             elif mime_type == XLSX:
                 workbook = load_workbook(BytesIO(data), read_only=True, data_only=True)
                 try:
+                    if len(workbook.worksheets) > self.max_sheets:
+                        raise ParserError("Too many sheets.", code="parser_table_limit")
+                    remaining_rows, remaining_scans = self.max_rows, self.max_scanned_rows
                     for sheet in workbook.worksheets:
-                        self._rows(sheet.iter_rows(values_only=True), sheet.title, document)
+                        used, scanned = self._rows(
+                            sheet.iter_rows(values_only=True),
+                            sheet.title,
+                            document,
+                            row_budget=remaining_rows,
+                            scan_budget=remaining_scans,
+                        )
+                        remaining_rows -= used
+                        remaining_scans -= scanned
                 finally:
                     workbook.close()
             else:
@@ -147,19 +170,22 @@ class OfficeParser:
         for number, slide in enumerate(presentation.slides, 1):
             title = slide.shapes.title.text if slide.shapes.title else f"Slide {number}"
             self._append(document, BlockType.HEADING, title, slide=number, heading_level=1)
-            for shape in sorted(slide.shapes, key=lambda item: (item.top, item.left)):
+            for shape in self._leaf_shapes(slide.shapes):
                 if shape == slide.shapes.title:
                     continue
-                if shape.has_text_frame and shape.text.strip():
+                if shape.has_text_frame and cast(Shape, shape).text.strip():
                     self._append(
                         document,
                         BlockType.PARAGRAPH,
-                        shape.text.strip(),
+                        cast(Shape, shape).text.strip(),
                         slide=number,
                         heading_path=[title],
                     )
                 if shape.has_table:
-                    values = [[cell.text for cell in row.cells] for row in shape.table.rows]
+                    values = [
+                        [cell.text for cell in row.cells]
+                        for row in cast(GraphicFrame, shape).table.rows
+                    ]
                     self._append(
                         document,
                         BlockType.TABLE,
@@ -181,26 +207,54 @@ class OfficeParser:
                     )
         document.metadata["slide_count"] = len(presentation.slides)
 
-    def _rows(self, rows: Any, sheet: str, document: CanonicalDocument) -> None:
+    @classmethod
+    def _leaf_shapes(cls, shapes: Iterable[BaseShape], depth: int = 0) -> Iterator[BaseShape]:
+        if depth > 64:
+            raise ParserError("Shape nesting limit exceeded.", code="parser_shape_limit")
+        for shape in sorted(shapes, key=lambda item: (item.top or 0, item.left or 0)):
+            if shape.shape_type == MSO_SHAPE_TYPE.GROUP and isinstance(shape, GroupShape):
+                yield from cls._leaf_shapes(shape.shapes, depth + 1)
+            else:
+                yield shape
+
+    def _rows(
+        self,
+        rows: Any,
+        sheet: str,
+        document: CanonicalDocument,
+        *,
+        row_budget: int | None = None,
+        scan_budget: int | None = None,
+    ) -> tuple[int, int]:
+        row_budget = self.max_rows if row_budget is None else row_budget
+        scan_budget = self.max_scanned_rows if scan_budget is None else scan_budget
         group: list[list[str]] = []
         header: list[str] = []
-        start = 1
-        for number, row in enumerate(islice(rows, self.max_rows + 1), 1):
-            if number > self.max_rows or len(row) > self.max_columns:
+        start = end = used = scanned = 0
+        for number, row in enumerate(islice(rows, scan_budget + 1), 1):
+            scanned = number
+            if number > scan_budget or len(row) > self.max_columns:
                 raise ParserError("Tabular limits exceeded.", code="parser_table_limit")
             values = ["" if value is None else str(value) for value in row]
-            if number == 1 and any(isinstance(value, str) for value in row):
-                header = values
-                start = 2
+            if not any(value.strip() for value in values):
                 continue
+            used += 1
+            if used > row_budget:
+                raise ParserError("Tabular limits exceeded.", code="parser_table_limit")
+            if used == 1 and any(isinstance(value, str) for value in row):
+                header = values
+                continue
+            if not group:
+                start = number
+            end = number
             group.append(values)
             if len(group) == self.row_group_size:
                 self._table_group(document, sheet, header, group, start, number)
                 group = []
-                start = number + 1
         if group:
-            self._table_group(document, sheet, header, group, start, start + len(group) - 1)
+            self._table_group(document, sheet, header, group, start, end)
         document.metadata["tabular_rag_not_analytics"] = True
+        return used, scanned
 
     def _table_group(
         self,

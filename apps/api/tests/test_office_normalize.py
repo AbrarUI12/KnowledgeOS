@@ -1,6 +1,11 @@
+from io import BytesIO
 from pathlib import Path
 
 import pytest
+from openpyxl import Workbook
+from openpyxl.styles import Font
+from pptx import Presentation
+from pptx.util import Inches
 
 from app.ingestion.canonical import Block, BlockType, BoundingBox, CanonicalDocument
 from app.ingestion.normalize import normalize_document
@@ -53,6 +58,111 @@ def test_office_conversion_runs_in_a_bounded_child() -> None:
         )
     assert error.value.code == "parser_timeout"
     assert error.value.retryable
+
+
+def test_sparse_workbook_skips_empty_rows_preserving_physical_ranges() -> None:
+    workbook = Workbook()
+    sheet = workbook.active
+    assert sheet is not None
+    sheet.append(["Name", "Weeks"])
+    sheet.cell(10, 1, "Alice")
+    sheet.cell(10, 2, 16)
+    sheet.cell(50, 1, "Bob")
+    sheet.cell(50, 2, 12)
+    sheet.cell(60_000, 2).font = Font(bold=True)
+    data = BytesIO()
+    workbook.save(data)
+    result = OfficeParser(max_rows=3, row_group_size=2).parse(
+        data.getvalue(), filename="sparse.xlsx", mime_type=XLSX
+    )
+    assert len(result.blocks) == 1
+    block = result.blocks[0]
+    assert (block.row_start, block.row_end) == (10, 50)
+    assert block.table is not None
+    assert block.table.rows == [["Alice", "16"], ["Bob", "12"]]
+    assert block.table.header == ["Name", "Weeks"]
+
+
+def test_workbook_row_limit_is_global_across_sheets() -> None:
+    workbook = Workbook()
+    sheet = workbook.active
+    assert sheet is not None
+    sheet.append(["Name"])
+    sheet.append(["Alice"])
+    workbook.create_sheet("second").append(["Bob"])
+    data = BytesIO()
+    workbook.save(data)
+    with pytest.raises(ParserError) as error:
+        OfficeParser(max_rows=2).parse(data.getvalue(), filename="many.xlsx", mime_type=XLSX)
+    assert error.value.code == "parser_table_limit"
+    assert not error.value.retryable
+
+
+@pytest.mark.parametrize("limit", ["sheets", "scans"])
+def test_workbook_sheet_and_physical_scan_caps_are_permanent(limit: str) -> None:
+    workbook = Workbook()
+    sheet = workbook.active
+    assert sheet is not None
+    sheet.cell(2, 1, "First")
+    workbook.create_sheet("second").cell(2, 1, "Second")
+    data = BytesIO()
+    workbook.save(data)
+    parser = OfficeParser(max_sheets=1) if limit == "sheets" else OfficeParser(max_scanned_rows=3)
+    with pytest.raises(ParserError) as error:
+        parser.parse(data.getvalue(), filename="caps.xlsx", mime_type=XLSX)
+    assert error.value.code == "parser_table_limit"
+    assert not error.value.retryable
+
+
+def test_sparse_csv_header_and_last_partial_group_have_physical_ranges() -> None:
+    result = OfficeParser(row_group_size=2).parse(
+        b"\nName,Weeks\n\nAlice,16\n\nBob,12\n\nCarol,10\n",
+        filename="sparse.csv",
+        mime_type="text/csv",
+    )
+    assert [(block.row_start, block.row_end) for block in result.blocks] == [(4, 6), (8, 8)]
+    assert all(block.table and block.table.header == ["Name", "Weeks"] for block in result.blocks)
+
+
+def test_grouped_slide_text_and_table_are_not_lost() -> None:
+    presentation = Presentation()
+    slide = presentation.slides.add_slide(presentation.slide_layouts[6])
+    group = slide.shapes.add_group_shape()
+    nested = group.shapes.add_group_shape()
+    text = nested.shapes.add_textbox(Inches(1), Inches(1), Inches(2), Inches(1))
+    text.text = "Grouped engineering label"
+    table_shape = slide.shapes.add_table(2, 1, Inches(1), Inches(3), Inches(2), Inches(1))
+    group.shapes.add_group_shape([table_shape])
+    table = table_shape.table
+    table.cell(0, 0).text = "Team"
+    table.cell(1, 0).text = "Engineering"
+    data = BytesIO()
+    presentation.save(data)
+    result = OfficeParser().parse(data.getvalue(), filename="groups.pptx", mime_type=PPTX)
+    assert [block.text for block in result.blocks] == [
+        "Slide 1",
+        "Grouped engineering label",
+        "Team\nEngineering",
+    ]
+    assert all(block.slide == 1 for block in result.blocks)
+    assert result.blocks[-1].table is not None
+    assert result.blocks[-1].table.rows == [["Engineering"]]
+
+
+def test_slide_shape_without_position_still_parses() -> None:
+    presentation = Presentation()
+    slide = presentation.slides.add_slide(presentation.slide_layouts[6])
+    shape = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(2), Inches(1))
+    shape.text = "Unpositioned label"
+    # Real malformed-but-readable OOXML shape: xfrm is optional, not a mocked parser.
+    properties = shape._element.spPr
+    assert properties.xfrm is not None
+    properties.remove(properties.xfrm)
+    assert shape.top is None
+    data = BytesIO()
+    presentation.save(data)
+    result = OfficeParser().parse(data.getvalue(), filename="position.pptx", mime_type=PPTX)
+    assert result.blocks[1].text == "Unpositioned label"
 
 
 def test_normalization_preserves_code_and_original_input() -> None:
