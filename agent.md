@@ -56,8 +56,8 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** Addressing T3.3 review (#28): workbook-wide budgets, sparse rows, grouped/missing-position shapes and portable fixed-reference bbox checks; seven regression tests. Full checks running. Next: resume stacked T3.4 (#35), then T4.1/T5.1/T5.2.
-- **Last finished:** T1.4 frontend foundation (2026-10-14, PR #17, merge 961cb0a); live auth and Docker/static checks pass.
+- **Current task:** T4.1 embedding providers claimed on a fresh main branch. T3.4 (#35) ready: 454 backend / 105 frontend / nine snapshots, explicit web typecheck and code CI green. Next: T5.1/T5.2. #34 re-review PASS (45 tests); cleanup follow-up fixed, user ADR approval still required.
+- **Last finished:** T3.3 parsers/normalization (#28, merge 6e725fb); T3.4 implementation (#35) in review. T3.2 (#26, 0c1f49f) and T1.4 (#17, 961cb0a) also merged.
 - **Blockers:** none
 - **Recent:**
   - 2026-10-12 · T2.2 · S3/MinIO/B2 + in-memory ObjectStore providers and safe key helpers; explicit S3 timeouts/retries · PR #14 (merged)
