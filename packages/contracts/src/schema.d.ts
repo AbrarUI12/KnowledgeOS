@@ -111,7 +111,7 @@ export interface paths {
         put?: never;
         /**
          * Start Document Replacement
-         * @description Start uploading a new version of an existing document.
+         * @description Start uploading a new version of an existing document (`document.upload`).
          */
         post: operations["documents_start_document_replacement"];
         delete?: never;
@@ -129,7 +129,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Approve Document Version */
+        /**
+         * Approve Document Version
+         * @description Approve a version held for review (`document.publish`): ingestion resumes at chunking.
+         *     409 unless the version is pending approval.
+         */
         post: operations["documents_approve_document_version"];
         delete?: never;
         options?: never;
@@ -183,7 +187,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Reject Document Version */
+        /**
+         * Reject Document Version
+         * @description Reject a version held for review (`document.publish`): its ingestion job is cancelled.
+         *     409 unless the version is pending approval.
+         */
         post: operations["documents_reject_document_version"];
         delete?: never;
         options?: never;
@@ -476,6 +484,7 @@ export interface paths {
         /**
          * Create Upload
          * @description Start an upload (`document.upload`): returns a presigned PUT URL to the quarantine bucket.
+         *     422 `unsupported_file_type`, 413 `file_too_large`, 409 `kb_archived`.
          */
         post: operations["uploads_create_upload"];
         delete?: never;
@@ -738,8 +747,10 @@ export interface paths {
         put?: never;
         /**
          * Complete Upload
-         * @description Verify the uploaded object and create document + version + ingestion job atomically.
-         *     Supports `Idempotency-Key`.
+         * @description Verify the uploaded object and create document + version + ingestion job + outbox event
+         *     atomically. Completing twice returns the same result (the upload itself is the idempotency
+         *     key; `Idempotency-Key` is accepted for client uniformity). 409 `upload_not_received`,
+         *     422 `size_mismatch`, 410 `upload_expired`.
          */
         post: operations["uploads_complete_upload"];
         delete?: never;
