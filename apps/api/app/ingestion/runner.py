@@ -24,10 +24,17 @@ from sqlalchemy import bindparam, func, or_, select, update
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.db.models import DocumentVersion, IngestionJob
+from app.db.base import new_uuid
+from app.db.models import AuditEvent, DocumentVersion, IngestionJob
 from app.db.tenant import tenant_session
 from app.domain.enums import IngestionState
-from app.ingestion.errors import RetryableError, StageError, backoff_seconds
+from app.ingestion.errors import (
+    APPROVAL_HOLD,
+    Quarantined,
+    RetryableError,
+    StageError,
+    backoff_seconds,
+)
 from app.ingestion.state_machine import PROGRESS, STAGES, ensure_transition
 from app.services import outbox
 
@@ -44,6 +51,9 @@ class StageContext:
     document_version_id: uuid.UUID
     attempt: int
     heartbeat: Callable[[], Awaitable[None]]
+    # Side effects that must only happen once the stage's transaction has committed (e.g.
+    # deleting the quarantine copy after promotion). Run best-effort; leftovers are swept.
+    after_commit: list[Callable[[], Awaitable[None]]] = field(default_factory=list)
 
 
 StageFn = Callable[[StageContext, Checkpoint | None], Awaitable[Checkpoint]]
@@ -222,7 +232,35 @@ class _Run:
             )
             if stored.rowcount == 0:  # type: ignore[attr-defined]
                 raise LeaseLost  # rolls back the stage's effects too
+            if result.get("hold") == APPROVAL_HOLD:
+                # Park in the SAME transaction as the checkpoint: a crash can never leave a
+                # stored hold whose job carries on without approval.
+                await self._park_for_approval(session)
+        for effect in context.after_commit:
+            try:
+                await effect()
+            except Exception as exc:  # leftovers are harmless and swept later (T3.6)
+                logger.warning("ingestion_after_commit_failed", error_type=type(exc).__name__)
         return result
+
+    async def _park_for_approval(self, session: AsyncSession) -> None:
+        await self._set_state(
+            session, IngestionState.PENDING_APPROVAL, lease_owner=None, lease_expires_at=None
+        )
+        await session.execute(
+            update(DocumentVersion)
+            .where(DocumentVersion.id == self.document_version_id)
+            .values(approval_status="pending")
+        )
+
+    async def is_approved(self) -> bool:
+        async with tenant_session(self.sessionmaker, self.organization_id) as session:
+            status = await session.scalar(
+                select(DocumentVersion.approval_status).where(
+                    DocumentVersion.id == self.document_version_id
+                )
+            )
+        return status == "approved"
 
     async def finish(self) -> None:
         async with tenant_session(self.sessionmaker, self.organization_id) as session:
@@ -244,6 +282,34 @@ class _Run:
                 error_code=None,
                 error_detail_safe=None,
             )
+
+    async def hold_for_approval(self) -> None:
+        async with tenant_session(self.sessionmaker, self.organization_id) as session:
+            await self._park_for_approval(session)
+
+    async def quarantine(self, error: Quarantined) -> IngestionState:
+        async with tenant_session(self.sessionmaker, self.organization_id) as session:
+            await self._set_state(
+                session,
+                IngestionState.QUARANTINED,
+                error_code=error.code,
+                error_detail_safe=error.safe_detail[:500],
+                lease_owner=None,
+                lease_expires_at=None,
+                completed_at=_now(),
+            )
+            session.add(
+                AuditEvent(
+                    id=new_uuid(),
+                    organization_id=self.organization_id,
+                    actor_type="system",
+                    action="document.quarantined",
+                    resource_type="document_version",
+                    resource_id=str(self.document_version_id),
+                    metadata_json={"job_id": str(self.job_id), "code": error.code},
+                )
+            )
+        return IngestionState.QUARANTINED
 
     async def fail(self, error: StageError) -> IngestionState:
         attempts = self.attempt + 1
@@ -301,14 +367,28 @@ async def run_job(
     try:
         for stage in STAGES:
             if stage.value in checkpoints:
-                continue  # done before a crash or retry
+                # Done before a crash or retry. A stored approval hold still binds until a
+                # reviewer approves: resuming must never walk past it.
+                if checkpoints[stage.value].get("hold") == APPROVAL_HOLD and not (
+                    await run.is_approved()
+                ):
+                    await run.hold_for_approval()
+                    log.info("ingestion_job_pending_approval", stage=stage.value, resumed=True)
+                    return IngestionState.PENDING_APPROVAL
+                continue
             checkpoints[stage.value] = await run.run_stage(stage, stages[stage], None)
+            if checkpoints[stage.value].get("hold") == APPROVAL_HOLD:
+                log.info("ingestion_job_pending_approval", stage=stage.value)
+                return IngestionState.PENDING_APPROVAL
         await run.finish()
         log.info("ingestion_job_ready")
         return IngestionState.READY
     except LeaseLost:
         log.warning("ingestion_lease_lost")
         return None
+    except Quarantined as exc:
+        log.warning("ingestion_job_quarantined", error_code=exc.code)
+        return await run.quarantine(exc)
     except StageError as exc:
         log.warning("ingestion_stage_failed", error_code=exc.code)
         return await run.fail(exc)

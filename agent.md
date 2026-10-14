@@ -40,10 +40,11 @@
 
 ### Claude: architect · security/DB/integration · reviewer
 - **Worktree / ports:** `D:\projects\kos-claude` · API 8000 · web 3000
-- **Current task:** batch in REVIEW: T2.1 (#25) ← T2.4 (#27) ← T3.1 (stacked); next T3.5 stage wiring
+- **Current task:** batch in REVIEW: T2.1 (#25) ← T2.4 (#27) ← T3.1 (#30) ← T3.5; next T3.6 ingestion reliability
 - **Last finished:** T1.1 (#13), T1.2 (#23), CORS (#20), Pages showcase (#21); live at https://abrarui12.github.io/KnowledgeOS/
 - **Blockers:** none
 - **Recent:**
+  - 2026-10-12 · T3.5 · real VALIDATING/MALWARE_SCAN(+promote)/PARSING(artifact)/NORMALIZING/SECURITY_SCAN/CHUNKING stages over library contracts; quarantine (terminal + system audit) and approval hold (approve → CHUNKING, reject → CANCELLED); migration 0007 index_generations + chunks (generation #1 per KB); pipeline never half-wired until Codex's libraries all exist; worker image OCR packages
   - 2026-10-12 · T3.1 · state machine (transition table), lease + checkpointed runner (DB time, advisory lock, retry/permanent errors, backoff), outbox dispatcher as least-privilege role (migration 0006, ADR-004 exception), Celery app + stub stages; verified live: outbox → Redis → Celery worker in Docker → READY
   - 2026-10-12 · T2.4 · presigned upload → HEAD-verified complete (document + version + job + outbox + audit in one transaction, idempotent, uploader-only), replacement versions, document list (keyset per sort)/get/versions/archive, ingestion job read; object store in app state
   - 2026-10-12 · T2.1 · migration 0005 (10 tenant tables: KBs, ACLs, sources, documents, versions, uploads, ingestion jobs, outbox; composite FKs, forced RLS), KB CRUD + permissions API, view/query/manage rules, doc-ACL narrow-only validator, chunk principal stub, acl.changed outbox events
@@ -613,4 +614,5 @@ All deviations (DV-001…) now live in **[`docs/DECISIONS.md`](docs/DECISIONS.md
 | API (organizations) | Invitation links, invitation and idempotency lifetimes | `WEB_BASE_URL`, `INVITATION_TTL_HOURS`, `IDEMPOTENCY_TTL_HOURS` | all | S09 (T1.3) |
 | API (uploads) | Upload size limit, presigned URL lifetime | `UPLOAD_MAX_BYTES`, `UPLOAD_URL_TTL_SECONDS` | all | S13 (T2.4) |
 | Workers (Celery) | Dispatcher DB role URL, broker, lease/retry tuning | `DISPATCHER_DATABASE_URL`, `CELERY_BROKER_URL` (defaults to `REDIS_URL`), `INGESTION_LEASE_SECONDS`, `INGESTION_MAX_ATTEMPTS`, `DISPATCHER_BATCH_SIZE`, `DISPATCHER_POLL_SECONDS` | all | S16 (T3.1) |
+| Workers (malware scanning) | Scanner choice | `MALWARE_SCANNER` (`clamav` default, `none` for the core profile; staging/prod still require a scan) | all | S17 (T3.5) |
 | *(more rows added as sessions introduce services: Neon, B2, Auth0, HF, Vercel, Groq, Gemini, Langfuse, Grafana Cloud, Google Drive OAuth)* | | | | |

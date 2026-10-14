@@ -41,6 +41,7 @@ router = APIRouter(responses=ERRORS)
 CreateKb = Annotated[RequestContext, require_permission(Permission.KB_CREATE)]
 UploadDocuments = Annotated[RequestContext, require_permission(Permission.DOCUMENT_UPLOAD)]
 DeleteDocuments = Annotated[RequestContext, require_permission(Permission.DOCUMENT_DELETE)]
+PublishDocuments = Annotated[RequestContext, require_permission(Permission.DOCUMENT_PUBLISH)]
 
 Cursor = Annotated[str | None, Query(description="Opaque cursor from a previous page")]
 Limit = Annotated[int, Query(ge=1, le=200)]
@@ -273,12 +274,17 @@ async def start_document_replacement(
 )
 async def approve_document_version(
     org: OrgIdHeader,
-    ctx: OrgContext,
+    ctx: PublishDocuments,
+    session: DbSession,
     document_id: uuid.UUID,
     version_id: uuid.UUID,
     body: ApprovalDecision,
 ) -> DocumentVersionOut:
-    stub("T3.5")
+    """Approve a version held for review (`document.publish`): ingestion resumes at chunking.
+    409 unless the version is pending approval."""
+    return await documents.decide_approval(
+        session, ctx, document_id, version_id, approve=True, reason=body.reason
+    )
 
 
 @router.post(
@@ -288,12 +294,17 @@ async def approve_document_version(
 )
 async def reject_document_version(
     org: OrgIdHeader,
-    ctx: OrgContext,
+    ctx: PublishDocuments,
+    session: DbSession,
     document_id: uuid.UUID,
     version_id: uuid.UUID,
     body: ApprovalDecision,
 ) -> DocumentVersionOut:
-    stub("T3.5")
+    """Reject a version held for review (`document.publish`): its ingestion job is cancelled.
+    409 unless the version is pending approval."""
+    return await documents.decide_approval(
+        session, ctx, document_id, version_id, approve=False, reason=body.reason
+    )
 
 
 @router.get(

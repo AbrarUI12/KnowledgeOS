@@ -49,6 +49,19 @@ async def _process_job(organization_id: uuid.UUID, job_id: uuid.UUID) -> str | N
     from app.db.session import create_engine, create_sessionmaker
     from app.ingestion.runner import RunnerConfig, run_job
     from app.ingestion.stages import default_stages
+    from app.providers.storage import S3ObjectStore
+
+    store = S3ObjectStore(
+        endpoint_url=settings.s3_endpoint_url,
+        public_endpoint_url=settings.s3_public_endpoint_url,
+        region_name=settings.s3_region,
+        access_key_id=settings.s3_access_key_id.get_secret_value(),
+        secret_access_key=settings.s3_secret_access_key.get_secret_value(),
+        force_path_style=settings.s3_force_path_style,
+        connect_timeout_seconds=settings.s3_connect_timeout_seconds,
+        read_timeout_seconds=settings.s3_read_timeout_seconds,
+        max_attempts=settings.s3_max_attempts,
+    )
 
     engine = create_engine(settings)
     try:
@@ -57,7 +70,7 @@ async def _process_job(organization_id: uuid.UUID, job_id: uuid.UUID) -> str | N
             organization_id=organization_id,
             job_id=job_id,
             worker_id=_worker_id(),
-            stages=default_stages(),
+            stages=default_stages(settings, store),
             config=RunnerConfig(
                 lease_seconds=settings.ingestion_lease_seconds,
                 max_attempts=settings.ingestion_max_attempts,

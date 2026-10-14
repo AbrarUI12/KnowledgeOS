@@ -14,10 +14,12 @@ from app.db.models.identity import (
     User,
 )
 from app.db.models.knowledge import (
+    Chunk,
     DataSource,
     Document,
     DocumentAcl,
     DocumentVersion,
+    IndexGeneration,
     IngestionJob,
     KnowledgeBase,
     KnowledgeBaseAcl,
@@ -29,6 +31,7 @@ from app.db.models.knowledge import (
 __all__ = [
     "ApiKey",
     "AuditEvent",
+    "Chunk",
     "DataSource",
     "Document",
     "DocumentAcl",
@@ -36,6 +39,7 @@ __all__ = [
     "Group",
     "GroupMembership",
     "IdempotencyKey",
+    "IndexGeneration",
     "IngestionJob",
     "Invitation",
     "KnowledgeBase",

@@ -21,6 +21,7 @@ from app.db.models import (
     DataSource,
     Document,
     Group,
+    IndexGeneration,
     KnowledgeBase,
     KnowledgeBaseAcl,
     Membership,
@@ -34,9 +35,15 @@ from app.domain.schemas.knowledge import (
     KnowledgeBasePermissions,
     KnowledgeBaseUpdate,
 )
+from app.ingestion.chunking.types import ChunkerConfig
 from app.services import audit, outbox
 
 _NOT_FOUND = "The knowledge base was not found."
+
+# Defaults for new KBs' first generation (D-004); model IDs move to config with T4.1/T4.2.
+DEFAULT_EMBEDDING_PROVIDER = "sentence_transformers"
+DEFAULT_EMBEDDING_MODEL = "Qwen/Qwen3-Embedding-0.6B"
+DEFAULT_EMBEDDING_DIMENSION = 1024
 
 
 def _slugify(name: str) -> str:
@@ -189,6 +196,23 @@ async def create_knowledge_base(
     )
     session.add(kb)
     await session.flush()
+    # Generation #1 is active from the start (ADR-007): ingestion always has a target index.
+    generation = IndexGeneration(
+        id=new_uuid(),
+        organization_id=ctx.organization_id,
+        knowledge_base_id=kb.id,
+        generation_number=1,
+        status="active",
+        embedding_provider=DEFAULT_EMBEDDING_PROVIDER,
+        embedding_model=DEFAULT_EMBEDDING_MODEL,
+        embedding_dimension=DEFAULT_EMBEDDING_DIMENSION,
+        chunker_name=ChunkerConfig().name,
+        chunker_config_json=ChunkerConfig().model_dump(),
+        activated_at=datetime.now(UTC),
+    )
+    session.add(generation)
+    await session.flush()
+    kb.active_index_generation_id = generation.id
     # Every KB gets its built-in upload source (connectors add more later).
     session.add(
         DataSource(
