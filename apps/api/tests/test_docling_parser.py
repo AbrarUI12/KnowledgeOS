@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 from docx import Document
 from syrupy.assertion import SnapshotAssertion
+from syrupy.types import PropertyName, PropertyPath
 
 from app.ingestion.canonical import BlockType
 from app.ingestion.parsing.base import ParserError
@@ -28,6 +29,10 @@ PDF_BOXES = [
 ]
 
 
+def exclude_bbox_coordinate(*, prop: PropertyName, path: PropertyPath) -> bool:
+    return prop in {"x0", "y0", "x1", "y1"} and any(name == "bbox" for name, _ in path)
+
+
 @pytest.mark.parametrize(
     ("filename", "mime_type"),
     [
@@ -50,11 +55,7 @@ def test_real_format_canonical_snapshot(
     assert document.blocks
     assert [b.source_order for b in document.blocks] == list(range(len(document.blocks)))
     if mime_type == "application/pdf":
-        assert document.model_dump(mode="json") == snapshot(
-            exclude=lambda prop, path: (
-                prop in {"x0", "y0", "x1", "y1"} and any(name == "bbox" for name, _ in path)
-            )
-        )
+        assert document.model_dump(mode="json") == snapshot(exclude=exclude_bbox_coordinate)
         for block, expected_box in zip(document.blocks, PDF_BOXES, strict=True):
             assert len(block.bbox) == 1
             box = block.bbox[0]
