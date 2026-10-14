@@ -371,7 +371,7 @@ async def test_one_failed_branch_degrades_only_when_allowed(
 ) -> None:
     search = backend(corpus)
 
-    async def broken(session: Any, request: HybridSearchRequest) -> Any:
+    async def broken(session: Any, request: HybridSearchRequest, generations: Any = None) -> Any:
         raise RuntimeError("vector index unavailable")
 
     monkeypatch.setattr(search, "_dense", broken)
@@ -435,13 +435,18 @@ async def test_a_document_acl_narrows_search_results(
 
 
 class SectionChunker(FakeChunker):
-    """Pairs of fake children under one parent each: P0 c1 c2 | P3 c4 c5 (S19 parent/child)."""
+    """Groups of `size` fake children under one parent each, e.g. size 2: P0 c1 c2 | P3 c4 c5
+    (S19 parent/child)."""
+
+    def __init__(self, size: int = 2) -> None:
+        super().__init__()
+        self.size = size
 
     def chunk(self, document: CanonicalDocument) -> list[ChunkDraft]:
         drafts: list[ChunkDraft] = []
         children = super().chunk(document)
-        for start in range(0, len(children), 2):
-            pair = children[start : start + 2]
+        for start in range(0, len(children), self.size):
+            pair = children[start : start + self.size]
             parent_ordinal = len(drafts)
             text = "\n\n".join(c.content for c in pair)
             drafts.append(
@@ -482,3 +487,85 @@ async def test_neighbors_stay_inside_the_parent_section(
     assert ids(await backend(corpus).neighbors(scope, alpha_one, after=1)) == {alpha_two}
     assert await backend(corpus).neighbors(scope, alpha_two, before=0, after=1) == []
     assert await backend(corpus).neighbors(scope, beta_one, before=1, after=0) == []
+
+
+async def test_a_hidden_sibling_ends_the_neighbor_window(
+    corpus: Corpus, admin: asyncpg.Connection
+) -> None:
+    """Review #39: never skip over an unreadable sibling to a farther one (T5.1 needs ±1)."""
+    text = b"# Sections\n\nOne.\n\nTwo.\n\nThree.\n"
+    job = await corpus.world.upload(text, name="three.md")
+    assert await corpus.world.run(job, chunker=SectionChunker(size=3)) is S.READY
+    first, middle, last = [
+        r["id"]
+        for r in await admin.fetch(
+            "SELECT id FROM chunks WHERE document_version_id = $1 AND NOT is_parent ORDER BY ordinal",
+            uuid.UUID(job["document_version_id"]),
+        )
+    ]
+    await admin.execute("UPDATE chunks SET visibility = 'hidden' WHERE id = $1", middle)
+    scope = corpus.scope(corpus.alice)
+
+    assert await backend(corpus).neighbors(scope, first, before=0, after=2) == []
+    assert await backend(corpus).neighbors(scope, last, before=2, after=0) == []
+
+
+async def test_a_generation_switch_mid_search_never_mixes_generations(
+    corpus: Corpus, admin: asyncpg.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review #39 (HIGH): both branches and the reported provenance use one snapshot of the
+    active generations, even if a switch commits between the branches."""
+    old = await admin.fetchval(
+        "SELECT active_index_generation_id FROM knowledge_bases WHERE id = $1", corpus.hr_kb
+    )
+    new = uuid.uuid4()
+    search = backend(corpus)
+    real_lexical = search._lexical
+
+    async def switch_then_search(
+        session: Any, request: HybridSearchRequest, generations: Any = None
+    ) -> Any:
+        await admin.execute(
+            "INSERT INTO index_generations (id, organization_id, knowledge_base_id, generation_number, "
+            "status, embedding_provider, embedding_model, embedding_dimension, chunker_name) "
+            "VALUES ($1, $2, $3, 3, 'building', 'fake', $4, 1024, 'fake')",
+            new, corpus.org, corpus.hr_kb, MODEL,
+        )  # fmt: skip
+        await admin.execute(
+            "INSERT INTO chunks (id, organization_id, knowledge_base_id, document_id, document_version_id, "
+            "index_generation_id, ordinal, block_type, section_path, block_ids, content, embedding_text, "
+            "content_hash, token_count, embedding, search_vector, fts_config, identifiers, "
+            "access_principals, document_principals) "
+            "SELECT gen_random_uuid(), organization_id, knowledge_base_id, document_id, document_version_id, "
+            "$1, ordinal, block_type, section_path, block_ids, content, embedding_text, content_hash, "
+            "token_count, embedding, search_vector, fts_config, identifiers, access_principals, "
+            "document_principals FROM chunks WHERE index_generation_id = $2",
+            new, old,
+        )  # fmt: skip
+        async with admin.transaction():
+            await admin.execute(
+                "UPDATE index_generations SET status = 'retired' WHERE id = $1", old
+            )
+            await admin.execute("UPDATE index_generations SET status = 'active' WHERE id = $1", new)
+            await admin.execute(
+                "UPDATE knowledge_bases SET active_index_generation_id = $1 WHERE id = $2",
+                new, corpus.hr_kb,
+            )  # fmt: skip
+        return await real_lexical(session, request, generations)
+
+    monkeypatch.setattr(search, "_lexical", switch_then_search)
+    hr_only = corpus.scope(corpus.alice, (corpus.hr_kb,))
+    result = await search.hybrid_search(
+        await request(corpus, corpus.alice, "parental leave weeks", scope=hr_only)
+    )
+
+    found = ids(result.dense) | ids(result.lexical)
+    assert found
+    generations = {
+        r["index_generation_id"]
+        for r in await admin.fetch(
+            "SELECT index_generation_id FROM chunks WHERE id = ANY($1)", list(found)
+        )
+    }
+    assert generations == {old}  # the snapshot, not the generation switched in mid-search
+    assert result.index_generation_ids[corpus.hr_kb] == old

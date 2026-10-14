@@ -2,6 +2,7 @@
 """Filtered HNSW recall (S24): with only a fifth of the chunks readable by the caller, the dense
 branch (iterative scan) must still find ≥ 95% of the exact top-k among those it may read."""
 
+import asyncio
 import hashlib
 import uuid
 
@@ -22,6 +23,23 @@ from tests.test_ingestion_stages import (  # noqa: F401 (pytest fixtures)
 
 pytestmark = [pytest.mark.integration, pytest.mark.slow]
 CHUNKS, DIMENSION, CLUSTERS, QUERIES, K = 5_000, 1024, 50, 20, 10
+
+
+async def hnsw_scans(admin: asyncpg.Connection, at_least: int = 0) -> int:
+    """`idx_scan` of the HNSW index, waiting (≤ 15 s) for other sessions to flush their stats."""
+    scans = 0
+    for _ in range(30):
+        await admin.execute("SELECT pg_stat_clear_snapshot()")
+        scans = int(
+            await admin.fetchval(
+                "SELECT idx_scan FROM pg_stat_user_indexes "
+                "WHERE indexrelname = 'ix_chunks_embedding_hnsw'"
+            )
+        )
+        if scans >= at_least:
+            return scans
+        await asyncio.sleep(0.5)
+    return scans
 
 
 async def test_filtered_hnsw_recall_is_at_least_95_percent(
@@ -95,6 +113,7 @@ async def test_filtered_hnsw_recall_is_at_least_95_percent(
         organization_id=org, knowledge_base_ids=(kb,), principal_tokens=("user:reader",)
     )
     allowed = np.flatnonzero(readable)
+    before = await hnsw_scans(admin)
     recalls = []
     for query_center in rng.integers(0, CLUSTERS, QUERIES):
         query = centers[query_center] + 0.6 * rng.standard_normal(DIMENSION)
@@ -115,32 +134,7 @@ async def test_filtered_hnsw_recall_is_at_least_95_percent(
     print(f" filtered HNSW recall@{K}: {np.mean(recalls):.3f} (min {min(recalls):.2f})")
     assert float(np.mean(recalls)) >= 0.95, recalls
 
-    # And it really was the HNSW index (not an exact scan) that answered: same query shape.
-    await admin.execute("ANALYZE chunks")
-    async with admin.transaction():
-        await admin.execute("SET LOCAL hnsw.iterative_scan = relaxed_order")
-        for name, value in hnsw_only:
-            await admin.execute(f"SET LOCAL {name} = {value}")
-        plan = "\n".join(
-            r[0]
-            for r in await admin.fetch(
-                "EXPLAIN SELECT c.id FROM chunks c "
-                "WHERE c.organization_id = $1 AND c.knowledge_base_id = ANY($2::uuid[]) "
-                "AND c.index_generation_id IN (SELECT active_index_generation_id "
-                "  FROM knowledge_bases WHERE id = ANY($2::uuid[]) AND archived_at IS NULL) "
-                "AND c.document_version_id IN (SELECT active_version_id FROM documents "
-                "  WHERE knowledge_base_id = ANY($2::uuid[]) AND status = 'active' "
-                "  AND archived_at IS NULL) "
-                "AND NOT c.is_parent AND c.visibility = 'visible' "
-                "AND c.access_principals && $3::text[] AND c.embedding IS NOT NULL "
-                "AND c.index_generation_id IN (SELECT id FROM index_generations "
-                "  WHERE embedding_model = $4) "
-                "ORDER BY c.embedding <=> $5::vector LIMIT 10",
-                org,
-                [kb],
-                ["user:reader"],
-                model,
-                vector_literal(vectors[0].tolist()),
-            )
-        )
-    assert "ix_chunks_embedding_hnsw" in plan
+    # And it was the HNSW index that served those real backend queries (runtime role, real SQL,
+    # same settings): its scan counter rose by at least one scan per query.
+    after = await hnsw_scans(admin, at_least=before + QUERIES)
+    assert after - before >= QUERIES, (before, after)

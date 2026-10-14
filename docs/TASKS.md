@@ -36,7 +36,7 @@
 | T3.1 | Outbox dispatcher, Celery & job state machine | 3 | S16 | DONE | ai/claude-t3.1-dispatcher | #30 |
 | T3.5 | Ingestion stage wiring + chunks schema + approvals | 4 | S17–S19 | DONE | ai/claude-t3.5-stages | #31 |
 | T3.6 | Ingestion reliability & recovery | 4 | S20 | DONE | ai/claude-t3.6-reliability | #34 (a09b48e) |
-| T4.2 | Index generations (DB) + chunk indexing & ACL materialization | 5 | S22–S23 | REVIEW | ai/claude-t4.2-indexing | #38 |
+| T4.2 | Index generations (DB) + chunk indexing & ACL materialization | 5 | S22–S23 | DONE | ai/claude-t4.2-indexing | #38 (d3bdda3) |
 | T4.4 | Permission-aware hybrid search backend | 5 | S24 | REVIEW | ai/claude-t4.4-search | #39 (on #38) |
 | T4.6 | Search API, demo seed loader, debug API | 6 | S25–S26 | REVIEW | ai/claude-t4.6-search-api | #41 (on #39) |
 | T5.3 | RAG profiles, model policies & `/query` orchestration | 7 | S27–S28 | TODO | | |
@@ -51,11 +51,11 @@
 | T2.3 | File-safety validation & malware scanners | 0 | S14 | DONE | ai/codex-t2.3-file-validation | #10 |
 | T2.2 | ObjectStore providers (S3/MinIO/B2 + in-memory) | 1 | S13 | DONE | ai/codex-t2.2-object-store | #14 |
 | T1.4 | Frontend auth, typed API client & app shell | 1 | S10, S11 | DONE | ai/codex-t1.4-frontend-foundation | #17 (961cb0a) |
-| T3.2 | Docling parser library (PDF/DOCX/HTML/MD) | 2 | S17 | REVIEW | ai/codex-t3.2-docling-parser | #26 |
+| T3.2 | Docling parser library (PDF/DOCX/HTML/MD) | 2 | S17 | DONE | ai/codex-t3.2-docling-parser | #26 (0c1f49f) |
 | T3.3 | Office/tabular formats, OCR & normalization library | 3 | S18 | DONE | ai/codex-t3.3-office-normalize | #28 (6e725fb) |
-| T3.4 | Content-security scanner & structure-aware chunker | 4 | S19 | REVIEW | ai/codex-t3.4-content-chunking | #35 |
-| T4.1 | Embedding providers | 4 | S22 | REVIEW | ai/codex-t4.1-embedding-providers | #36 |
-| T5.1 | Reranker, context packer & source aliases | 5 | S27 | TODO | | |
+| T3.4 | Content-security scanner & structure-aware chunker | 4 | S19 | DONE | ai/codex-t3.4-content-chunking | #35 (e36b5da) |
+| T4.1 | Embedding providers | 4 | S22 | DONE | ai/codex-t4.1-embedding-providers | #36 (a25389f) |
+| T5.1 | Reranker, context packer & source aliases | 5 | S27 | REVIEW | ai/codex-t5.1-reranker-context | #37 |
 | T5.2 | LLM gateway, prompts, abstention & citation validator | 5 | S28 | TODO | | |
 | T4.8 | Retrieval debugger UI | 6 | S26 | TODO | | |
 | T5.5 | Ask workspace UI | 7 | S30 | TODO | | |

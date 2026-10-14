@@ -22,7 +22,7 @@ import asyncio
 import re
 import time
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Collection
 from dataclasses import dataclass
 from typing import Any, TypeVar
 
@@ -121,11 +121,17 @@ def _candidate(row: Any) -> Candidate:
     )
 
 
-def authorization_predicate(scope: SearchScope) -> list[ColumnElement[bool]]:
+def authorization_predicate(
+    scope: SearchScope, generations: Collection[uuid.UUID] | None = None
+) -> list[ColumnElement[bool]]:
     """Every condition a chunk must meet to be searchable by `scope` (plan §8.4), expressed on
     `chunks` alone (semi-joins for the KB and document checks), so each branch stays a single-table
     scan that the HNSW/GIN indexes can drive and filter as they go. Used by every query of this
-    backend through `_scoped`; there is no other way to read chunk rows here."""
+    backend through `_scoped`; there is no other way to read chunk rows here.
+
+    `generations` pins the index generations to search: a snapshot of the KBs' active ones taken
+    once per hybrid search, so both branches and the reported provenance agree even if a
+    generation switch lands mid-search. None reads the active ones within the statement."""
     kbs = scope.knowledge_base_ids
     tokens = cast(list(scope.principal_tokens), ARRAY(Text))
     active_generations = select(KnowledgeBase.active_index_generation_id).where(
@@ -144,7 +150,9 @@ def authorization_predicate(scope: SearchScope) -> list[ColumnElement[bool]]:
     return [
         Chunk.organization_id == scope.organization_id,
         Chunk.knowledge_base_id.in_(kbs),
-        Chunk.index_generation_id.in_(active_generations),
+        Chunk.index_generation_id.in_(
+            list(generations) if generations is not None else active_generations
+        ),
         Chunk.document_version_id.in_(active_versions),
         Chunk.is_parent.is_(False),
         Chunk.visibility == "visible",
@@ -163,8 +171,12 @@ def _with_columns(query: Select[Any]) -> Select[Any]:
     )
 
 
-def _scoped(scope: SearchScope, *columns: Any) -> Select[Any]:
-    return _with_columns(select(*columns).select_from(Chunk)).where(*authorization_predicate(scope))
+def _scoped(
+    scope: SearchScope, *columns: Any, generations: Collection[uuid.UUID] | None = None
+) -> Select[Any]:
+    return _with_columns(select(*columns).select_from(Chunk)).where(
+        *authorization_predicate(scope, generations)
+    )
 
 
 def compile_filters(filters: QueryFilters) -> list[ColumnElement[bool]]:
@@ -239,7 +251,12 @@ class PostgresSearchBackend:
             return []
         return await self._in_tenant(request.scope, lambda s: self._dense(s, request))
 
-    async def _dense(self, session: AsyncSession, request: HybridSearchRequest) -> list[RankedHit]:
+    async def _dense(
+        self,
+        session: AsyncSession,
+        request: HybridSearchRequest,
+        generations: Collection[uuid.UUID] | None = None,
+    ) -> list[RankedHit]:
         assert request.query_embedding is not None  # noqa: S101 (checked by the caller)
         tuning = self.tuning
         for name, value in (
@@ -258,7 +275,7 @@ class PostgresSearchBackend:
         nearest = (
             select(Chunk.id.label("chunk_id"), distance.label("distance"))
             .where(
-                *authorization_predicate(request.scope),
+                *authorization_predicate(request.scope, generations),
                 Chunk.embedding.is_not(None),
                 Chunk.index_generation_id.in_(same_model),
                 *compile_filters(request.filters),
@@ -289,7 +306,10 @@ class PostgresSearchBackend:
         return await self._in_tenant(request.scope, lambda s: self._lexical(s, request))
 
     async def _lexical(
-        self, session: AsyncSession, request: HybridSearchRequest
+        self,
+        session: AsyncSession,
+        request: HybridSearchRequest,
+        generations: Collection[uuid.UUID] | None = None,
     ) -> list[RankedHit]:
         tuning = self.tuning
         text = request.query
@@ -317,7 +337,12 @@ class PostgresSearchBackend:
         ) + case((exact, tuning.identifier_boost), else_=0.0)
         rows = (
             await session.execute(
-                _scoped(request.scope, *_candidate_columns(), score.label("score"))
+                _scoped(
+                    request.scope,
+                    *_candidate_columns(),
+                    score.label("score"),
+                    generations=generations,
+                )
                 .where(or_(full_text, exact), *filters)
                 .order_by(score.desc(), Chunk.id)
                 .limit(request.lexical_k)
@@ -332,7 +357,12 @@ class PostgresSearchBackend:
             similarity = func.similarity(Document.title, text)
             fallback = (
                 await session.execute(
-                    _scoped(request.scope, *_candidate_columns(), similarity.label("score"))
+                    _scoped(
+                        request.scope,
+                        *_candidate_columns(),
+                        similarity.label("score"),
+                        generations=generations,
+                    )
                     .where(
                         similarity >= tuning.trigram_threshold,
                         Chunk.id.not_in(seen) if seen else literal(True),
@@ -369,14 +399,19 @@ class PostgresSearchBackend:
             hits = await branch
             return hits, (time.perf_counter() - started) * 1000
 
-        dense, lexical, generations = await asyncio.gather(
-            timed(self.dense_search(request)),
-            timed(self.lexical_search(request)),
-            self._generations(request.scope),
+        # One snapshot of the active generations for both branches and the reported provenance.
+        generations = await self._generations(request.scope)
+        pinned = list(generations.values())
+        dense_branch = (
+            self._in_tenant(request.scope, lambda s: self._dense(s, request, pinned))
+            if request.query_embedding is not None
+            else _no_hits()
+        )
+        dense, lexical = await asyncio.gather(
+            timed(dense_branch),
+            timed(self._in_tenant(request.scope, lambda s: self._lexical(s, request, pinned))),
             return_exceptions=True,
         )
-        if isinstance(generations, BaseException):
-            raise generations
         failures = [r for r in (dense, lexical) if isinstance(r, BaseException)]
         if len(failures) == 2 or (failures and not request.allow_degraded):
             raise failures[0]
@@ -402,8 +437,10 @@ class PostgresSearchBackend:
         self, scope: SearchScope, chunk_id: uuid.UUID, *, before: int = 1, after: int = 1
     ) -> list[RankedHit]:
         """The authorized sibling chunks right before and after `chunk_id`: same version,
-        generation and parent section, so they're always ±1 in ordinal (context expansion, plan
-        §20.1; the packer rejects anything else). Empty if the chunk itself isn't readable."""
+        generation and parent section, within an exact ordinal window, so each is ±1 from the
+        next (context expansion, plan §20.1; the packer rejects anything else). A hidden or
+        unreadable sibling ends the window instead of being skipped. Empty if the chunk itself
+        isn't readable."""
 
         async def load(session: AsyncSession) -> list[RankedHit]:
             target = (
@@ -424,26 +461,32 @@ class PostgresSearchBackend:
                 Chunk.index_generation_id == target.index_generation_id,
                 Chunk.parent_chunk_id.is_not_distinct_from(target.parent_chunk_id),
             )
-            preceding = (
+            window = (
                 await session.execute(
                     _scoped(scope, *_candidate_columns())
-                    .where(*same, Chunk.ordinal < target.ordinal)
-                    .order_by(Chunk.ordinal.desc())
-                    .limit(before)
-                )
-            ).all()
-            following = (
-                await session.execute(
-                    _scoped(scope, *_candidate_columns())
-                    .where(*same, Chunk.ordinal > target.ordinal)
+                    .where(
+                        *same,
+                        Chunk.ordinal.between(target.ordinal - before, target.ordinal + after),
+                        Chunk.id != chunk_id,
+                    )
                     .order_by(Chunk.ordinal)
-                    .limit(after)
                 )
             ).all()
-            return [
-                RankedHit(candidate=_candidate(row)) for row in (*reversed(preceding), *following)
-            ]
+            by_ordinal = {row.ordinal: row for row in window}
+            kept = []
+            for step, limit in ((-1, before), (1, after)):
+                # Walk outwards and stop at the first gap (a hidden or unreadable sibling).
+                ordinal = target.ordinal + step
+                while abs(ordinal - target.ordinal) <= limit and ordinal in by_ordinal:
+                    kept.append(by_ordinal[ordinal])
+                    ordinal += step
+            kept.sort(key=lambda row: row.ordinal)
+            return [RankedHit(candidate=_candidate(row)) for row in kept]
 
         if before < 0 or after < 0:
             raise ValueError("neighbor counts can't be negative")
         return await self._in_tenant(scope, load)
+
+
+async def _no_hits() -> list[RankedHit]:
+    return []
