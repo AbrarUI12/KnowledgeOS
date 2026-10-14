@@ -58,7 +58,7 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T5.2 claimed from main: compatible gateway, grounded prompt, abstention/citation safety. Spec/contracts and official protocol docs read; local Ollama installed but offline. #38 re-review PASS; #39 reviewed (19 tests), generation-switch race HIGH reproduced and posted.
+- **Current task:** T5.2 draft #40: fail-closed citation identity/hash/syntax validation implemented; 18 targeted tests, lint and strict types pass. Prompt/adapter/gateway/abstention and live LLM test remain. Ollama installed but offline. #38 re-review PASS; #39 generation-switch HIGH reproduced and posted (19 tests + diagnostic).
 - **Last finished:** T5.1 #37 merged (990fe38), MEDIUM fixes included; combined checks 532 backend / 105 frontend / nine snapshots and all CI green. T3.4 #35 merged (e36b5da); T4.1 #36 (a25389f), T3.3 #28 (6e725fb), T3.2 #26 (0c1f49f), T1.4 #17 (961cb0a) merged.
 - **Blockers:** none
 - **Recent:**
