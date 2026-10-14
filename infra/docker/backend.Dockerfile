@@ -46,6 +46,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
 
 # ---------------------------------------------------------------- worker
-# Celery and the parser/OCR system packages are added in Sessions 16-18.
+# Celery worker (S16). Parser/OCR system packages are added with the real stages (T3.5).
+# The dispatcher and beat run from this same image with a different command (docker-compose.yml).
 FROM runtime AS worker
-CMD ["python", "-c", "print('worker role is implemented in Session 16'); raise SystemExit(1)"]
+CMD ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel", "info", "--concurrency", "2", "-Q", "ingestion,sync,maintenance,eval,llm"]

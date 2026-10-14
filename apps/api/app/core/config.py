@@ -50,6 +50,11 @@ class Settings(BaseSettings):
     database_migration_url: SecretStr = SecretStr(
         "postgresql+asyncpg://knowledgeos_owner:owner_dev_password@localhost:5433/knowledgeos"
     )
+    # Outbox dispatcher (S16): its own least-privilege role, see migration 0006.
+    dispatcher_database_url: SecretStr = SecretStr(
+        "postgresql+asyncpg://knowledgeos_dispatcher:dispatcher_dev_password"
+        "@localhost:5433/knowledgeos"
+    )
     database_pool_size: int = 5
     database_max_overflow: int = 5
 
@@ -97,6 +102,15 @@ class Settings(BaseSettings):
     )
     invitation_ttl_hours: int = Field(default=168, ge=1, le=24 * 30)
     idempotency_ttl_hours: int = Field(default=24, ge=1, le=24 * 7)
+
+    # Background work (T3.1)
+    celery_broker_url: SecretStr | None = Field(
+        default=None, description="Defaults to REDIS_URL when unset"
+    )
+    ingestion_lease_seconds: int = Field(default=300, ge=30)
+    ingestion_max_attempts: int = Field(default=5, ge=1, le=20)
+    dispatcher_batch_size: int = Field(default=100, ge=1, le=1000)
+    dispatcher_poll_seconds: float = Field(default=1.0, gt=0)
 
     # Uploads (T2.4)
     upload_max_bytes: int = Field(default=50 * 1024 * 1024, gt=0)
