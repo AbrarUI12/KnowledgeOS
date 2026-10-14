@@ -1,7 +1,9 @@
 """ACL materialization matrix (S23): the tokens written onto chunks grant exactly the access the
-KB/document rules grant. For every visibility, KB ACL, (non-widening) document ACL and caller with
-`query.execute`, a chunk is matched by the caller's tokens iff the caller may read the document's
-content: KB query access and, if the document has its own ACL, an entry for the caller."""
+KB/document rules grant. For every visibility, KB ACL, document ACL (including one a later KB change
+made wider than its KB) and caller with `query.execute`, a chunk matches the caller's tokens
+(`access_principals && caller` and `document_principals` empty or `&& caller`) iff the caller may
+read the document's content: KB query access and, if the document has its own ACL, an entry for
+the caller."""
 
 import uuid
 
@@ -14,8 +16,8 @@ from app.auth.kb_access import (
     AclRule,
     caller_principals,
     can_query,
-    effective_access_principals,
-    widening_entries,
+    document_access_principals,
+    kb_access_principals,
 )
 from app.auth.permissions import Permission
 from app.domain.enums import AclPermission, PrincipalType, Visibility
@@ -69,19 +71,21 @@ def may_read_content(
 def test_materialized_tokens_match_the_access_rules(
     visibility: Visibility, kb_acl: list[AclRule], document_acl: list[AclRule], ctx: RequestContext
 ) -> None:
-    # Document ACLs that would widen a restricted KB are rejected at write time.
-    if widening_entries(visibility, kb_acl, document_acl):
-        document_acl = [r for r in document_acl if r.principal in {k.principal for k in kb_acl}]
-
-    tokens = effective_access_principals(ORG, visibility, kb_acl, document_acl)
-    matched = bool(set(tokens) & set(principal_tokens(ctx)))
+    # No pre-filtering of document ACLs that widen the KB: a later KB ACL or visibility change can
+    # produce exactly that, and the materialized tokens must still deny it (review #38).
+    caller = set(principal_tokens(ctx))
+    kb_tokens = set(kb_access_principals(ORG, visibility, kb_acl))
+    document_tokens = set(document_access_principals(document_acl))
+    matched = bool(kb_tokens & caller) and (not document_tokens or bool(document_tokens & caller))
 
     assert matched == may_read_content(ctx, visibility, kb_acl, document_acl)
 
 
 @given(document_acl=st.lists(rules, min_size=1, max_size=3), ctx=callers)
 def test_a_document_acl_only_ever_narrows(document_acl: list[AclRule], ctx: RequestContext) -> None:
-    organization_wide = effective_access_principals(ORG, Visibility.ORGANIZATION, [])
-    narrowed = effective_access_principals(ORG, Visibility.ORGANIZATION, [], document_acl)
-    if set(narrowed) & set(principal_tokens(ctx)):
-        assert set(organization_wide) & set(principal_tokens(ctx))
+    caller = set(principal_tokens(ctx))
+    kb_tokens = set(kb_access_principals(ORG, Visibility.ORGANIZATION, []))
+    narrowed = set(document_access_principals(document_acl))
+    if kb_tokens & caller and narrowed & caller:
+        assert kb_tokens & caller  # matching the document ACL never replaces KB access
+    assert narrowed  # a document with an ACL never falls back to "inherits"

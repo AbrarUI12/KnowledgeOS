@@ -50,7 +50,8 @@ async def chunks_of(admin: asyncpg.Connection, version_id: str) -> list[asyncpg.
     rows: list[asyncpg.Record] = await admin.fetch(
         "SELECT ordinal, is_parent, content, embedding IS NOT NULL AS has_vector, "
         "search_vector IS NOT NULL AS has_text, search_vector::text AS tsv, fts_config::text AS cfg, "
-        "access_principals, identifiers FROM chunks WHERE document_version_id = $1 ORDER BY ordinal",
+        "access_principals, document_principals, identifiers FROM chunks "
+        "WHERE document_version_id = $1 ORDER BY ordinal",
         uuid.UUID(version_id),
     )
     return rows
@@ -84,6 +85,7 @@ async def test_a_ready_document_is_embedded_full_text_indexed_and_acl_tagged(
     assert all(r["has_vector"] and r["has_text"] for r in rows)
     assert {r["cfg"] for r in rows} == {"english"}  # detected language, not `simple`
     assert all(r["access_principals"] == [f"org:{world.org}"] for r in rows)
+    assert all(r["document_principals"] == [] for r in rows)  # inherits the KB
     # Title (A), section path (B) and body (C) weights.
     assert all(re.search(r":\d+A", r["tsv"]) and re.search(r":\d+B", r["tsv"]) for r in rows)
 
@@ -337,7 +339,14 @@ def test_the_provider_is_named_by_config_and_never_guessed(
     first, again = embedding_provider(endpoint), embedding_provider(endpoint)
     assert first is not None
     assert first is again  # one instance per process and configuration
-    assert RecordingEmbedder.built == [
+    for change in (
+        {"embedding_batch_size": 4},
+        {"embedding_is_external": True},
+        {"embedding_api_key": SecretStr("rotated-key")},
+    ):
+        other = embedding_provider(endpoint.model_copy(update=change))
+        assert other is not first, change  # never another configuration's provider
+    assert RecordingEmbedder.built[0] == (
         {
             "model_id": endpoint.embedding_model,
             "dimension": 1024,
@@ -346,7 +355,9 @@ def test_the_provider_is_named_by_config_and_never_guessed(
             "is_external": False,
             "api_key": "not-a-real-key",
         }
-    ]
+    )
+    with pytest.raises(ValidationError, match="EMBEDDING_DIMENSION must be 1024"):
+        Settings(_env_file=None, embedding_dimension=768)
 
 
 # --------------------------------------------------------------------------- ACL propagation
@@ -396,9 +407,10 @@ async def test_acl_changes_propagate_to_every_chunk_and_are_confirmed(
     )  # fmt: skip
     entries = [entry, {"principal_type": "group", "principal_id": hr, "permission": "query"}]
     await world.api.put(f"{kb_url}/permissions", json={"entries": entries}, headers=world.h())
-    assert await sync(world) == 2
+    assert await sync(world) == 4  # KB tokens and document tokens on both chunks
     rows = await chunks_of(admin, job["document_version_id"])
-    assert all(r["access_principals"] == [f"group:{hr}"] for r in rows)
+    assert all(r["access_principals"] == sorted([f"group:{hr}", f"user:{alice}"]) for r in rows)
+    assert all(r["document_principals"] == [f"group:{hr}"] for r in rows)
 
 
 async def test_a_group_membership_change_is_effective_without_reindexing(
@@ -431,12 +443,7 @@ async def test_a_group_membership_change_is_effective_without_reindexing(
         tokens = [f"user:{bob}", "role:member", f"org:{world.org}"] + [
             f"group:{g['group_id']}" for g in groups
         ]
-        count: int = await admin.fetchval(
-            "SELECT count(*) FROM chunks WHERE document_version_id = $1 AND access_principals && $2::text[]",
-            version,
-            tokens,
-        )
-        return count
+        return await readable(admin, version, tokens)
 
     before = await chunks_of(admin, job["document_version_id"])
     assert await readable_by_bob() == 0
@@ -448,6 +455,58 @@ async def test_a_group_membership_change_is_effective_without_reindexing(
     assert added.status_code == 204, added.text
     assert await readable_by_bob() == len(before)
     assert await chunks_of(admin, job["document_version_id"]) == before
+
+
+async def readable(admin: asyncpg.Connection, version: uuid.UUID, tokens: list[str]) -> int:
+    """Chunks of the version these caller tokens may read: the retrieval ACL predicate."""
+    count: int = await admin.fetchval(
+        "SELECT count(*) FROM chunks WHERE document_version_id = $1 AND access_principals && $2::text[] "
+        "AND (cardinality(document_principals) = 0 OR document_principals && $2::text[])",
+        version,
+        tokens,
+    )
+    return count
+
+
+async def test_revoking_kb_access_also_revokes_it_through_a_document_acl(
+    world: World, admin: asyncpg.Connection
+) -> None:
+    """Review #38: a document ACL that was a valid narrowing becomes wider than its KB after a
+    KB change. Its group must lose access anyway: KB and document tokens are checked separately."""
+    await join_as(world, "bob", "member")
+    alice, bob = await me(world), await me(world, "bob")
+    sales = (
+        await world.api.post(
+            f"/v1/organizations/{world.org}/groups", json={"name": "Sales"}, headers=world.h()
+        )
+    ).json()["id"]
+    await world.api.post(
+        f"/v1/organizations/{world.org}/groups/{sales}/members",
+        json={"user_id": bob},
+        headers=world.h(),
+    )
+    job = await world.upload(POLICY)
+    assert await world.run(job) is S.READY
+    await admin.execute(
+        "INSERT INTO document_acl (organization_id, document_id, principal_type, principal_id, permission) "
+        "VALUES ($1, $2, 'group', $3, 'query')",
+        uuid.UUID(world.org), uuid.UUID(job["document_id"]), sales,
+    )  # fmt: skip
+    await sync(world)
+    version = uuid.UUID(job["document_version_id"])
+    bob_tokens = [f"user:{bob}", "role:member", f"org:{world.org}", f"group:{sales}"]
+    assert await readable(admin, version, bob_tokens) == 2  # organization KB, narrowed to Sales
+
+    # The KB becomes restricted to Alice alone; the document ACL still names Sales.
+    kb_url = f"/v1/knowledge-bases/{world.kb}"
+    only_alice = [{"principal_type": "user", "principal_id": alice, "permission": "manage"}]
+    await world.api.put(f"{kb_url}/permissions", json={"entries": only_alice}, headers=world.h())
+    await world.api.patch(kb_url, json={"visibility": "restricted"}, headers=world.h())
+    await sync(world)
+
+    assert await readable(admin, version, bob_tokens) == 0
+    alice_tokens = [f"user:{alice}", "role:owner", f"org:{world.org}"]
+    assert await readable(admin, version, alice_tokens) == 0  # not in Sales: document ACL holds
 
 
 # --------------------------------------------------------------------------- generations & indexes

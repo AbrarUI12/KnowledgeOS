@@ -304,9 +304,10 @@ class Chunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """A retrievable unit of a document version within one index generation (plan §7.6, §12).
 
     Indexing (migration 0010, S22-S23) adds `embedding` (children only; parents are context),
-    `search_vector` + `fts_config`, `identifiers` and `access_principals`, the materialized ACL
-    tokens matched against the caller's tokens at query time. `embedding` and `search_vector`
-    are deferred so loading chunk rows never drags 1024 floats along.
+    `search_vector` + `fts_config`, `identifiers`, and the materialized ACL tokens matched against
+    the caller's at query time: `access_principals` (KB) and `document_principals` (document ACL,
+    empty = inherits); see `app.auth.kb_access.document_access_principals`. `embedding` and
+    `search_vector` are deferred so loading chunk rows never drags 1024 floats along.
     """
 
     __tablename__ = "chunks"
@@ -349,6 +350,7 @@ class Chunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     fts_config: Mapped[str | None] = mapped_column(REGCONFIG)
     identifiers: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default="{}")
     access_principals: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default="{}")
+    document_principals: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default="{}")
 
 
 class JobEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):

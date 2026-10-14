@@ -7,9 +7,11 @@
 - `search_vector` (title A, section path B, body C) built with the chunk's own `fts_config`
   (detected language, `simple` fallback), so a query must use the same configuration per row.
 - `identifiers`: exact codes such as `HR-142-B` from the chunker, for lexical boosting.
-- `access_principals`: the ACL tokens (`org:`, `user:`, `group:`, `role:`) materialized from the KB
-  and document ACLs, matched against the caller's tokens at query time (ADR-004 layer 3).
-  Group membership and role changes need no rewrite: the tokens name the group or role.
+- `access_principals` (the KB's readers: `org:` or the restricted KB's ACL tokens) and
+  `document_principals` (the document's own ACL tokens, empty = inherits), matched against the
+  caller's tokens at query time: readable iff `access_principals && caller` and
+  (`document_principals` empty or `&& caller`) (ADR-004 layer 3). Group membership and role
+  changes need no rewrite: the tokens name the group or role.
 - B-tree indexes for the join-based retrieval predicate, plus a trigram index on document titles.
 
 Revision ID: 0010
@@ -34,6 +36,7 @@ _COLUMNS = [
     "ALTER TABLE chunks ADD COLUMN fts_config regconfig",
     "ALTER TABLE chunks ADD COLUMN identifiers text[] NOT NULL DEFAULT '{}'",
     "ALTER TABLE chunks ADD COLUMN access_principals text[] NOT NULL DEFAULT '{}'",
+    "ALTER TABLE chunks ADD COLUMN document_principals text[] NOT NULL DEFAULT '{}'",
     # Parents are context for their children; only children carry vectors.
     "ALTER TABLE chunks ADD CONSTRAINT ck_chunks_parent_without_embedding "
     "CHECK (NOT is_parent OR embedding IS NULL)",
@@ -66,6 +69,7 @@ def downgrade() -> None:
         op.execute(f"DROP INDEX IF EXISTS {name}")
     op.execute("ALTER TABLE chunks DROP CONSTRAINT IF EXISTS ck_chunks_parent_without_embedding")
     for column in (
+        "document_principals",
         "access_principals",
         "identifiers",
         "fts_config",
