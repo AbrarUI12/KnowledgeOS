@@ -5,7 +5,8 @@ import { refreshAccessToken } from "@/lib/auth/refresh";
 export const { handlers, auth, signIn, signOut } = NextAuth(() => {
   const issuer = process.env.OIDC_ISSUER ?? "http://localhost:8080/realms/knowledgeos";
   const clientId = process.env.OIDC_WEB_CLIENT_ID ?? "knowledgeos-web";
-  const clientSecret = process.env.OIDC_WEB_CLIENT_SECRET ?? "";
+  const clientSecret = process.env.OIDC_WEB_CLIENT_SECRET;
+  if (!clientSecret) throw new Error("OIDC_WEB_CLIENT_SECRET must be configured");
   return {
     session: { strategy: "jwt" },
     pages: { signIn: "/signin", signOut: "/signout", error: "/signin" },

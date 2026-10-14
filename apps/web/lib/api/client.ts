@@ -1,5 +1,5 @@
 import createClient from "openapi-fetch";
-import type { paths, components } from "../../../../packages/contracts/src/schema";
+import type { paths, components } from "@knowledgeos/contracts";
 
 import { parseApiError } from "@/lib/api/errors";
 
@@ -9,7 +9,7 @@ export type Permission = components["schemas"]["Permission"];
 
 export function apiClient(accessToken: string, organizationId?: string) {
   return createClient<paths>({
-    baseUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8100",
+    baseUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000",
     headers: {
       Authorization: `Bearer ${accessToken}`,
       ...(organizationId ? { "X-Organization-Id": organizationId } : {}),
