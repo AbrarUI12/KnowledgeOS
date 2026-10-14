@@ -53,7 +53,7 @@
 | T1.4 | Frontend auth, typed API client & app shell | 1 | S10, S11 | DONE | ai/codex-t1.4-frontend-foundation | #17 (961cb0a) |
 | T3.2 | Docling parser library (PDF/DOCX/HTML/MD) | 2 | S17 | DONE | ai/codex-t3.2-docling-parser | #26 (0c1f49f) |
 | T3.3 | Office/tabular formats, OCR & normalization library | 3 | S18 | REVIEW | ai/codex-t3.3-office-normalize | #28 |
-| T3.4 | Content-security scanner & structure-aware chunker | 4 | S19 | IN PROGRESS | ai/codex-t3.4-content-chunking | |
+| T3.4 | Content-security scanner & structure-aware chunker | 4 | S19 | IN PROGRESS | ai/codex-t3.4-content-chunking | #35 |
 | T4.1 | Embedding providers | 4 | S22 | TODO | | |
 | T5.1 | Reranker, context packer & source aliases | 5 | S27 | TODO | | |
 | T5.2 | LLM gateway, prompts, abstention & citation validator | 5 | S28 | TODO | | |

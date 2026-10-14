@@ -56,7 +56,7 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T3.4 scanner/chunker (#35), stacked on T3.3 (#28); review fixes 574c16b integrated, final parent checks running. Next: T4.1/T5.1/T5.2. #34 reviewed: one BLOCKER and three HIGH findings open.
+- **Current task:** T3.4 (#35): policy-driven scanner implemented, 29 targeted security/property tests and strict checks pass; chunkers/invariants still pending. Stacked on #28; fixes 574c16b pass full checks (406 backend / 105 frontend / nine snapshots). Next: finish T3.4, then T4.1/T5.1/T5.2. #34 reviewed: one BLOCKER and three HIGH findings open.
 - **Last finished:** T3.2 parser (2026-10-14, #26, merge 0c1f49f); T1.4 (#17) also merged. Claude's #27/#30/#31 re-reviewed PASS with 61 tests.
 - **Blockers:** none
 - **Recent:**
