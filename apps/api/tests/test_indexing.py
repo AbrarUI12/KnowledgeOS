@@ -2,6 +2,7 @@
 """Indexing (T4.2, S22-S23): embeddings, full text, identifiers, ACL materialization and its
 propagation, index generations, required indexes."""
 
+import gc
 import hashlib
 import json
 import re
@@ -244,6 +245,49 @@ async def test_embedding_never_substitutes_or_stores_bad_vectors(
     row = await job_row(admin, job)
     assert row["error_code"] == code
     assert not any(r["has_vector"] for r in await chunks_of(admin, job["document_version_id"]))
+
+
+@pytest.mark.slow
+async def test_real_qwen_vectors_are_indexed_under_the_exact_model(
+    world: World, admin: asyncpg.Connection
+) -> None:
+    """S22 "Done when", integrated: the real local Qwen3 encoder (T4.1) through EMBEDDING →
+    VERIFYING gives 1024-d vectors, the generation names the exact model, and a real query finds
+    the right chunk. The model is released afterwards so it doesn't stay resident."""
+    from app.providers.embeddings import sentence_transformers as local
+
+    provider = local.SentenceTransformersEmbeddingProvider(device="cpu", max_seq_length=256)
+    await admin.execute(
+        "UPDATE index_generations SET embedding_provider = 'sentence_transformers', embedding_model = $1 "
+        "WHERE knowledge_base_id = $2",
+        provider.model_id,
+        uuid.UUID(world.kb),
+    )
+    try:
+        job = await world.upload(POLICY)
+        assert await world.run(job, embedder=provider) is S.READY
+
+        version = uuid.UUID(job["document_version_id"])
+        dimensions = await admin.fetch(
+            "SELECT vector_dims(embedding) AS d FROM chunks WHERE document_version_id = $1", version
+        )
+        assert [r["d"] for r in dimensions] == [1024, 1024]
+        generations = (
+            await world.api.get(
+                f"/v1/knowledge-bases/{world.kb}/index-generations", headers=world.h()
+            )
+        ).json()
+        assert generations[0]["embedding_model"] == "Qwen/Qwen3-Embedding-0.6B"
+        query = await provider.embed_query("How long is parental leave?")
+        nearest = await admin.fetchval(
+            "SELECT content FROM chunks WHERE document_version_id = $1 ORDER BY embedding <=> $2::vector LIMIT 1",
+            version,
+            vector_literal(query),
+        )
+        assert "sixteen weeks" in nearest
+    finally:
+        local._MODELS.clear()
+        gc.collect()
 
 
 async def test_local_development_without_a_provider_indexes_full_text_only(
