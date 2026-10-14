@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from docx import Document
+from syrupy.assertion import SnapshotAssertion
 
 from app.ingestion.canonical import BlockType
 from app.ingestion.parsing.base import ParserError
@@ -11,6 +12,20 @@ from app.ingestion.parsing.isolation import run_isolated
 
 pytestmark = pytest.mark.unit
 CORPUS = Path(__file__).resolve().parents[3] / "evals" / "fixtures" / "corpus" / "demo"
+# Model/PDFium floating-point boxes vary by <0.5pt between Windows and Linux; all other
+# canonical fields remain exact. Keep a fixed spatial reference rather than dropping bboxes.
+PDF_BOXES = [
+    (125.95, 83.44, 485.35, 102.18),
+    (79.314, 152.896, 351.15, 169.762),
+    (78.23, 190.72, 429.48, 224.09),
+    (78.0, 238.72, 371.70, 248.09),
+    (79.314, 259.112, 251.754, 275.762),
+    (78.79, 296.84, 316.66, 306.09),
+    (78.74, 320.72, 338.34, 330.09),
+    (79.314, 340.896, 208.158, 354.198),
+    (78.50, 378.72, 277.21, 387.98),
+    (78.74, 402.81, 242.23, 411.98),
+]
 
 
 @pytest.mark.parametrize(
@@ -25,14 +40,30 @@ CORPUS = Path(__file__).resolve().parents[3] / "evals" / "fixtures" / "corpus" /
         ("acme_eng_architecture.md", "text/markdown"),
     ],
 )
-def test_real_format_canonical_snapshot(filename: str, mime_type: str, snapshot: object) -> None:
+def test_real_format_canonical_snapshot(
+    filename: str, mime_type: str, snapshot: SnapshotAssertion
+) -> None:
     assets = Path(__file__).resolve().parents[1] / ".venv" / "docling-assets"
     document = DoclingParser(artifacts_path=assets if assets.exists() else None).parse(
         (CORPUS / filename).read_bytes(), filename=filename, mime_type=mime_type
     )
     assert document.blocks
     assert [b.source_order for b in document.blocks] == list(range(len(document.blocks)))
-    assert document.model_dump(mode="json") == snapshot
+    if mime_type == "application/pdf":
+        assert document.model_dump(mode="json") == snapshot(
+            exclude=lambda prop, path: (
+                prop in {"x0", "y0", "x1", "y1"} and any(name == "bbox" for name, _ in path)
+            )
+        )
+        for block, expected_box in zip(document.blocks, PDF_BOXES, strict=True):
+            assert len(block.bbox) == 1
+            box = block.bbox[0]
+            assert box.page == 1
+            assert (box.x0, box.y0, box.x1, box.y1) == pytest.approx(expected_box, rel=0, abs=0.5)
+            assert 0 <= box.x0 < box.x1 <= 612
+            assert 0 <= box.y0 < box.y1 <= 792
+    else:
+        assert document.model_dump(mode="json") == snapshot
     if mime_type == "application/pdf":
         assert document.page_count
         assert all(block.page for block in document.blocks)

@@ -18,6 +18,8 @@ def main() -> None:
         max_rows=request["max_rows"],
         max_columns=request["max_columns"],
         row_group_size=request["row_group_size"],
+        max_scanned_rows=request["max_scanned_rows"],
+        max_sheets=request["max_sheets"],
     )
     result: dict[str, object]
     try:
