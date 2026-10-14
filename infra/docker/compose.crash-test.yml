@@ -1,0 +1,13 @@
+# Crash demo only (scripts/demo_worker_crash.sh, Demo 12). Layered on docker-compose.yml:
+#   docker compose -f docker-compose.yml -f infra/docker/compose.crash-test.yml --profile full up -d worker
+# Mounts the T1.0 contract fakes (apps/api/tests/fakes) into the worker and switches parsing →
+# chunking to them (INGESTION_CONTRACT_FAKES, refused outside local/test), so the real runner,
+# stages and chunk persistence run end to end and the crash test compares real chunk counts.
+# Paths are relative to the first compose file (the repository root).
+services:
+  worker:
+    volumes:
+      - ./apps/api/tests:/app/tests:ro
+    environment:
+      INGESTION_CONTRACT_FAKES: "true"
+      PYTHONPATH: /app

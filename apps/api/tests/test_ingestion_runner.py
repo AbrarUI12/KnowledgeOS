@@ -429,7 +429,9 @@ async def test_dispatcher_role_can_only_touch_the_outbox(
     conn = await asyncpg.connect(dsn)
     try:
         assert await conn.fetchval("SELECT count(*) FROM outbox_events") == 1
-        for table in ("documents", "ingestion_jobs", "organizations", "users", "knowledge_bases"):
+        # ingestion_jobs/uploads get narrow column grants for the reconciler (T3.6, migration
+        # 0008; see test_ingestion_ops.py). Everything else stays out of reach.
+        for table in ("documents", "chunks", "organizations", "users", "knowledge_bases"):
             with pytest.raises(asyncpg.InsufficientPrivilegeError):
                 await conn.fetchval(f"SELECT count(*) FROM {table}")  # noqa: S608
         with pytest.raises(asyncpg.InsufficientPrivilegeError):

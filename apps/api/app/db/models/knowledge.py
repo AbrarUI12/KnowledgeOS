@@ -339,3 +339,23 @@ class Chunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     location_json: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
     metadata_json: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
     visibility: Mapped[str] = mapped_column(String(16), server_default="visible")
+
+
+class JobEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Diagnostics timeline: one row per ingestion job state change (S20, migration 0008)."""
+
+    __tablename__ = "ingestion_job_events"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["job_id", "organization_id"],
+            ["ingestion_jobs.id", "ingestion_jobs.organization_id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+    organization_id: Mapped[uuid.UUID] = _org_fk()
+    job_id: Mapped[uuid.UUID]
+    state: Mapped[str] = mapped_column(String(32))
+    stage: Mapped[str | None] = mapped_column(String(32))
+    attempt: Mapped[int] = mapped_column(server_default="0")
+    message_safe: Mapped[str | None] = mapped_column(Text)

@@ -40,10 +40,12 @@
 
 ### Claude: architect · security/DB/integration · reviewer
 - **Worktree / ports:** `D:\projects\kos-claude` · API 8000 · web 3000
-- **Current task:** batch in REVIEW: T2.1 (#25) ← T2.4 (#27) ← T3.1 (#30) ← T3.5; next T3.6 ingestion reliability
+- **Current task:** T3.6 in REVIEW; next T4.2 index generations + chunk indexing (needs Codex's T4.1)
 - **Last finished:** T1.1 (#13), T1.2 (#23), CORS (#20), Pages showcase (#21); live at https://abrarui12.github.io/KnowledgeOS/
 - **Blockers:** none
 - **Recent:**
+  - 2026-10-14 · T3.6 · reconciler (stranded jobs, abandoned uploads, approval reminders) as the dispatcher role with column-limited grants (migration 0008, ADR-004 extension); crash-counted attempts; job timeline; retry/cancel/reindex/inspect APIs; weighted progress; READY sets the active version; live docker-kill crash test passes
+  - 2026-10-14 · merged T2.1 (#25), T2.4 (#27), T3.1 (#30), T3.5 (#31); finished and opened Cline's T2.6 (#33)
   - 2026-10-12 · T3.5 · real VALIDATING/MALWARE_SCAN(+promote)/PARSING(artifact)/NORMALIZING/SECURITY_SCAN/CHUNKING stages over library contracts; quarantine (terminal + system audit) and approval hold (approve → CHUNKING, reject → CANCELLED); migration 0007 index_generations + chunks (generation #1 per KB); pipeline never half-wired until Codex's libraries all exist; worker image OCR packages
   - 2026-10-12 · T3.1 · state machine (transition table), lease + checkpointed runner (DB time, advisory lock, retry/permanent errors, backoff), outbox dispatcher as least-privilege role (migration 0006, ADR-004 exception), Celery app + stub stages; verified live: outbox → Redis → Celery worker in Docker → READY
   - 2026-10-12 · T2.4 · presigned upload → HEAD-verified complete (document + version + job + outbox + audit in one transaction, idempotent, uploader-only), replacement versions, document list (keyset per sort)/get/versions/archive, ingestion job read; object store in app state
@@ -56,8 +58,8 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T5.1 reranker/context packer claimed from main. T4.1 #36 ready: real Qwen CPU 1024-d verified, 426 backend / 105 frontend / nine snapshots and required lint/types green. T3.4 #35 ready. Next T5.2; #34 latest review PASS, user ADR approval still required.
-- **Last finished:** T1.4 frontend foundation (2026-10-14, PR #17, merge 961cb0a); live auth and Docker/static checks pass.
+- **Current task:** T5.1 draft #37 implementation. T3.4 #35 HIGH fixes verified: 508 backend / 105 frontend / nine snapshots and all required checks green, re-review requested. #38 reviewed (16 tests), worker-config HIGH remains open; #34 merged after user approval.
+- **Last finished:** T4.1 #36 merged (a25389f): real Qwen CPU 1024-d verified. T3.3 #28 (6e725fb), T3.2 #26 (0c1f49f), T1.4 #17 (961cb0a) also merged.
 - **Blockers:** none
 - **Recent:**
   - 2026-10-12 · T2.2 · S3/MinIO/B2 + in-memory ObjectStore providers and safe key helpers; explicit S3 timeouts/retries · PR #14 (merged)
@@ -615,4 +617,5 @@ All deviations (DV-001…) now live in **[`docs/DECISIONS.md`](docs/DECISIONS.md
 | API (uploads) | Upload size limit, presigned URL lifetime | `UPLOAD_MAX_BYTES`, `UPLOAD_URL_TTL_SECONDS` | all | S13 (T2.4) |
 | Workers (Celery) | Dispatcher DB role URL, broker, lease/retry tuning | `DISPATCHER_DATABASE_URL`, `CELERY_BROKER_URL` (defaults to `REDIS_URL`), `INGESTION_LEASE_SECONDS`, `INGESTION_MAX_ATTEMPTS`, `DISPATCHER_BATCH_SIZE`, `DISPATCHER_POLL_SECONDS` | all | S16 (T3.1) |
 | Workers (malware scanning) | Scanner choice | `MALWARE_SCANNER` (`clamav` default, `none` for the core profile; staging/prod still require a scan) | all | S17 (T3.5) |
+| Workers (reconciler) | Sweep interval and staleness; crash-demo stage delay (local/test only) | `RECONCILE_INTERVAL_SECONDS`, `RECONCILE_STALE_SECONDS`, `APPROVAL_REMINDER_SECONDS`, `INGESTION_DEBUG_STAGE_DELAY_SECONDS`, `INGESTION_CONTRACT_FAKES` | all (delay, fakes: local/test) | S20 (T3.6) |
 | *(more rows added as sessions introduce services: Neon, B2, Auth0, HF, Vercel, Groq, Gemini, Langfuse, Grafana Cloud, Google Drive OAuth)* | | | | |
