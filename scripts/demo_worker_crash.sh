@@ -10,9 +10,23 @@
 #   once the dead worker's lease expires → it resumes from its checkpoint → same (positive) chunk
 #   count.
 #
+# The shared worker and beat are always restored to normal settings on exit, even when the test
+# fails or the demo is interrupted (Ctrl+C); the exit status is the test's.
+#
 # Prerequisites: `make up` (core stack) and `make migrate`.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+restore() {
+  local status=$?
+  trap - EXIT INT TERM
+  unset INGESTION_DEBUG_STAGE_DELAY_SECONDS INGESTION_LEASE_SECONDS RECONCILE_INTERVAL_SECONDS RECONCILE_STALE_SECONDS
+  # Recreates the worker without the fakes mount and beat with the normal reconciler cadence.
+  docker compose --profile full up -d worker beat || echo "restore failed: run 'docker compose --profile full up -d worker beat'" >&2
+  exit "$status"
+}
+trap restore EXIT
+trap 'exit 130' INT TERM
 
 export MALWARE_SCANNER="${MALWARE_SCANNER:-none}"   # the core profile has no ClamAV container
 export INGESTION_DEBUG_STAGE_DELAY_SECONDS=3
@@ -23,7 +37,3 @@ export RECONCILE_STALE_SECONDS=30
 docker compose -f docker-compose.yml -f infra/docker/compose.crash-test.yml --profile full \
   up -d --build worker dispatcher beat
 KOS_CRASH_TEST=1 uv --directory apps/api run pytest -m crash tests/test_worker_crash.py -v -s
-
-# Back to normal worker settings (recreates the worker without the fakes mount).
-unset INGESTION_DEBUG_STAGE_DELAY_SECONDS INGESTION_LEASE_SECONDS RECONCILE_INTERVAL_SECONDS RECONCILE_STALE_SECONDS
-docker compose --profile full up -d worker beat
