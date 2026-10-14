@@ -32,9 +32,9 @@
 | T1.2 | Tenant context, RLS & permission engine | 1 | S08 | DONE | ai/claude-t1.2-rls | #23 (was #15) |
 | T1.3 | Org / member / group / invitation APIs + audit | 2 | S09 | DONE | ai/claude-t1.3-org-apis | #19 |
 | T2.1 | KB & document schema + KB APIs + RLS meta-test | 2 | S12 | REVIEW | ai/claude-t2.1-kb-schema | #25 |
-| T2.4 | Upload & document endpoints | 3 | S13 | TODO | | |
-| T3.1 | Outbox dispatcher, Celery & job state machine | 3 | S16 | TODO | | |
-| T3.5 | Ingestion stage wiring + chunks schema + approvals | 4 | S17–S19 | TODO | | |
+| T2.4 | Upload & document endpoints | 3 | S13 | REVIEW | ai/claude-t2.4-uploads | |
+| T3.1 | Outbox dispatcher, Celery & job state machine | 3 | S16 | REVIEW | ai/claude-t3.1-dispatcher | #30 |
+| T3.5 | Ingestion stage wiring + chunks schema + approvals | 4 | S17–S19 | REVIEW | ai/claude-t3.5-stages | |
 | T3.6 | Ingestion reliability & recovery | 4 | S20 | TODO | | |
 | T4.2 | Index generations (DB) + chunk indexing & ACL materialization | 5 | S22–S23 | TODO | | |
 | T4.4 | Permission-aware hybrid search backend | 5 | S24 | TODO | | |
@@ -50,7 +50,7 @@
 |---|---|---|---|---|---|---|
 | T2.3 | File-safety validation & malware scanners | 0 | S14 | DONE | ai/codex-t2.3-file-validation | #10 |
 | T2.2 | ObjectStore providers (S3/MinIO/B2 + in-memory) | 1 | S13 | DONE | ai/codex-t2.2-object-store | #14 |
-| T1.4 | Frontend auth, typed API client & app shell | 1 | S10, S11 | TODO | | |
+| T1.4 | Frontend auth, typed API client & app shell | 1 | S10, S11 | DONE | ai/codex-t1.4-frontend-foundation | #17 (961cb0a) |
 | T3.2 | Docling parser library (PDF/DOCX/HTML/MD) | 2 | S17 | REVIEW | ai/codex-t3.2-docling-parser | #26 |
 | T3.3 | Office/tabular formats, OCR & normalization library | 3 | S18 | IN PROGRESS | ai/codex-t3.3-office-normalize | #28 |
 | T3.4 | Content-security scanner & structure-aware chunker | 4 | S19 | TODO | | |
@@ -65,7 +65,7 @@
 
 | ID | Task | Wave | Session | Status | Branch | PR |
 |---|---|---|---|---|---|---|
-| T4.5 | Demo corpus file generator | 0 | S25 | DONE | ai/cline-t4.5-demo-corpus | #12 |
+| T4.5 | Demo corpus file generator | 0 | S25 | REVIEW | ai/cline-t4.5-deterministic | #32 (was #12) |
 | T1.8 | `scripts/get_token.py` | 0 | S07 | DONE | ai/cline-t4.5-demo-corpus | #12 |
 | T4.3 | RRF fusion module | 1 | S24 | REVIEW | ai/cline-t4.3-rrf-fusion | #16 |
 | T1.5 | Command palette, shortcuts, status center | 2 | S11 | TODO | | |

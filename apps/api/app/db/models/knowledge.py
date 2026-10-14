@@ -15,7 +15,7 @@ from sqlalchemy import (
     Text,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -268,3 +268,74 @@ class OutboxEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     attempt_count: Mapped[int] = mapped_column(server_default="0")
     last_error: Mapped[str | None] = mapped_column(Text)
+
+
+class IndexGeneration(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A versioned index of a KB (ADR-007). Exactly one `active` per KB; see migration 0007."""
+
+    __tablename__ = "index_generations"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["knowledge_base_id", "organization_id"],
+            ["knowledge_bases.id", "knowledge_bases.organization_id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+    organization_id: Mapped[uuid.UUID] = _org_fk()
+    knowledge_base_id: Mapped[uuid.UUID]
+    generation_number: Mapped[int]
+    status: Mapped[str] = mapped_column(String(16), server_default="building")
+    embedding_provider: Mapped[str] = mapped_column(Text)
+    embedding_model: Mapped[str] = mapped_column(Text)
+    embedding_dimension: Mapped[int]
+    chunker_name: Mapped[str] = mapped_column(Text)
+    chunker_config_json: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, server_default=text("'{}'::jsonb")
+    )
+    parser_pipeline_version: Mapped[str] = mapped_column(Text, server_default="1")
+    retrieval_profile_version_id: Mapped[uuid.UUID | None]
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Chunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A retrievable unit of a document version within one index generation (plan §7.6, §12).
+
+    `embedding`, `search_vector` and `access_principals` are added by indexing (Session 23).
+    """
+
+    __tablename__ = "chunks"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["document_version_id", "organization_id"],
+            ["document_versions.id", "document_versions.organization_id"],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["index_generation_id", "organization_id"],
+            ["index_generations.id", "index_generations.organization_id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+    organization_id: Mapped[uuid.UUID] = _org_fk()
+    knowledge_base_id: Mapped[uuid.UUID]
+    document_id: Mapped[uuid.UUID]
+    document_version_id: Mapped[uuid.UUID]
+    index_generation_id: Mapped[uuid.UUID]
+    ordinal: Mapped[int]
+    parent_chunk_id: Mapped[uuid.UUID | None]
+    is_parent: Mapped[bool] = mapped_column(server_default="false")
+    block_type: Mapped[str] = mapped_column(String(16))
+    section_path: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default="{}")
+    block_ids: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default="{}")
+    content: Mapped[str] = mapped_column(Text)
+    embedding_text: Mapped[str] = mapped_column(Text)
+    content_hash: Mapped[str] = mapped_column(String(64))
+    token_count: Mapped[int]
+    page_start: Mapped[int | None]
+    page_end: Mapped[int | None]
+    location_json: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    visibility: Mapped[str] = mapped_column(String(16), server_default="visible")

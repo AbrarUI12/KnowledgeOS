@@ -4087,7 +4087,7 @@
         ]
       },
       "post": {
-        "description": "Start uploading a new version of an existing document.",
+        "description": "Start uploading a new version of an existing document (`document.upload`).",
         "operationId": "documents_start_document_replacement",
         "parameters": [
           {
@@ -4198,6 +4198,7 @@
     },
     "/v1/documents/{document_id}/versions/{version_id}/approve": {
       "post": {
+        "description": "Approve a version held for review (`document.publish`): ingestion resumes at chunking.\n409 unless the version is pending approval.",
         "operationId": "documents_approve_document_version",
         "parameters": [
           {
@@ -4539,6 +4540,7 @@
     },
     "/v1/documents/{document_id}/versions/{version_id}/reject": {
       "post": {
+        "description": "Reject a version held for review (`document.publish`): its ingestion job is cancelled.\n409 unless the version is pending approval.",
         "operationId": "documents_reject_document_version",
         "parameters": [
           {
@@ -6631,7 +6633,7 @@
     },
     "/v1/knowledge-bases/{kb_id}/uploads": {
       "post": {
-        "description": "Start an upload (`document.upload`): returns a presigned PUT URL to the quarantine bucket.",
+        "description": "Start an upload (`document.upload`): returns a presigned PUT URL to the quarantine bucket.\n422 `unsupported_file_type`, 413 `file_too_large`, 409 `kb_archived`.",
         "operationId": "uploads_create_upload",
         "parameters": [
           {
@@ -8496,7 +8498,7 @@
     },
     "/v1/uploads/{upload_id}/complete": {
       "post": {
-        "description": "Verify the uploaded object and create document + version + ingestion job atomically.\nSupports `Idempotency-Key`.",
+        "description": "Verify the uploaded object and create document + version + ingestion job + outbox event\natomically. Completing twice returns the same result (the upload itself is the idempotency\nkey; `Idempotency-Key` is accepted for client uniformity). 409 `upload_not_received`,\n422 `size_mismatch`, 410 `upload_expired`.",
         "operationId": "uploads_complete_upload",
         "parameters": [
           {

@@ -66,6 +66,9 @@ jobs:
       - name: Install dependencies (locked)
         run: pnpm install --frozen-lockfile
 
+      - name: Generated API client drift
+        run: pnpm check:api
+
       - name: ESLint
         run: pnpm web:lint
 

@@ -3,7 +3,7 @@
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr
@@ -50,6 +50,11 @@ class Settings(BaseSettings):
     database_migration_url: SecretStr = SecretStr(
         "postgresql+asyncpg://knowledgeos_owner:owner_dev_password@localhost:5433/knowledgeos"
     )
+    # Outbox dispatcher (S16): its own least-privilege role, see migration 0006.
+    dispatcher_database_url: SecretStr = SecretStr(
+        "postgresql+asyncpg://knowledgeos_dispatcher:dispatcher_dev_password"
+        "@localhost:5433/knowledgeos"
+    )
     database_pool_size: int = 5
     database_max_overflow: int = 5
 
@@ -69,6 +74,9 @@ class Settings(BaseSettings):
     s3_read_timeout_seconds: float = 30.0
     s3_max_attempts: int = 3  # total attempts including the first
 
+    # "clamav" (default; the `full` Compose profile runs clamd) or "none" for the `core` profile.
+    # Staging/production require a real scan regardless (require_malware_scan).
+    malware_scanner: Literal["clamav", "none"] = "clamav"
     clamav_host: str = "localhost"
     clamav_port: int = 3310
     clamav_timeout_seconds: float = 30.0
@@ -97,6 +105,19 @@ class Settings(BaseSettings):
     )
     invitation_ttl_hours: int = Field(default=168, ge=1, le=24 * 30)
     idempotency_ttl_hours: int = Field(default=24, ge=1, le=24 * 7)
+
+    # Background work (T3.1)
+    celery_broker_url: SecretStr | None = Field(
+        default=None, description="Defaults to REDIS_URL when unset"
+    )
+    ingestion_lease_seconds: int = Field(default=300, ge=30)
+    ingestion_max_attempts: int = Field(default=5, ge=1, le=20)
+    dispatcher_batch_size: int = Field(default=100, ge=1, le=1000)
+    dispatcher_poll_seconds: float = Field(default=1.0, gt=0)
+
+    # Uploads (T2.4)
+    upload_max_bytes: int = Field(default=50 * 1024 * 1024, gt=0)
+    upload_url_ttl_seconds: int = Field(default=900, ge=60, le=3600)
 
     readiness_timeout_seconds: float = 2.0
 

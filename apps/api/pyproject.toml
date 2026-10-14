@@ -32,6 +32,7 @@ dependencies = [
     "lingua-language-detector>=2.2.0",
     "beautifulsoup4>=4.15.0",
     "onnxruntime>=1.31.0",
+    "celery[redis]>=5.5",
 ]
 
 [build-system]
@@ -72,7 +73,7 @@ packages = ["app", "tests"]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["testcontainers.*", "uuid_utils.*", "asyncpg.*"]
+module = ["testcontainers.*", "uuid_utils.*", "asyncpg.*", "celery", "celery.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
