@@ -5,12 +5,13 @@ from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 from redis.asyncio import Redis
 
 from app.api import health
-from app.api.errors import register_exception_handlers
-from app.api.middleware import RequestContextMiddleware
+from app.api.errors import UnhandledErrorMiddleware, register_exception_handlers
+from app.api.middleware import REQUEST_ID_HEADER, RequestContextMiddleware
 from app.api.openapi import install_openapi
 from app.api.v1.router import api_v1_router
 from app.core.config import Settings, get_settings
@@ -18,6 +19,7 @@ from app.core.email import configure_email_validation
 from app.core.logging import configure_logging
 from app.core.s3 import create_s3_client
 from app.db.session import create_engine, create_sessionmaker
+from app.domain.schemas.common import ORG_HEADER
 from app.providers.identity.oidc import OIDCVerifier
 from app.providers.storage import S3ObjectStore
 
@@ -72,7 +74,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
         generate_unique_id_function=_operation_id,
     )
+    app.add_middleware(UnhandledErrorMiddleware)  # innermost of the three
     app.add_middleware(RequestContextMiddleware)
+    # Added last = outermost, so preflights and error responses also carry CORS headers.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.web_origin_list,
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            ORG_HEADER,
+            "Idempotency-Key",
+            REQUEST_ID_HEADER,
+        ],
+        expose_headers=[REQUEST_ID_HEADER, "Retry-After"],
+        max_age=600,
+    )
     register_exception_handlers(app)
     app.include_router(health.router)
     app.include_router(api_v1_router)

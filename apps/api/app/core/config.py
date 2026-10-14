@@ -4,6 +4,7 @@ from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -116,6 +117,29 @@ class Settings(BaseSettings):
     upload_url_ttl_seconds: int = Field(default=900, ge=60, le=3600)
 
     readiness_timeout_seconds: float = 2.0
+
+    # Browser origins allowed to call the API (CORS). Comma-separated, exact origins only: the
+    # web app sends a bearer token, never cookies, so credentials stay disabled (ADR-003).
+    web_origins: str = "http://localhost:3000,http://localhost:3100,http://localhost:3200"
+
+    @property
+    def web_origin_list(self) -> list[str]:
+        """Exact origins (scheme://host[:port]); anything else fails fast at startup."""
+        origins = [o.strip() for o in self.web_origins.split(",") if o.strip()]
+        for origin in origins:
+            parts = urlsplit(origin)
+            if (
+                "*" in origin
+                or parts.scheme not in {"http", "https"}
+                or not parts.hostname
+                or parts.username is not None
+                or parts.password is not None
+                or parts.path not in {"", "/"}
+                or parts.query
+                or parts.fragment
+            ):
+                raise ValueError(f"WEB_ORIGINS entries must be exact http(s) origins: {origin!r}")
+        return [o.rstrip("/") for o in origins]
 
     @property
     def json_logs(self) -> bool:
