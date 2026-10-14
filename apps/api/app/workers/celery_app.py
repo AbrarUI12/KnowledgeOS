@@ -10,6 +10,7 @@ connection or event loop crosses a fork (Celery's prefork pool; run workers in D
 
 import asyncio
 import os
+import random
 import socket
 import uuid
 from typing import Any
@@ -67,9 +68,23 @@ async def _process_job(organization_id: uuid.UUID, job_id: uuid.UUID) -> str | N
         await engine.dispose()
 
 
-@celery_app.task(name="ingestion.process_job", queue="ingestion")  # type: ignore[untyped-decorator]
-def process_job(organization_id: str, aggregate_id: str, payload: dict[str, Any]) -> str | None:
-    return asyncio.run(_process_job(uuid.UUID(organization_id), uuid.UUID(aggregate_id)))
+# A live lease means another worker owns the job, or a dead worker's lease hasn't expired yet
+# (late-ack redelivery after a crash). Retry until it expires rather than acking a no-op.
+LEASE_RETRY_LIMIT = 50
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    bind=True, name="ingestion.process_job", queue="ingestion", max_retries=LEASE_RETRY_LIMIT
+)
+def process_job(
+    self: Any, organization_id: str, aggregate_id: str, payload: dict[str, Any]
+) -> str | None:
+    from app.ingestion.runner import LeaseBusy
+
+    try:
+        return asyncio.run(_process_job(uuid.UUID(organization_id), uuid.UUID(aggregate_id)))
+    except LeaseBusy as busy:
+        raise self.retry(countdown=busy.retry_after + random.uniform(0, 5)) from busy  # noqa: S311
 
 
 @celery_app.task(name="acl.sync_knowledge_base", queue="maintenance")  # type: ignore[untyped-decorator]
