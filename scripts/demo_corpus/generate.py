@@ -609,10 +609,26 @@ def generate_globex() -> None:
     )
 
 
-def main() -> None:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+def main(output_dir: Path = OUTPUT_DIR, *, reset: bool = True) -> None:
+    """Generate the demo corpus into ``output_dir``.
 
-    print(f"Generating demo corpus in {OUTPUT_DIR}...")
+    Args:
+        output_dir: destination directory (defaults to the committed fixtures dir).
+        reset: clear the module-level ``manifest`` first. The CLI entry point
+            never needs to reset (fresh process), but the determinism test calls
+            ``main()`` twice in one process and must not accumulate entries.
+    """
+    global OUTPUT_DIR
+
+    if reset:
+        manifest.clear()
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"Generating demo corpus in {output_dir}...")
+
+    # generate_* helpers read the module-level OUTPUT_DIR; redirect it for this run.
+    OUTPUT_DIR = output_dir
 
     generate_acme_hr()
     generate_acme_support()
@@ -621,7 +637,7 @@ def main() -> None:
     generate_acme_other()
     generate_globex()
 
-    manifest_path = OUTPUT_DIR / "manifest.json"
+    manifest_path = output_dir / "manifest.json"
     manifest_path.write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",

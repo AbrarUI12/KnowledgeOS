@@ -27,6 +27,7 @@ dependencies = [
     "uvicorn[standard]>=0.54.0",
     "pyjwt[crypto]>=2.15.1",
     "psutil>=7.0.0",
+    "celery[redis]>=5.5",
 ]
 
 [build-system]
@@ -67,7 +68,7 @@ packages = ["app", "tests"]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["testcontainers.*", "uuid_utils.*", "asyncpg.*"]
+module = ["testcontainers.*", "uuid_utils.*", "asyncpg.*", "celery", "celery.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

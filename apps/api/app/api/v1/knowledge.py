@@ -1,14 +1,17 @@
 """Knowledge base, upload, document and ingestion endpoints (contracts from T1.0; implemented in
-T2.1,
-T2.4, T3.5, T3.6, T4.2, T5.4)."""
+T2.1, T2.4, T3.5, T3.6, T4.2, T5.4)."""
 
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Request, status
 
-from app.api.dependencies.tenancy import OrgContext
+from app.api.dependencies.storage import Storage
+from app.api.dependencies.tenancy import OrgContext, require_permission
 from app.api.v1._stub import ERRORS, IdempotencyKeyHeader, OrgIdHeader, stub
+from app.auth.authorization import RequestContext
+from app.auth.permissions import Permission
+from app.db.session import DbSession
 from app.domain.enums import Classification, DocumentStatus, IngestionState
 from app.domain.schemas.common import Page
 from app.domain.schemas.knowledge import (
@@ -31,8 +34,14 @@ from app.domain.schemas.knowledge import (
     UploadCreate,
     UploadOut,
 )
+from app.services import documents, knowledge_bases
 
 router = APIRouter(responses=ERRORS)
+
+CreateKb = Annotated[RequestContext, require_permission(Permission.KB_CREATE)]
+UploadDocuments = Annotated[RequestContext, require_permission(Permission.DOCUMENT_UPLOAD)]
+DeleteDocuments = Annotated[RequestContext, require_permission(Permission.DOCUMENT_DELETE)]
+PublishDocuments = Annotated[RequestContext, require_permission(Permission.DOCUMENT_PUBLISH)]
 
 Cursor = Annotated[str | None, Query(description="Opaque cursor from a previous page")]
 Limit = Annotated[int, Query(ge=1, le=200)]
@@ -41,9 +50,12 @@ Limit = Annotated[int, Query(ge=1, le=200)]
 
 
 @router.get("/knowledge-bases", tags=["knowledge_bases"], response_model=list[KnowledgeBaseOut])
-async def list_knowledge_bases(org: OrgIdHeader, ctx: OrgContext) -> list[KnowledgeBaseOut]:
-    """KBs the caller may query (restricted KBs without an ACL match are invisible)."""
-    stub("T2.1")
+async def list_knowledge_bases(
+    org: OrgIdHeader, ctx: OrgContext, session: DbSession
+) -> list[KnowledgeBaseOut]:
+    """Active KBs the caller may query or manage (restricted KBs without an ACL match are
+    invisible)."""
+    return await knowledge_bases.list_knowledge_bases(session, ctx)
 
 
 @router.post(
@@ -53,23 +65,30 @@ async def list_knowledge_bases(org: OrgIdHeader, ctx: OrgContext) -> list[Knowle
     status_code=status.HTTP_201_CREATED,
 )
 async def create_knowledge_base(
-    org: OrgIdHeader, ctx: OrgContext, body: KnowledgeBaseCreate
+    org: OrgIdHeader, ctx: CreateKb, session: DbSession, body: KnowledgeBaseCreate
 ) -> KnowledgeBaseOut:
-    stub("T2.1")
+    """Create a KB (`kb.create`). The creator gets a `manage` ACL entry; an upload source is
+    created with it."""
+    return await knowledge_bases.create_knowledge_base(session, ctx, body)
 
 
 @router.get("/knowledge-bases/{kb_id}", tags=["knowledge_bases"], response_model=KnowledgeBaseOut)
 async def get_knowledge_base(
-    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID
+    org: OrgIdHeader, ctx: OrgContext, session: DbSession, kb_id: uuid.UUID
 ) -> KnowledgeBaseOut:
-    stub("T2.1")
+    return await knowledge_bases.get_knowledge_base(session, ctx, kb_id)
 
 
 @router.patch("/knowledge-bases/{kb_id}", tags=["knowledge_bases"], response_model=KnowledgeBaseOut)
 async def update_knowledge_base(
-    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID, body: KnowledgeBaseUpdate
+    org: OrgIdHeader,
+    ctx: OrgContext,
+    session: DbSession,
+    kb_id: uuid.UUID,
+    body: KnowledgeBaseUpdate,
 ) -> KnowledgeBaseOut:
-    stub("T2.1")
+    """Update (`kb.manage` or a `manage` ACL entry). A visibility change emits `acl.changed`."""
+    return await knowledge_bases.update_knowledge_base(session, ctx, kb_id, body)
 
 
 @router.delete(
@@ -77,9 +96,11 @@ async def update_knowledge_base(
     tags=["knowledge_bases"],
     status_code=status.HTTP_204_NO_CONTENT,
 )
-async def archive_knowledge_base(org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID) -> None:
+async def archive_knowledge_base(
+    org: OrgIdHeader, ctx: OrgContext, session: DbSession, kb_id: uuid.UUID
+) -> None:
     """Archive (soft-delete); content stops being retrievable immediately."""
-    stub("T2.1")
+    await knowledge_bases.archive_knowledge_base(session, ctx, kb_id)
 
 
 @router.get(
@@ -88,9 +109,9 @@ async def archive_knowledge_base(org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.
     response_model=KnowledgeBasePermissions,
 )
 async def get_knowledge_base_permissions(
-    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID
+    org: OrgIdHeader, ctx: OrgContext, session: DbSession, kb_id: uuid.UUID
 ) -> KnowledgeBasePermissions:
-    stub("T2.1")
+    return await knowledge_bases.get_permissions(session, ctx, kb_id)
 
 
 @router.put(
@@ -99,11 +120,15 @@ async def get_knowledge_base_permissions(
     response_model=KnowledgeBasePermissions,
 )
 async def set_knowledge_base_permissions(
-    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID, body: KnowledgeBasePermissionsUpdate
+    org: OrgIdHeader,
+    ctx: OrgContext,
+    session: DbSession,
+    kb_id: uuid.UUID,
+    body: KnowledgeBasePermissionsUpdate,
 ) -> KnowledgeBasePermissions:
-    """Replace the allow-only ACL (`kb.manage`). Emits `acl.changed`; chunks update
-    asynchronously."""
-    stub("T2.1")
+    """Replace the allow-only ACL (manage access). Principals must belong to the organization
+    (422 `invalid_principal`). Emits `acl.changed`; chunks update asynchronously."""
+    return await knowledge_bases.set_permissions(session, ctx, kb_id, body.entries)
 
 
 @router.get(
@@ -127,23 +152,39 @@ async def list_index_generations(
     status_code=status.HTTP_201_CREATED,
 )
 async def create_upload(
-    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID, body: UploadCreate
+    request: Request,
+    org: OrgIdHeader,
+    ctx: UploadDocuments,
+    session: DbSession,
+    store: Storage,
+    kb_id: uuid.UUID,
+    body: UploadCreate,
 ) -> UploadOut:
-    """Start an upload (`document.upload`): returns a presigned PUT URL to the quarantine bucket."""
-    stub("T2.4")
+    """Start an upload (`document.upload`): returns a presigned PUT URL to the quarantine bucket.
+    422 `unsupported_file_type`, 413 `file_too_large`, 409 `kb_archived`."""
+    return await documents.create_upload(
+        session, ctx, store, request.app.state.settings, kb_id, body
+    )
 
 
 @router.post("/uploads/{upload_id}/complete", tags=["uploads"], response_model=UploadCompleted)
 async def complete_upload(
+    request: Request,
     org: OrgIdHeader,
-    ctx: OrgContext,
+    ctx: UploadDocuments,
+    session: DbSession,
+    store: Storage,
     upload_id: uuid.UUID,
     body: UploadComplete,
     idempotency_key: IdempotencyKeyHeader = None,
 ) -> UploadCompleted:
-    """Verify the uploaded object and create document + version + ingestion job atomically.
-    Supports `Idempotency-Key`."""
-    stub("T2.4")
+    """Verify the uploaded object and create document + version + ingestion job + outbox event
+    atomically. Completing twice returns the same result (the upload itself is the idempotency
+    key; `Idempotency-Key` is accepted for client uniformity). 409 `upload_not_received`,
+    422 `size_mismatch`, 410 `upload_expired`."""
+    return await documents.complete_upload(
+        session, ctx, store, request.app.state.settings, upload_id, body
+    )
 
 
 # ----------------------------------------------------------------------------- documents
@@ -155,6 +196,7 @@ async def complete_upload(
 async def list_documents(
     org: OrgIdHeader,
     ctx: OrgContext,
+    session: DbSession,
     kb_id: uuid.UUID,
     cursor: Cursor = None,
     limit: Limit = 50,
@@ -163,20 +205,34 @@ async def list_documents(
     classification: Annotated[Classification | None, Query()] = None,
     sort: Annotated[str, Query(pattern=r"^-?(title|created_at|updated_at)$")] = "-updated_at",
 ) -> Page[DocumentOut]:
-    stub("T2.4")
+    return await documents.list_documents(
+        session,
+        ctx,
+        kb_id,
+        cursor=cursor,
+        limit=limit,
+        status=status_filter,
+        document_type=document_type,
+        classification=classification,
+        sort=sort,
+    )
 
 
 @router.get("/documents/{document_id}", tags=["documents"], response_model=DocumentOut)
-async def get_document(org: OrgIdHeader, ctx: OrgContext, document_id: uuid.UUID) -> DocumentOut:
-    stub("T2.4")
+async def get_document(
+    org: OrgIdHeader, ctx: OrgContext, session: DbSession, document_id: uuid.UUID
+) -> DocumentOut:
+    return await documents.get_document(session, ctx, document_id)
 
 
 @router.delete(
     "/documents/{document_id}", tags=["documents"], status_code=status.HTTP_204_NO_CONTENT
 )
-async def delete_document(org: OrgIdHeader, ctx: OrgContext, document_id: uuid.UUID) -> None:
+async def delete_document(
+    org: OrgIdHeader, ctx: DeleteDocuments, session: DbSession, document_id: uuid.UUID
+) -> None:
     """Mark non-retrievable immediately (`document.delete`); full cascade in Session 49."""
-    stub("T2.4")
+    await documents.delete_document(session, ctx, document_id)
 
 
 @router.get(
@@ -185,9 +241,9 @@ async def delete_document(org: OrgIdHeader, ctx: OrgContext, document_id: uuid.U
     response_model=list[DocumentVersionOut],
 )
 async def list_document_versions(
-    org: OrgIdHeader, ctx: OrgContext, document_id: uuid.UUID
+    org: OrgIdHeader, ctx: OrgContext, session: DbSession, document_id: uuid.UUID
 ) -> list[DocumentVersionOut]:
-    stub("T2.4")
+    return await documents.list_versions(session, ctx, document_id)
 
 
 @router.post(
@@ -197,10 +253,18 @@ async def list_document_versions(
     status_code=status.HTTP_201_CREATED,
 )
 async def start_document_replacement(
-    org: OrgIdHeader, ctx: OrgContext, document_id: uuid.UUID, body: UploadCreate
+    request: Request,
+    org: OrgIdHeader,
+    ctx: UploadDocuments,
+    session: DbSession,
+    store: Storage,
+    document_id: uuid.UUID,
+    body: UploadCreate,
 ) -> UploadOut:
-    """Start uploading a new version of an existing document."""
-    stub("T2.4")
+    """Start uploading a new version of an existing document (`document.upload`)."""
+    return await documents.start_replacement(
+        session, ctx, store, request.app.state.settings, document_id, body
+    )
 
 
 @router.post(
@@ -210,12 +274,17 @@ async def start_document_replacement(
 )
 async def approve_document_version(
     org: OrgIdHeader,
-    ctx: OrgContext,
+    ctx: PublishDocuments,
+    session: DbSession,
     document_id: uuid.UUID,
     version_id: uuid.UUID,
     body: ApprovalDecision,
 ) -> DocumentVersionOut:
-    stub("T3.5")
+    """Approve a version held for review (`document.publish`): ingestion resumes at chunking.
+    409 unless the version is pending approval."""
+    return await documents.decide_approval(
+        session, ctx, document_id, version_id, approve=True, reason=body.reason
+    )
 
 
 @router.post(
@@ -225,12 +294,17 @@ async def approve_document_version(
 )
 async def reject_document_version(
     org: OrgIdHeader,
-    ctx: OrgContext,
+    ctx: PublishDocuments,
+    session: DbSession,
     document_id: uuid.UUID,
     version_id: uuid.UUID,
     body: ApprovalDecision,
 ) -> DocumentVersionOut:
-    stub("T3.5")
+    """Reject a version held for review (`document.publish`): its ingestion job is cancelled.
+    409 unless the version is pending approval."""
+    return await documents.decide_approval(
+        session, ctx, document_id, version_id, approve=False, reason=body.reason
+    )
 
 
 @router.get(
@@ -300,9 +374,9 @@ async def list_ingestion_jobs(
 
 @router.get("/ingestion-jobs/{job_id}", tags=["ingestion"], response_model=IngestionJobOut)
 async def get_ingestion_job(
-    org: OrgIdHeader, ctx: OrgContext, job_id: uuid.UUID
+    org: OrgIdHeader, ctx: OrgContext, session: DbSession, job_id: uuid.UUID
 ) -> IngestionJobOut:
-    stub("T2.4")
+    return await documents.get_ingestion_job(session, ctx, job_id)
 
 
 @router.get(

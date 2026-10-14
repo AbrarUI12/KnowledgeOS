@@ -84,6 +84,34 @@ class IdempotencyKeyReused(Conflict):
     )
 
 
+class FileTooLarge(AppError):
+    status_code, code, message = 413, "file_too_large", "The file exceeds the upload size limit."
+
+
+class UnsupportedFileType(ValidationFailed):
+    code, message = "unsupported_file_type", "This file type isn't supported."
+
+
+class SizeMismatch(ValidationFailed):
+    code, message = "size_mismatch", "The uploaded file's size doesn't match the declared size."
+
+
+class UploadNotReceived(Conflict):
+    code, message = "upload_not_received", "The file hasn't been uploaded to the presigned URL yet."
+
+
+class UploadExpired(Gone):
+    code, message = "upload_expired", "This upload has expired; start a new one."
+
+
+class KnowledgeBaseArchived(Conflict):
+    code, message = "kb_archived", "The knowledge base is archived."
+
+
+class InvalidPrincipal(ValidationFailed):
+    code, message = "invalid_principal", "An ACL principal doesn't belong to this organization."
+
+
 class InvitationExpired(Gone):
     code, message = "invitation_expired", "This invitation has expired."
 

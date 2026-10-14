@@ -99,6 +99,8 @@ _EXPECTED_MIME: dict[str, str] = {
     ".tif": "image/tiff",
     ".tiff": "image/tiff",
 }
+# Public allowlist (plan §5.3): the upload API rejects other extensions before presigning.
+SUPPORTED_EXTENSIONS: frozenset[str] = frozenset(_EXPECTED_MIME)
 _BLOCKED_EXTENSIONS = {
     ".bat",
     ".cmd",

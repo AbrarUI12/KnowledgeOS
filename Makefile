@@ -10,7 +10,7 @@ API_PORT ?= 8000
 WEB_PORT ?= 3000
 
 # openapi: regenerate packages/contracts/openapi.json (T1.0 contract)
-.PHONY: openapi help install lint format typecheck test test-unit test-int migrate migration api web hooks env up up-full down reset logs ps psql infra-check demo-corpus
+.PHONY: openapi help install lint format typecheck test test-unit test-int migrate migration api web hooks env up up-full down reset logs ps psql infra-check demo-corpus worker dispatcher
 
 help:
 	@echo "install    Install backend (uv) and frontend (pnpm) dependencies + git hooks"
@@ -105,6 +105,12 @@ ps:
 
 psql:
 	$(COMPOSE) exec postgres psql -U postgres -d knowledgeos
+
+worker: ## Celery worker in Docker (prefork doesn't run on Windows)
+	$(COMPOSE) --profile full up -d --build worker
+
+dispatcher: ## outbox dispatcher in Docker
+	$(COMPOSE) --profile full up -d --build dispatcher
 
 demo-corpus:
 	$(UV) run python ../../scripts/demo_corpus/generate.py

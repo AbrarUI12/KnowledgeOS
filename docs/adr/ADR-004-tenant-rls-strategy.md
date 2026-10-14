@@ -34,3 +34,14 @@ Rules:
 
 - **Application filters only** — rejected: one bug away from a leak.
 - **Schema or database per tenant** — rejected: migration/ops cost and poor fit for free hosting.
+
+## Dispatcher exception (Session 16, T3.1)
+
+The outbox dispatcher publishes events for every organization, so it is the one runtime component with cross-tenant access, scoped as narrowly as possible:
+
+- it connects as its own role, `knowledgeos_dispatcher` (`NOBYPASSRLS`, owns nothing), never as the app role;
+- its only grants are `SELECT, UPDATE` on `outbox_events`; every other table is permission-denied;
+- a dedicated policy `dispatcher_publish ON outbox_events TO knowledgeos_dispatcher USING (true)` makes all outbox rows visible to it (migration 0006);
+- events carry only IDs and safe metadata (no document content), and workers re-enter the tenant context (`tenant_session(org)`) before touching tenant data.
+
+`tests/test_ingestion_runner.py::test_dispatcher_role_can_only_touch_the_outbox` guards this.

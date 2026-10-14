@@ -13,11 +13,13 @@ WORKDIR /repo
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/
+COPY packages/contracts/package.json packages/contracts/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @knowledgeos/web
 
 FROM deps AS build
 COPY apps/web apps/web
+COPY packages/contracts packages/contracts
 RUN pnpm --filter @knowledgeos/web build
 
 FROM node:24-slim AS runner
