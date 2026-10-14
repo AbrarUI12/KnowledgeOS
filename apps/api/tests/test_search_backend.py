@@ -18,11 +18,13 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from app.db.session import create_engine, create_sessionmaker
+from app.db.tenant import tenant_session
 from app.domain.enums import IngestionState
 from app.ingestion.canonical import CanonicalDocument
 from app.ingestion.chunking.types import ChunkDraft
 from app.providers.search.base import HybridSearchRequest, QueryFilters, SearchScope
 from app.providers.search.postgres import PostgresSearchBackend, UnsupportedFilter
+from app.services.chunk_acl import sync_knowledge_base
 from tests.fakes import FakeChunker, FakeEmbeddingProvider
 from tests.test_ingestion_ops import join_as, upload_version
 from tests.test_ingestion_stages import (  # noqa: F401 (pytest fixtures)
@@ -184,7 +186,7 @@ async def corpus(world: World, admin: asyncpg.Connection) -> Corpus:
     )  # fmt: skip
 
     rows = await admin.fetch(
-        "SELECT c.id, c.organization_id, c.knowledge_base_id, c.is_parent, c.visibility, c.access_principals, "
+        "SELECT c.id, c.organization_id, c.knowledge_base_id, c.is_parent, c.visibility, c.access_principals, c.document_principals, "
         "c.index_generation_id = kb.active_index_generation_id AS active_generation, "
         "c.document_version_id = d.active_version_id AS active_version, "
         "d.status = 'active' AND d.archived_at IS NULL AND kb.archived_at IS NULL AS live "
@@ -291,6 +293,7 @@ def test_every_returned_chunk_satisfies_the_predicate(
         and not r["is_parent"]
         and r["visibility"] == "visible"
         and set(r["access_principals"]) & set(principals)
+        and (not r["document_principals"] or set(r["document_principals"]) & set(principals))
     }
 
     async def search() -> set[uuid.UUID]:
@@ -403,3 +406,28 @@ async def test_neighbors_are_adjacent_authorized_chunks(
     assert ids(await backend(corpus).neighbors(scope, second, before=1, after=0)) == {first}
     restricted = next(iter(corpus.restricted))
     assert await backend(corpus).neighbors(corpus.scope(corpus.bob), restricted) == []
+
+
+async def test_a_document_acl_narrows_search_results(
+    corpus: Corpus, admin: asyncpg.Connection
+) -> None:
+    """KB access alone isn't enough when the document has its own ACL (T4.2 two-token model)."""
+    hr_group = corpus.alice[-1].removeprefix("group:")
+    await admin.execute(
+        "INSERT INTO document_acl (organization_id, document_id, principal_type, principal_id, permission) "
+        "VALUES ($1, $2, 'group', $3, 'query')",
+        corpus.org, uuid.UUID(corpus.policy["document_id"]), hr_group,
+    )  # fmt: skip
+    async with tenant_session(corpus.world.app.state.sessionmaker, corpus.org) as session:
+        await sync_knowledge_base(session, corpus.org, corpus.hr_kb)
+    policy = uuid.UUID(corpus.policy["document_id"])
+
+    for_bob = await backend(corpus).hybrid_search(
+        await request(corpus, corpus.bob, "parental leave weeks")
+    )
+    for_alice = await backend(corpus).hybrid_search(
+        await request(corpus, corpus.alice, "parental leave weeks")
+    )
+
+    assert policy not in {h.candidate.document_id for h in for_bob.dense + for_bob.lexical}
+    assert policy in {h.candidate.document_id for h in for_alice.lexical}

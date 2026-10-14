@@ -2,8 +2,9 @@
 
 Every query starts from `_scoped()`, the single place that applies tenancy and authorization:
 organization, the allowed KBs (not archived), each KB's active index generation, each document's
-active version (not archived or deleted), child chunks that are visible, and
-`access_principals && caller tokens`. Those are WHERE clauses of the same SQL that ranks, so
+active version (not archived or deleted), child chunks that are visible, and the caller's tokens
+matching both the KB's (`access_principals`) and the document ACL's (`document_principals`, empty
+= inherits). Those are WHERE clauses of the same SQL that ranks, so
 nothing unauthorized is ever scored, let alone returned (no post-filtering). Each branch runs in
 its own transaction with the tenant context set, so RLS applies underneath as well.
 
@@ -126,6 +127,7 @@ def authorization_predicate(scope: SearchScope) -> list[ColumnElement[bool]]:
     scan that the HNSW/GIN indexes can drive and filter as they go. Used by every query of this
     backend through `_scoped`; there is no other way to read chunk rows here."""
     kbs = scope.knowledge_base_ids
+    tokens = cast(list(scope.principal_tokens), ARRAY(Text))
     active_generations = select(KnowledgeBase.active_index_generation_id).where(
         KnowledgeBase.id.in_(kbs),
         KnowledgeBase.organization_id == scope.organization_id,
@@ -146,7 +148,11 @@ def authorization_predicate(scope: SearchScope) -> list[ColumnElement[bool]]:
         Chunk.document_version_id.in_(active_versions),
         Chunk.is_parent.is_(False),
         Chunk.visibility == "visible",
-        Chunk.access_principals.overlap(cast(list(scope.principal_tokens), ARRAY(Text))),
+        Chunk.access_principals.overlap(tokens),
+        or_(
+            func.cardinality(Chunk.document_principals) == 0,
+            Chunk.document_principals.overlap(tokens),
+        ),
     ]
 
 
