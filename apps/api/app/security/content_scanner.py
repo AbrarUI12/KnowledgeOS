@@ -18,20 +18,28 @@ RULE_IDS = frozenset(
     {
         "injection.phrase",
         "injection.role_marker",
+        "injection.weak_phrase",
+        "injection.role_prefix",
         "unicode.invisible_density",
         "encoded.long_blob",
         "link.suspicious",
+        "link.private",
         "repetition.dominance",
         "content.type_mismatch",
     }
 )
 _ROLE = re.compile(
-    r"(?:^|\n)\s*(?:system|developer|assistant|user)\s*:|"
     r"\[/?(?:system|inst)\]|<\|(?:im_start|im_end|system|assistant|user|start_header_id)\|>|"
-    r"(?:^|\n)\s*#{1,6}\s*(?:instruction|system|developer)\b",
+    r"(?:^|\n)[ \t]*#{1,6}[ \t]*(?:instruction|system|developer)s?[ \t]*:?[ \t]*(?=\n|$)",
     re.IGNORECASE,
 )
-_URL = re.compile(r"(?:https?://|javascript\s*:|data\s*:)[^\s<>\"']*", re.IGNORECASE)
+_ROLE_PREFIX = re.compile(
+    r"(?:^|\n)[ \t]*(?:system|developer|assistant|user|agent)[ \t]*:", re.IGNORECASE
+)
+_URL = re.compile(
+    r"(?:\bhttps?://|\bjavascript\s*:|\bdata:[a-z]+/[\w.+-]+[;,])[^\s<>\"']*",
+    re.IGNORECASE,
+)
 _WORDS = re.compile(r"\w+", re.UNICODE)
 
 
@@ -53,6 +61,7 @@ class ScanPolicy(BaseModel):
     repetition_min_words: int = Field(ge=10)
     repetition_ngram_share: float = Field(gt=0, le=1)
     injection_phrases: tuple[str, ...] = Field(min_length=1)
+    weak_injection_phrases: tuple[str, ...] = Field(min_length=1)
     rules: dict[str, RulePolicy]
 
     @model_validator(mode="after")
@@ -61,7 +70,9 @@ class ScanPolicy(BaseModel):
             raise ValueError("scan thresholds must be strictly increasing")
         if self.rules.keys() != RULE_IDS:
             raise ValueError("all supported rules must be configured exactly once")
-        if any(not phrase.strip() for phrase in self.injection_phrases):
+        if any(
+            not phrase.strip() for phrase in (*self.injection_phrases, *self.weak_injection_phrases)
+        ):
             raise ValueError("empty injection phrases are not allowed")
         return self
 
@@ -69,7 +80,7 @@ class ScanPolicy(BaseModel):
 def default_policy_path() -> Path:
     # Both repository checkouts and the worker's /app/configs layout; never fall back to CLEAN
     # or a different policy when a deployment forgot its policy files.
-    for root in (Path.cwd(), *Path(__file__).resolve().parents):
+    for root in (*Path(__file__).resolve().parents, Path.cwd()):
         candidate = root / "configs" / "policies" / "content_scan.yaml"
         if candidate.is_file():
             return candidate
@@ -84,23 +95,27 @@ def detection_view(text: str) -> str:
     )
 
 
-def suspicious_link(url: str) -> bool:
+def link_rule(url: str) -> str | None:
     url = detection_view(url).strip()
-    if re.match(r"(?:javascript|data)\s*:", url):
-        return True
+    if re.match(r"(?:javascript\s*:|data:[a-z]+/[\w.+-]+[;,])", url):
+        return "link.suspicious"
     try:
         host = urlsplit(url).hostname
     except ValueError:
-        return True
+        return "link.suspicious"
     if not host:
-        return False
+        return None
     if any(label.startswith("xn--") for label in host.split(".")):
-        return True
+        return "link.suspicious"
     try:
-        ipaddress.ip_address(host)
+        address = ipaddress.ip_address(host)
     except ValueError:
-        return False
-    return True
+        return None
+    return (
+        "link.private"
+        if address.is_private or address.is_loopback or address.is_link_local
+        else "link.suspicious"
+    )
 
 
 class RuleContentScanner:
@@ -113,6 +128,9 @@ class RuleContentScanner:
             yaml.safe_load((policy_path or default_policy_path()).read_text(encoding="utf-8"))
         )
         self._phrases = tuple(detection_view(phrase) for phrase in self.policy.injection_phrases)
+        self._weak_phrases = tuple(
+            detection_view(phrase) for phrase in self.policy.weak_injection_phrases
+        )
         length = self.policy.encoded_min_length
         self._blob = re.compile(
             rf"(?<![\w+/])[A-Za-z0-9+/]{{{length},}}={{0,2}}(?![\w+/])|"
@@ -132,8 +150,12 @@ class RuleContentScanner:
             collapsed = " ".join(view.split())
             if any(phrase in collapsed for phrase in self._phrases):
                 record("injection.phrase", block_id)
+            if any(phrase in collapsed for phrase in self._weak_phrases):
+                record("injection.weak_phrase", block_id)
             if _ROLE.search(view):
                 record("injection.role_marker", block_id)
+            if _ROLE_PREFIX.search(view):
+                record("injection.role_prefix", block_id)
             present = sum(unicodedata.category(char) == "Cf" for char in raw)
             invisible = max(removed, present)
             if (
@@ -144,8 +166,9 @@ class RuleContentScanner:
                 record("unicode.invisible_density", block_id)
             if self._blob.search(view):
                 record("encoded.long_blob", block_id)
-            if any(suspicious_link(match.group()) for match in _URL.finditer(view)):
-                record("link.suspicious", block_id)
+            for match in _URL.finditer(view):
+                if rule := link_rule(match.group()):
+                    record(rule, block_id)
             if self._repetition(view):
                 record("repetition.dominance", block_id)
             return view
@@ -177,10 +200,10 @@ class RuleContentScanner:
                     record(rule, block.block_id)
         # HTML adapters retain hrefs as untrusted metadata; never fetch or resolve them.
         links = document.metadata.get("links", [])
-        if isinstance(links, list) and any(
-            isinstance(link, str) and suspicious_link(link) for link in links
-        ):
-            record("link.suspicious")
+        if isinstance(links, list):
+            for link in links:
+                if isinstance(link, str) and (link_detection := link_rule(link)):
+                    record(link_detection)
         flags = document.metadata.get("validation_flags", [])
         if isinstance(flags, (list, tuple)) and any(
             flag in {"mime_mismatch", "polyglot_content"} for flag in flags if isinstance(flag, str)

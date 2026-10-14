@@ -1,6 +1,6 @@
 # Defense in depth only: CLEAN never makes evidence trusted.
-version: "1"
-flagged_score: 1
+version: "2"
+flagged_score: 2
 quarantined_score: 8
 rejected_score: 16
 invisible_min_count: 3
@@ -11,7 +11,6 @@ repetition_ngram_share: 0.25
 injection_phrases:
   - ignore previous instructions
   - ignore all previous instructions
-  - you are now
   - ignora las instrucciones anteriores
   - ignorez les instructions précédentes
   - ignoriere vorherige anweisungen
@@ -19,11 +18,16 @@ injection_phrases:
   - игнорируй предыдущие инструкции
   - 忽略之前的指令
   - تجاهل التعليمات السابقة
+weak_injection_phrases:
+  - you are now
 rules:
   injection.phrase: {weight: 2, severity: 2}
   injection.role_marker: {weight: 3, severity: 3}
+  injection.weak_phrase: {weight: 1, severity: 1}
+  injection.role_prefix: {weight: 1, severity: 1}
   unicode.invisible_density: {weight: 3, severity: 3}
   encoded.long_blob: {weight: 3, severity: 3}
   link.suspicious: {weight: 4, severity: 4}
+  link.private: {weight: 1, severity: 1}
   repetition.dominance: {weight: 3, severity: 3}
   content.type_mismatch: {weight: 16, severity: 5}
