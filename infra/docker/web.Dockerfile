@@ -5,7 +5,7 @@
 #   docker build -f infra/docker/web.Dockerfile -t knowledgeos-web .
 # Build context: repository root.
 
-FROM node:24-slim AS base
+FROM node:26-slim AS base
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH NEXT_TELEMETRY_DISABLED=1
 RUN corepack enable
 WORKDIR /repo
@@ -22,7 +22,7 @@ COPY apps/web apps/web
 COPY packages/contracts packages/contracts
 RUN pnpm --filter @knowledgeos/web build
 
-FROM node:24-slim AS runner
+FROM node:26-slim AS runner
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 WORKDIR /srv
 RUN groupadd --gid 1001 web && useradd --uid 1001 --gid web --no-create-home web
