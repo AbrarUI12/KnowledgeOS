@@ -292,11 +292,16 @@ export interface paths {
         };
         /**
          * List Knowledge Bases
-         * @description KBs the caller may query (restricted KBs without an ACL match are invisible).
+         * @description Active KBs the caller may query or manage (restricted KBs without an ACL match are
+         *     invisible).
          */
         get: operations["knowledge_bases_list_knowledge_bases"];
         put?: never;
-        /** Create Knowledge Base */
+        /**
+         * Create Knowledge Base
+         * @description Create a KB (`kb.create`). The creator gets a `manage` ACL entry; an upload source is
+         *     created with it.
+         */
         post: operations["knowledge_bases_create_knowledge_base"];
         delete?: never;
         options?: never;
@@ -322,7 +327,10 @@ export interface paths {
         delete: operations["knowledge_bases_archive_knowledge_base"];
         options?: never;
         head?: never;
-        /** Update Knowledge Base */
+        /**
+         * Update Knowledge Base
+         * @description Update (`kb.manage` or a `manage` ACL entry). A visibility change emits `acl.changed`.
+         */
         patch: operations["knowledge_bases_update_knowledge_base"];
         trace?: never;
     };
@@ -388,8 +396,8 @@ export interface paths {
         get: operations["knowledge_bases_get_knowledge_base_permissions"];
         /**
          * Set Knowledge Base Permissions
-         * @description Replace the allow-only ACL (`kb.manage`). Emits `acl.changed`; chunks update
-         *     asynchronously.
+         * @description Replace the allow-only ACL (manage access). Principals must belong to the organization
+         *     (422 `invalid_principal`). Emits `acl.changed`; chunks update asynchronously.
          */
         put: operations["knowledge_bases_set_knowledge_base_permissions"];
         post?: never;
