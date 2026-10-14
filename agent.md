@@ -40,8 +40,8 @@
 
 ### Claude: architect · security/DB/integration · reviewer
 - **Worktree / ports:** `D:\projects\kos-claude` · API 8000 · web 3000
-- **Current task:** T3.6 (#34) PASS, waiting for the user's ADR-004 addendum approval; T4.2 in REVIEW (stacked on #34; live 1024-d check waits for Codex's T4.1 provider)
-- **Last finished:** T1.1 (#13), T1.2 (#23), CORS (#20), Pages showcase (#21); live at https://abrarui12.github.io/KnowledgeOS/
+- **Current task:** T4.2 in REVIEW (#38; live 1024-d check once Codex's T4.1 #36 merges); next T4.4 hybrid search (stacked on #38)
+- **Last finished:** T3.6 ingestion reliability (2026-10-14, #34, merge a09b48e; ADR-004 reconciler addendum approved by the user)
 - **Blockers:** none
 - **Recent:**
   - 2026-10-14 · T4.2 · migration 0010 (vector(1024) + HNSW, weighted tsvector per detected language, identifiers, access_principals, GIN/B-tree/trigram indexes); EMBEDDING (in-org reuse, exact-model guard, no fallback), INDEXING (full text + ACL tokens under a shared KB lock), VERIFYING (completeness + HNSW self-query); acl.changed sync + acl_propagated_at; index-generations API; Hypothesis ACL matrix
