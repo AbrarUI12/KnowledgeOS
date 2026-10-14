@@ -1,0 +1,466 @@
+# serializer version: 1
+# name: test_real_office_snapshot[acme_eng_architecture_slides.pptx-application/vnd.openxmlformats-officedocument.presentationml.presentation]
+  dict({
+    'blocks': list([
+      dict({
+        'bbox': list([
+        ]),
+        'block_id': 'aaba9115da1cb80754ec70373d4ceecec60daed8f7bc16f9e3664130b8e5e44b',
+        'extra': dict({
+        }),
+        'heading_level': 1,
+        'heading_path': list([
+        ]),
+        'language': None,
+        'ocr_confidence': None,
+        'page': None,
+        'raw_text': None,
+        'row_end': None,
+        'row_start': None,
+        'sheet': None,
+        'slide': 1,
+        'source_order': 0,
+        'table': None,
+        'text': 'Acme Corp Architecture Overview',
+        'type': 'heading',
+      }),
+      dict({
+        'bbox': list([
+        ]),
+        'block_id': '11a5fcf905f280ee5e110a44750f4cd3b13db10db1f9363909494a828a8e4db9',
+        'extra': dict({
+        }),
+        'heading_level': None,
+        'heading_path': list([
+          'Acme Corp Architecture Overview',
+        ]),
+        'language': None,
+        'ocr_confidence': None,
+        'page': None,
+        'raw_text': None,
+        'row_end': None,
+        'row_start': None,
+        'sheet': None,
+        'slide': 1,
+        'source_order': 1,
+        'table': None,
+        'text': 'Demo Corpus',
+        'type': 'paragraph',
+      }),
+      dict({
+        'bbox': list([
+        ]),
+        'block_id': '051bc48b59d2f2d0e182d6b17329cd5702c0438fe5cdf3acedb269348aaa3160',
+        'extra': dict({
+        }),
+        'heading_level': 1,
+        'heading_path': list([
+        ]),
+        'language': None,
+        'ocr_confidence': None,
+        'page': None,
+        'raw_text': None,
+        'row_end': None,
+        'row_start': None,
+        'sheet': None,
+        'slide': 2,
+        'source_order': 2,
+        'table': None,
+        'text': 'System Overview',
+        'type': 'heading',
+      }),
+      dict({
+        'bbox': list([
+        ]),
+        'block_id': '92c410057484f52ccb0e0e3af8141f3dea01720b60e79e1f7a8d103c6de8c15c',
+        'extra': dict({
+        }),
+        'heading_level': None,
+        'heading_path': list([
+          'System Overview',
+        ]),
+        'language': None,
+        'ocr_confidence': None,
+        'page': None,
+        'raw_text': None,
+        'row_end': None,
+        'row_start': None,
+        'sheet': None,
+        'slide': 2,
+        'source_order': 3,
+        'table': None,
+        'text': '''
+          Multi-tenant SaaS platform
+          Microservices architecture
+          Cloud-native deployment
+        ''',
+        'type': 'paragraph',
+      }),
+      dict({
+        'bbox': list([
+        ]),
+        'block_id': '565724b25652943eab9e5788d5a149ed1aa14e22333907c12d22812c279316d1',
+        'extra': dict({
+        }),
+        'heading_level': 1,
+        'heading_path': list([
+        ]),
+        'language': None,
+        'ocr_confidence': None,
+        'page': None,
+        'raw_text': None,
+        'row_end': None,
+        'row_start': None,
+        'sheet': None,
+        'slide': 3,
+        'source_order': 4,
+        'table': None,
+        'text': 'Data Flow',
+        'type': 'heading',
+      }),
+      dict({
+        'bbox': list([
+        ]),
+        'block_id': 'b47c2805b2d2715863a0feeb74287166b3f85eff0b5103d89030417832ab98da',
+        'extra': dict({
+        }),
+        'heading_level': None,
+        'heading_path': list([
+          'Data Flow',
+        ]),
+        'language': None,
+        'ocr_confidence': None,
+        'page': None,
+        'raw_text': None,
+        'row_end': None,
+        'row_start': None,
+        'sheet': None,
+        'slide': 3,
+        'source_order': 5,
+        'table': None,
+        'text': '''
+          Ingestion pipeline processes documents
+          Embedding and indexing in vector store
+          Query-time retrieval with RRF fusion
+        ''',
+        'type': 'paragraph',
+      }),
+    ]),
+    'languages': list([
+    ]),
+    'metadata': dict({
+      'slide_count': 3,
+    }),
+    'mime_type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'normalization_version': None,
+    'page_count': None,
+    'parser_name': 'office',
+    'parser_version': '1',
+    'schema_version': 1,
+    'title': 'acme_eng_architecture_slides',
+    'warnings': list([
+    ]),
+  })
+# ---
+# name: test_real_office_snapshot[acme_eng_metrics.csv-text/csv]
+  dict({
+    'blocks': list([
+      dict({
+        'bbox': list([
+        ]),
+        'block_id': '895a9c5da33c9cdfbbaeffbb680e894fe2b09b5d2c099d230b89b5b8f987c44a',
+        'extra': dict({
+        }),
+        'heading_level': None,
+        'heading_path': list([
+        ]),
+        'language': None,
+        'ocr_confidence': None,
+        'page': None,
+        'raw_text': None,
+        'row_end': 3,
+        'row_start': 2,
+        'sheet': 'CSV',
+        'slide': None,
+        'source_order': 0,
+        'table': dict({
+          'header': list([
+            'Service Metrics',
+          ]),
+          'rows': list([
+            list([
+              'Service',
+              'Uptime %',
+              'Avg Response (ms)',
+              'Error Rate %',
+            ]),
+            list([
+              'api',
+              '99.95',
+              '45',
+              '0.02',
+            ]),
+          ]),
+        }),
+        'text': '''
+          Service Metrics
+          Service | Uptime % | Avg Response (ms) | Error Rate %
+          api | 99.95 | 45 | 0.02
+        ''',
+        'type': 'table',
+      }),
+      dict({
+        'bbox': list([
+        ]),
+        'block_id': '8c21a089a49457f2824ddc2bdd2d9953ce6e6dfe49c214a29ef95d30fd012e8f',
+        'extra': dict({
+        }),
+        'heading_level': None,
+        'heading_path': list([
+        ]),
+        'language': None,
+        'ocr_confidence': None,
+        'page': None,
+        'raw_text': None,
+        'row_end': 5,
+        'row_start': 4,
+        'sheet': 'CSV',
+        'slide': None,
+        'source_order': 1,
+        'table': dict({
+          'header': list([
+            'Service Metrics',
+          ]),
+          'rows': list([
+            list([
+              'web',
+              '99.90',
+              '120',
+              '0.05',
+            ]),
+            list([
+              'worker',
+              '99.85',
+              '200',
+              '0.08',
+            ]),
+          ]),
+        }),
+        'text': '''
+          Service Metrics
+          web | 99.90 | 120 | 0.05
+          worker | 99.85 | 200 | 0.08
+        ''',
+        'type': 'table',
+      }),
+    ]),
+    'languages': list([
+    ]),
+    'metadata': dict({
+      'tabular_rag_not_analytics': True,
+    }),
+    'mime_type': 'text/csv',
+    'normalization_version': None,
+    'page_count': None,
+    'parser_name': 'office',
+    'parser_version': '1',
+    'schema_version': 1,
+    'title': 'acme_eng_metrics',
+    'warnings': list([
+    ]),
+  })
+# ---
+# name: test_real_office_snapshot[acme_eng_team_metrics.xlsx-application/vnd.openxmlformats-officedocument.spreadsheetml.sheet]
+  dict({
+    'blocks': list([
+      dict({
+        'bbox': list([
+        ]),
+        'block_id': '1dce8b9481593e164f87b7e6f811fc3ed60a9d5df63b63c0f3a392a350c13829',
+        'extra': dict({
+        }),
+        'heading_level': None,
+        'heading_path': list([
+        ]),
+        'language': None,
+        'ocr_confidence': None,
+        'page': None,
+        'raw_text': None,
+        'row_end': 3,
+        'row_start': 2,
+        'sheet': 'Sprint Velocity',
+        'slide': None,
+        'source_order': 0,
+        'table': dict({
+          'header': list([
+            'Sprint',
+            'Story Points Planned',
+            'Story Points Completed',
+            'Velocity',
+          ]),
+          'rows': list([
+            list([
+              'Sprint 41',
+              '45',
+              '42',
+              '0.93',
+            ]),
+            list([
+              'Sprint 42',
+              '48',
+              '50',
+              '1.04',
+            ]),
+          ]),
+        }),
+        'text': '''
+          Sprint | Story Points Planned | Story Points Completed | Velocity
+          Sprint 41 | 45 | 42 | 0.93
+          Sprint 42 | 48 | 50 | 1.04
+        ''',
+        'type': 'table',
+      }),
+      dict({
+        'bbox': list([
+        ]),
+        'block_id': '8743004f81ac042280bc6a91be3c818d536cbb7b189184adbf689f8ea6fc10c6',
+        'extra': dict({
+        }),
+        'heading_level': None,
+        'heading_path': list([
+        ]),
+        'language': None,
+        'ocr_confidence': None,
+        'page': None,
+        'raw_text': None,
+        'row_end': 4,
+        'row_start': 4,
+        'sheet': 'Sprint Velocity',
+        'slide': None,
+        'source_order': 1,
+        'table': dict({
+          'header': list([
+            'Sprint',
+            'Story Points Planned',
+            'Story Points Completed',
+            'Velocity',
+          ]),
+          'rows': list([
+            list([
+              'Sprint 43',
+              '50',
+              '48',
+              '0.96',
+            ]),
+          ]),
+        }),
+        'text': '''
+          Sprint | Story Points Planned | Story Points Completed | Velocity
+          Sprint 43 | 50 | 48 | 0.96
+        ''',
+        'type': 'table',
+      }),
+      dict({
+        'bbox': list([
+        ]),
+        'block_id': 'd8f472addb55caad8cc5c41c36966f0ad78e3c70bf863fb55169043ef14142ed',
+        'extra': dict({
+        }),
+        'heading_level': None,
+        'heading_path': list([
+        ]),
+        'language': None,
+        'ocr_confidence': None,
+        'page': None,
+        'raw_text': None,
+        'row_end': 3,
+        'row_start': 2,
+        'sheet': 'Deployment Frequency',
+        'slide': None,
+        'source_order': 2,
+        'table': dict({
+          'header': list([
+            'Week',
+            'Deployments',
+            'Failed Deployments',
+            'Lead Time (hrs)',
+          ]),
+          'rows': list([
+            list([
+              'Week 1',
+              '12',
+              '0',
+              '2.5',
+            ]),
+            list([
+              'Week 2',
+              '15',
+              '1',
+              '3.1',
+            ]),
+          ]),
+        }),
+        'text': '''
+          Week | Deployments | Failed Deployments | Lead Time (hrs)
+          Week 1 | 12 | 0 | 2.5
+          Week 2 | 15 | 1 | 3.1
+        ''',
+        'type': 'table',
+      }),
+      dict({
+        'bbox': list([
+        ]),
+        'block_id': '0ffefa67b061245447f28c7f0c6c331488a53276bfca0e390d403934c35a89ef',
+        'extra': dict({
+        }),
+        'heading_level': None,
+        'heading_path': list([
+        ]),
+        'language': None,
+        'ocr_confidence': None,
+        'page': None,
+        'raw_text': None,
+        'row_end': 4,
+        'row_start': 4,
+        'sheet': 'Deployment Frequency',
+        'slide': None,
+        'source_order': 3,
+        'table': dict({
+          'header': list([
+            'Week',
+            'Deployments',
+            'Failed Deployments',
+            'Lead Time (hrs)',
+          ]),
+          'rows': list([
+            list([
+              'Week 3',
+              '14',
+              '0',
+              '2.8',
+            ]),
+          ]),
+        }),
+        'text': '''
+          Week | Deployments | Failed Deployments | Lead Time (hrs)
+          Week 3 | 14 | 0 | 2.8
+        ''',
+        'type': 'table',
+      }),
+    ]),
+    'languages': list([
+    ]),
+    'metadata': dict({
+      'tabular_rag_not_analytics': True,
+    }),
+    'mime_type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'normalization_version': None,
+    'page_count': None,
+    'parser_name': 'office',
+    'parser_version': '1',
+    'schema_version': 1,
+    'title': 'acme_eng_team_metrics',
+    'warnings': list([
+    ]),
+  })
+# ---

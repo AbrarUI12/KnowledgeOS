@@ -1,0 +1,54 @@
+# serializer version: 1
+# name: test_real_ocr_snapshot[application/pdf]
+  dict({
+    'blocks': list([
+      dict({
+        'heading_path': list([
+        ]),
+        'ocr': True,
+        'page': 1,
+        'source_order': 0,
+        'text': 'Acme employee policy',
+        'type': 'image_text',
+      }),
+      dict({
+        'heading_path': list([
+        ]),
+        'ocr': True,
+        'page': 1,
+        'source_order': 1,
+        'text': 'Paid parental leave is sixteen weeks.',
+        'type': 'image_text',
+      }),
+    ]),
+    'page_count': 1,
+    'title': 'scan',
+  })
+# ---
+# name: test_real_ocr_snapshot[image/png]
+  dict({
+    'blocks': list([
+      dict({
+        'heading_path': list([
+        ]),
+        'ocr': True,
+        'page': 1,
+        'source_order': 0,
+        'text': 'Acme employee policy',
+        'type': 'heading',
+      }),
+      dict({
+        'heading_path': list([
+          'Acme employee policy',
+        ]),
+        'ocr': True,
+        'page': 1,
+        'source_order': 1,
+        'text': 'Paid parental leave is sixteen weeks.',
+        'type': 'image_text',
+      }),
+    ]),
+    'page_count': 1,
+    'title': 'Acme employee policy',
+  })
+# ---
