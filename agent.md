@@ -58,7 +58,7 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T5.1 draft #37: packer, aliases, bounded ONNX encoder and explicit degradation implemented; 20 targeted tests and strict types pass. Compatible ONNX dependencies resolved; real Qwen regression passes. Real ONNX/int8 preparation, CPU latency and full/parser checks pending. T3.4 #35 review fixes green (508 backend / 105 frontend); #38 worker-config HIGH open.
+- **Current task:** T5.1 draft #37: packer/aliases/bounded encoder complete; 21 targeted tests, lint and types pass. Real ONNX/int8 export and relevance verified; CPU medians 1.819 s (20) / 2.484 s (30), I-003 remains open. Full/parser checks running with compatible dependencies. T3.4 #35 review fixes green; #38 worker-config HIGH open.
 - **Last finished:** T4.1 #36 merged (a25389f): real Qwen CPU 1024-d verified. T3.3 #28 (6e725fb), T3.2 #26 (0c1f49f), T1.4 #17 (961cb0a) also merged.
 - **Blockers:** none
 - **Recent:**
@@ -582,7 +582,7 @@ A gate is passed only when **every** exit criterion in `session.md` → *Gates &
 |---|---|---|---|---|---|
 | I-001 | Risk | Free-tier limits change. Re-verify HF Spaces, Neon, Groq, Gemini, B2 and Auth0 terms before deploying | 00 | – | Open, revisit in S32 and S60 |
 | I-002 | Risk | Developer laptop RAM: the full Compose stack (Postgres, Redis, MinIO, Keycloak, ClamAV, worker with models) may need 10+ GB. Use the `core` profile when RAM is tight. **Measured S02:** Docker has 7.4 GB; Keycloak ≈ 1.8 GB, ClamAV ≈ 1.9 GB, the others < 100 MB each; another local project (`retailops-bd`) uses ≈ 1.5 GB. Stop ClamAV (`docker compose stop clamav`) and other projects when running workers/Ollama | 00 | – | Open (measured), revisit in S16/S22 |
-| I-003 | Risk | CPU-only reranking may miss the plan's retrieval P95 < 500 ms target. Measure, then tune (ONNX int8, fewer candidates) or revise the target with evidence | 00 | – | Open, revisit in S27 and S58 |
+| I-003 | Risk | CPU-only reranking exceeds the retrieval 500 ms target: S27 real BGE ONNX AVX2 int8, CPU 2 threads/batch 8/max length 512, warmed short synthetic passages; medians 1819.07 ms (20 candidates) / 2484.31 ms (30), three samples each. Not a P95 or production-length benchmark; longer chunks need separate measurement. Explicit timeout/degraded mode remains required; tune candidate count or revisit the target with evidence | 00 | – | Open, measured in T5.1 #37; revisit S58 |
 | I-005 | Tech debt | Dependabot opened major-version PRs #2–#6 (Redis 8, Node 25 image, ESLint 10, TypeScript 7, @types/node 26). Not merged: review deliberately. Node 25 is not LTS (keep Node 24); @types/node should track Node 24; TS 7 / ESLint 10 need compatibility checks with Next 16 | 05 | – | Open |
 | I-004 | Risk | Windows MAX_PATH: `next typegen` fails when the repo sits in a very deep folder. Keep the clone at a short path such as `D:\projects\KnowledgeOS` | 01 | – | Open (workaround documented) |
 

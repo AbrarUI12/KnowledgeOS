@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 from threading import Event
 from typing import TYPE_CHECKING, Any, cast
 
@@ -114,3 +115,13 @@ def test_configuration_cannot_silently_choose_a_different_backend() -> None:
         local.CrossEncoderReranker(device="cuda")
     with pytest.raises(ValueError, match="finite"):
         local.CrossEncoderReranker(timeout_seconds=float("nan"))
+
+
+def test_preparation_refuses_to_overwrite_existing_artifacts(tmp_path: Path) -> None:
+    from app.providers.rerankers.prepare import prepare_model
+
+    artifact = tmp_path / "model.onnx"
+    artifact.write_bytes(b"existing model artifact")
+    with pytest.raises(ValueError, match="must be empty"):
+        prepare_model(model_id="BAAI/bge-reranker-v2-m3", cache_folder=None, output=tmp_path)
+    assert artifact.read_bytes() == b"existing model artifact"
