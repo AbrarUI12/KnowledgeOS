@@ -474,7 +474,9 @@ export interface paths {
         put?: never;
         /**
          * Search Knowledge Base
-         * @description Authorized hybrid search without generation (`query.execute`).
+         * @description Authorized hybrid search without generation (`query.execute`). 404 if the KB isn't
+         *     visible, 403 if it's visible but its content isn't readable. `debug=true` (needs
+         *     `retrieval.debug`) adds the run's branch ranks and scores.
          */
         post: operations["search_search_knowledge_base"];
         delete?: never;
@@ -699,7 +701,8 @@ export interface paths {
         };
         /**
          * Get Query Run
-         * @description Run summary; the `debug` section is included only with `retrieval.debug`.
+         * @description Run summary for the person who ran it; anyone else gets 404 unless they hold
+         *     `retrieval.debug`, which also adds the `debug` section (hits the viewer can't read hidden).
          */
         get: operations["query_runs_get_query_run"];
         put?: never;
@@ -738,7 +741,7 @@ export interface paths {
         put?: never;
         /**
          * Search
-         * @description Hybrid search across several KBs the caller may query.
+         * @description Hybrid search across several KBs the caller may query (each checked as above).
          */
         post: operations["search_search"];
         delete?: never;
@@ -1670,8 +1673,18 @@ export interface components {
             generation_model: string | null;
             /** Hits */
             hits: components["schemas"]["DebugHit"][];
-            /** Index Generation Id */
-            index_generation_id: string | null;
+            /**
+             * Index Generation Id
+             * @description Set when the run searched exactly one knowledge base
+             */
+            index_generation_id?: string | null;
+            /**
+             * Index Generation Ids
+             * @description Knowledge base id → the active generation searched
+             */
+            index_generation_ids?: {
+                [key: string]: string;
+            };
             /**
              * Principal Summary
              * @description e.g. '3 groups, role member'. Never lists unauthorized documents
@@ -1700,9 +1713,11 @@ export interface components {
             id: string;
             /**
              * Knowledge Base Id
-             * Format: uuid
+             * @description Set when the run searched exactly one knowledge base
              */
-            knowledge_base_id: string;
+            knowledge_base_id?: string | null;
+            /** Knowledge Base Ids */
+            knowledge_base_ids?: string[];
             /** Query Type */
             query_type?: string | null;
             /** Status */
@@ -1799,6 +1814,8 @@ export interface components {
         };
         /** SearchResponse */
         SearchResponse: {
+            /** @description Only with debug=true (retrieval.debug); same as the query run's */
+            debug?: components["schemas"]["QueryRunDebug"] | null;
             /**
              * Degraded
              * @default false

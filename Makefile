@@ -10,7 +10,7 @@ API_PORT ?= 8000
 WEB_PORT ?= 3000
 
 # openapi: regenerate packages/contracts/openapi.json (T1.0 contract)
-.PHONY: openapi help install lint format typecheck test test-unit test-int migrate migration api web hooks env up up-full down reset logs ps psql infra-check demo-corpus worker dispatcher
+.PHONY: openapi help install lint format typecheck test test-unit test-int migrate migration api web hooks env up up-full down reset logs ps psql infra-check demo-corpus worker dispatcher seed gate-g4
 
 help:
 	@echo "install    Install backend (uv) and frontend (pnpm) dependencies + git hooks"
@@ -111,6 +111,12 @@ worker: ## Celery worker in Docker (prefork doesn't run on Windows)
 
 dispatcher: ## outbox dispatcher in Docker
 	$(COMPOSE) --profile full up -d --build dispatcher
+
+seed: ## Seed the demo orgs, people, KBs and corpus through the running local API (S25)
+	$(UV) run python ../../scripts/seed_demo.py --wait
+
+gate-g4: ## Gate G4: full demo corpus with real parsers and Qwen3, searched through the API
+	KOS_GATE=1 $(UV) run pytest -m gate tests/test_gate_g4.py -v
 
 demo-corpus:
 	$(UV) run python ../../scripts/demo_corpus/generate.py
