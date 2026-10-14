@@ -364,3 +364,14 @@ def test_invalid_configuration_and_missing_model_do_not_fallback(tmp_path: Path)
         ModelTokenizer("missing", tokenizer_file=tmp_path / "missing.json").count("policy")
     with pytest.raises(ValueError, match="tokenizer model"):
         StructureAwareChunker(tokenizer=ModelTokenizer("other-model"))
+
+
+def test_independently_loaded_tokenizers_produce_identical_provenance(
+    tokenizer: ModelTokenizer,
+) -> None:
+    other = ModelTokenizer(tokenizer.model, tokenizer_file=tokenizer.tokenizer_file)
+    assert tokenizer.fingerprint == other.fingerprint
+    source = document([block(0, "Unicode café policy: 16 weeks.")])
+    assert StructureAwareChunker(config(), tokenizer=tokenizer).chunk(
+        source
+    ) == StructureAwareChunker(config(), tokenizer=other).chunk(source)

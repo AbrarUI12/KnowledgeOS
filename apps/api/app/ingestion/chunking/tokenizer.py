@@ -1,6 +1,7 @@
 """Embedding-model tokenization, without decoding/replacing source Unicode."""
 
 import hashlib
+import json
 from pathlib import Path
 
 from tokenizers import Tokenizer
@@ -35,5 +36,8 @@ class ModelTokenizer:
     @property
     def fingerprint(self) -> str:
         if self._fingerprint is None:
-            self._fingerprint = hashlib.sha256(self.backend.to_str().encode()).hexdigest()
+            canonical = json.dumps(
+                json.loads(self.backend.to_str()), sort_keys=True, separators=(",", ":")
+            )
+            self._fingerprint = hashlib.sha256(canonical.encode()).hexdigest()
         return self._fingerprint
