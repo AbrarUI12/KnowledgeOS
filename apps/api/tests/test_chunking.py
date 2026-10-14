@@ -324,6 +324,39 @@ def test_unsplittable_multiline_table_cell_keeps_original_text(tokenizer: ModelT
     assert "unsplittable_table_layout" in children[0].metadata["warnings"]
 
 
+@pytest.mark.parametrize("heading_size", [70, 100])
+def test_large_heading_does_not_fragment_entire_body_into_tiny_chunks(
+    heading_size: int, tokenizer: ModelTokenizer
+) -> None:
+    heading = "H" * heading_size
+    source = document(
+        [block(0, heading, BlockType.HEADING), block(1, "b" * 500, heading_path=[heading])]
+    )
+    children = [
+        c
+        for c in StructureAwareChunker(config(), tokenizer=tokenizer).chunk(source)
+        if not c.is_parent
+    ]
+    assert len(children) <= 10
+    assert all(c.token_count <= 80 for c in children[1:])
+    assert children[0].metadata["unsplittable"] == (heading_size == 100)
+
+
+def test_oversized_header_is_not_amplified_for_every_row(tokenizer: ModelTokenizer) -> None:
+    header = ["H" * 100]
+    rows = [[str(n)] for n in range(30)]
+    text = "\n".join(" | ".join(row) for row in [header, *rows])
+    source = document([block(0, text, BlockType.TABLE, table=TableData(header=header, rows=rows))])
+    children = [
+        c
+        for c in StructureAwareChunker(config(), tokenizer=tokenizer).chunk(source)
+        if not c.is_parent
+    ]
+    assert len(children) == 1
+    assert children[0].content == text
+    assert "unsplittable_table_header" in children[0].metadata["warnings"]
+
+
 def test_invalid_configuration_and_missing_model_do_not_fallback(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="overlap"):
         StructureAwareChunker(ChunkerConfig(overlap_tokens=600))

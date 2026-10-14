@@ -2,6 +2,7 @@
 
 import hashlib
 import re
+from bisect import bisect_right
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -87,38 +88,47 @@ def prose_units(
     overlap: int,
     minimum: int,
     recursive: bool,
+    following_budget: int | None = None,
 ) -> list[Unit]:
     result = []
     start = 0
+    all_offsets = tokenizer.offsets(block.text)
     while start < len(block.text):
-        remaining = block.text[start:]
-        offsets = tokenizer.offsets(remaining)
-        if len(offsets) <= budget:
+        active_budget = (following_budget or budget) if result else budget
+        active_overlap = min(overlap, active_budget // 3)
+        first = bisect_right(all_offsets, start, key=lambda pair: pair[1])
+        remaining_tokens = len(all_offsets) - first
+        if remaining_tokens <= active_budget:
             end = len(block.text)
         else:
             # Avoid a tiny final child where a balanced cut is possible.
-            cut = min(budget, max(1, len(offsets) - minimum + overlap))
-            end = start + max(stop for _, stop in offsets[:cut])
-            while end > start + 1 and tokenizer.count(block.text[start:end]) > budget:
-                end -= 1
-            end = max(start + 1, end)
+            cut = min(
+                active_budget,
+                max(1, remaining_tokens - min(minimum, active_budget) + active_overlap),
+            )
+            end = max(start + 1, max(stop for _, stop in all_offsets[first : first + cut]))
             if recursive:
                 for separator in ("\n\n", "\n", ". ", " "):
                     boundary = block.text.rfind(separator, start + (end - start) // 2, end)
                     if boundary >= 0:
                         end = boundary + len(separator)
                         break
+        while end > start + 1 and tokenizer.count(block.text[start:end]) > active_budget:
+            end -= 1
         text = block.text[start:end]
-        warnings = ["unsplittable_character"] if tokenizer.count(text) > budget else []
+        warnings = ["unsplittable_character"] if tokenizer.count(text) > active_budget else []
         result.append(Unit(text, [Span(block, start, end)], block.type, True, warnings))
         if end == len(block.text):
             break
         next_start = end
-        if overlap:
+        if active_overlap:
             tail = tokenizer.offsets(text)
             if tail:
-                next_start = start + tail[max(0, len(tail) - overlap)][0]
-                while next_start < end and tokenizer.count(block.text[next_start:end]) > overlap:
+                next_start = start + tail[max(0, len(tail) - active_overlap)][0]
+                while (
+                    next_start < end
+                    and tokenizer.count(block.text[next_start:end]) > active_overlap
+                ):
                     next_start += 1
         # A multi-token Unicode scalar cannot be split. Always advance by a full character.
         start = max(start + 1, next_start)
@@ -144,6 +154,16 @@ def structural_units(block: Block, tokenizer: TextTokenizer, budget: int) -> lis
             ]
         if block.table.header:
             header = " | ".join(block.table.header) + ("\n" if block.table.rows else "")
+        if header and tokenizer.count(header) >= budget:
+            return [
+                Unit(
+                    block.text,
+                    [Span(block, 0, len(block.text))],
+                    block.type,
+                    True,
+                    ["unsplittable_table_header"],
+                )
+            ]
     lines = block.text[len(header) :].splitlines(keepends=True)
     result: list[Unit] = []
     start = len(header)
@@ -208,7 +228,11 @@ def child_units(
             heads.append(Unit(block.text, [Span(block, 0, len(block.text))], block.type))
             continue
         reserve = tokenizer.count(join_units(heads).text) + 2 if heads else 0
-        budget = max(1, config.target_tokens - reserve)
+        budget = config.target_tokens - reserve
+        if budget <= 0:
+            # An oversized heading is an explicit first-child exception; it must not force
+            # every subsequent body fragment into a one-character chunk.
+            budget = config.target_tokens
         if block.type in STRUCTURAL:
             units = structural_units(block, tokenizer, budget)
         elif tokenizer.count(block.text) > budget:
@@ -216,9 +240,10 @@ def child_units(
                 block,
                 tokenizer,
                 budget,
-                min(config.overlap_tokens, budget // 3),
-                min(config.min_tokens, budget),
+                config.overlap_tokens,
+                config.min_tokens,
                 recursive,
+                following_budget=config.target_tokens,
             )
         else:
             units = [Unit(block.text, [Span(block, 0, len(block.text))], block.type)]
