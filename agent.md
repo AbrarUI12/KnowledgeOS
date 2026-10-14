@@ -58,8 +58,8 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T4.1 #36 ready: lazy Qwen local encoder, bounded compatible HTTP adapter, deterministic fake and downloader. Real CPU 1024-d inference verified; 426 backend / 105 frontend / nine snapshots and all lint/types green. T3.4 (#35) ready; next T5.1/T5.2. #34 latest re-review PASS; user ADR approval still required.
-- **Last finished:** T3.3 parsers/normalization (#28, merge 6e725fb); T3.4 implementation (#35) in review. T3.2 (#26, 0c1f49f) and T1.4 (#17, 961cb0a) also merged.
+- **Current task:** T5.1 draft #37 next. T3.4 #35 HIGH scanner fixes verified: 508 backend / 105 frontend / nine snapshots and required lint/types green (three existing platform/opt-in skips); 16-file corpus correct. Re-review requested. #38 reviewed (16 tests), one HIGH worker-config finding remains open; #34 merged after user approval.
+- **Last finished:** T4.1 #36 merged (a25389f): real Qwen CPU 1024-d inference, 426 backend / 105 frontend / nine snapshots and required checks green. T3.3 #28 (6e725fb), T3.2 #26 (0c1f49f), T1.4 #17 (961cb0a) merged.
 - **Blockers:** none
 - **Recent:**
   - 2026-10-12 · T2.2 · S3/MinIO/B2 + in-memory ObjectStore providers and safe key helpers; explicit S3 timeouts/retries · PR #14 (merged)
