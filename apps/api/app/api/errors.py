@@ -112,6 +112,10 @@ class InvalidPrincipal(ValidationFailed):
     code, message = "invalid_principal", "An ACL principal doesn't belong to this organization."
 
 
+class UnsupportedSearchFilter(ValidationFailed):
+    code, message = "unsupported_filter", "That search filter isn't available yet."
+
+
 class InvitationExpired(Gone):
     code, message = "invitation_expired", "This invitation has expired."
 

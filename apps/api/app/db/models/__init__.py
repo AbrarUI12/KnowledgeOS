@@ -28,6 +28,7 @@ from app.db.models.knowledge import (
     SourceObject,
     Upload,
 )
+from app.db.models.retrieval import QueryRun, RetrievalHit
 
 __all__ = [
     "ApiKey",
@@ -49,6 +50,8 @@ __all__ = [
     "Membership",
     "Organization",
     "OutboxEvent",
+    "QueryRun",
+    "RetrievalHit",
     "Role",
     "RolePermission",
     "SourceObject",

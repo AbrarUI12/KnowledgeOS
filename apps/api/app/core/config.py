@@ -140,6 +140,11 @@ class Settings(BaseSettings):
     embedding_api_key: SecretStr | None = None
     embedding_is_external: bool = False  # True if text leaves the deployment (model policy)
 
+    # Search (T4.6). Query runs always store a hash of the normalized query; its text only when
+    # retention allows (plan §7.8). Off by default: privacy first.
+    retain_query_text: bool = False
+    search_max_candidates: int = Field(default=50, ge=1, le=500)
+
     # Uploads (T2.4)
     upload_max_bytes: int = Field(default=50 * 1024 * 1024, gt=0)
     upload_url_ttl_seconds: int = Field(default=900, ge=60, le=3600)

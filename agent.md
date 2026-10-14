@@ -40,7 +40,7 @@
 
 ### Claude: architect · security/DB/integration · reviewer
 - **Worktree / ports:** `D:\projects\kos-claude` · API 8000 · web 3000
-- **Current task:** T4.2 (#38) and T4.4 (stacked on #38) in REVIEW; next T4.6 search API + seed loader + debug API
+- **Current task:** T4.2 (#38), T4.4 (#39) and T4.6 (stacked on #39) in REVIEW; G4 gate script ready (`make gate-g4`)
 - **Last finished:** T3.6 ingestion reliability (2026-10-14, #34, merge a09b48e; ADR-004 reconciler addendum approved by the user)
 - **Blockers:** none
 - **Recent:**
@@ -195,7 +195,17 @@ docker build -f infra/docker/web.Dockerfile -t knowledgeos-web:dev .            
 - Note: the frontend typecheck runs `next typegen` first, because Next 16 generates global types such as `LayoutProps` into `.next/`.
 
 ### 4.6 Seed demo data
-*(filled in Session 25)*
+Everything is created through the public API, exactly as a client would, so the stack must be up:
+```bash
+make up-full && make migrate          # stack incl. workers (ingestion) and ClamAV
+make api                              # in another terminal (API on :8000)
+make demo-corpus                      # (re)generate the synthetic files, if needed
+make seed                             # orgs, people, groups, KBs + all 16 documents; waits for ingestion
+```
+Result: **Acme Corp** (Alice owner, Bob member, Hana knowledge manager in the *HR* group; KBs HR, Support,
+Engineering, Compliance, plus **HR Confidential**, restricted to *HR*) and **Globex** (Carol owner; HR,
+Support). The seed is idempotent: run it again after a partial failure. The poisoned engineering note waits
+in the approval queue by design. Gate check over the same corpus with real models: `make gate-g4`.
 
 ### 4.7 Run evaluations
 *(filled in Sessions 38–41)*
@@ -620,5 +630,6 @@ All deviations (DV-001…) now live in **[`docs/DECISIONS.md`](docs/DECISIONS.md
 | Workers (Celery) | Dispatcher DB role URL, broker, lease/retry tuning | `DISPATCHER_DATABASE_URL`, `CELERY_BROKER_URL` (defaults to `REDIS_URL`), `INGESTION_LEASE_SECONDS`, `INGESTION_MAX_ATTEMPTS`, `DISPATCHER_BATCH_SIZE`, `DISPATCHER_POLL_SECONDS` | all | S16 (T3.1) |
 | Workers (malware scanning) | Scanner choice | `MALWARE_SCANNER` (`clamav` default, `none` for the core profile; staging/prod still require a scan) | all | S17 (T3.5) |
 | Workers (reconciler) | Sweep interval and staleness; crash-demo stage delay (local/test only) | `RECONCILE_INTERVAL_SECONDS`, `RECONCILE_STALE_SECONDS`, `APPROVAL_REMINDER_SECONDS`, `INGESTION_DEBUG_STAGE_DELAY_SECONDS`, `INGESTION_CONTRACT_FAKES` | all (delay, fakes: local/test) | S20 (T3.6) |
+| Search | Keep the query text on query runs (otherwise only its hash); candidates per branch | `RETAIN_QUERY_TEXT`, `SEARCH_MAX_CANDIDATES` | all | S25 (T4.6) |
 | Embeddings | Provider and exact model recorded on new index generations (no substitution); model cache; `openai_compatible` endpoint | `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION`, `EMBEDDING_BATCH_SIZE`, `EMBEDDING_DEVICE`, `EMBEDDING_BASE_URL`, `EMBEDDING_API_KEY` (secret), `EMBEDDING_IS_EXTERNAL`, `HF_HOME`, `HF_TOKEN` (optional secret) | all | S22 (T4.2) |
 | *(more rows added as sessions introduce services: Neon, B2, Auth0, HF, Vercel, Groq, Gemini, Langfuse, Grafana Cloud, Google Drive OAuth)* | | | | |
