@@ -56,8 +56,8 @@ _COMPONENTS: dict[str, tuple[str, str]] = {
     "chunker": ("app.ingestion.chunking.structure_aware", "StructureAwareChunker"),
 }
 
-# EMBEDDING_PROVIDER → (module, class) of the T4.1 implementation, built with
-# `cls.from_settings(settings)` so each provider reads its own settings.
+# EMBEDDING_PROVIDER → (module, class) of the T4.1 implementation; `_embedder_kwargs` maps the
+# settings onto each class's keyword constructor.
 _EMBEDDERS: dict[str, tuple[str, str]] = {
     "sentence_transformers": (
         "app.providers.embeddings.sentence_transformers",
@@ -111,6 +111,24 @@ def _extra_parsers() -> list[Any]:
     return parsers
 
 
+def _embedder_kwargs(settings: Settings) -> dict[str, Any]:
+    common = {
+        "model_id": settings.embedding_model,
+        "dimension": settings.embedding_dimension,
+        "max_batch": settings.embedding_batch_size,
+    }
+    if settings.embedding_provider == "sentence_transformers":
+        return {**common, "device": settings.embedding_device}
+    return {  # openai_compatible; Settings guarantees the base URL
+        **common,
+        "base_url": settings.embedding_base_url,
+        "is_external": settings.embedding_is_external,
+        "api_key": settings.embedding_api_key.get_secret_value()
+        if settings.embedding_api_key
+        else None,
+    }
+
+
 def embedding_provider(settings: Settings) -> EmbeddingProvider | None:
     """The configured provider, one instance per process and configuration, or None when its
     library isn't installed or can't be built (EMBEDDING then skips or fails retryably)."""
@@ -122,13 +140,10 @@ def embedding_provider(settings: Settings) -> EmbeddingProvider | None:
     )
     if key in _embedders:
         return _embedders[key]
-    if settings.embedding_provider not in _EMBEDDERS:
-        raise RuntimeError(f"unknown EMBEDDING_PROVIDER {settings.embedding_provider!r}")
     module, attribute = _EMBEDDERS[settings.embedding_provider]
+    kwargs = _embedder_kwargs(settings)
     try:
-        provider: EmbeddingProvider = getattr(
-            importlib.import_module(module), attribute
-        ).from_settings(settings)
+        provider: EmbeddingProvider = getattr(importlib.import_module(module), attribute)(**kwargs)
     except (ImportError, AttributeError):
         logger.warning("embedding_provider_missing", provider=settings.embedding_provider)
         return None

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -128,7 +128,9 @@ class Settings(BaseSettings):
     # Embeddings (T4.1 providers, T4.2 stage; plan §13, D-004). New KBs record these on their
     # index generation; a provider whose model or dimension differs from its generation's is
     # refused, never substituted (§25.2). Providers read the rest via `from_settings`.
-    embedding_provider: str = "sentence_transformers"  # | "openai_compatible"
+    embedding_provider: Literal["sentence_transformers", "openai_compatible"] = (
+        "sentence_transformers"
+    )
     embedding_model: str = "Qwen/Qwen3-Embedding-0.6B"
     embedding_dimension: int = Field(default=1024, ge=1)
     embedding_batch_size: int = Field(default=16, ge=1, le=512)
@@ -165,6 +167,15 @@ class Settings(BaseSettings):
             ):
                 raise ValueError(f"WEB_ORIGINS entries must be exact http(s) origins: {origin!r}")
         return [o.rstrip("/") for o in origins]
+
+    @model_validator(mode="after")
+    def _embedding_endpoint(self) -> "Settings":
+        # Fail at startup, not in every ingestion job, when the endpoint provider has no URL.
+        if self.embedding_provider == "openai_compatible" and not self.embedding_base_url:
+            raise ValueError(
+                "EMBEDDING_BASE_URL is required when EMBEDDING_PROVIDER=openai_compatible"
+            )
+        return self
 
     @property
     def json_logs(self) -> bool:

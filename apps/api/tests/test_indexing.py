@@ -7,15 +7,17 @@ import json
 import re
 import uuid
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 import asyncpg
 import pytest
+from pydantic import SecretStr, ValidationError
 
 from app.core.config import Settings
 from app.db.tenant import tenant_session
 from app.db.types import vector_literal
 from app.domain.enums import IngestionState
+from app.ingestion import stages
 from app.ingestion.canonical import CanonicalDocument
 from app.ingestion.chunking.types import ChunkDraft
 from app.ingestion.normalize import normalize
@@ -205,6 +207,13 @@ class Unavailable(FakeEmbeddingProvider):
         raise EmbeddingUnavailableError("model server down")
 
 
+class RejectsOutput(FakeEmbeddingProvider):
+    """Like T4.1's EmbeddingDimensionError: a ValueError is a configuration problem."""
+
+    async def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
+        raise ValueError("Expected dimension 1024, received 768.")
+
+
 class WrongDimension(FakeEmbeddingProvider):
     async def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
         return [[0.5, 0.5, 0.5] for _ in texts]
@@ -215,6 +224,7 @@ class WrongDimension(FakeEmbeddingProvider):
     [
         ({"embedder": OtherModel()}, S.FAILED_PERMANENT, "embedding_model_mismatch"),
         ({"embedder": WrongDimension()}, S.FAILED_PERMANENT, "embedding_dimension_mismatch"),
+        ({"embedder": RejectsOutput()}, S.FAILED_PERMANENT, "embedding_dimension_mismatch"),
         ({"embedder": Unavailable()}, S.FAILED_RETRYABLE, "embedding_unavailable"),
         (
             {"embedder": None, "require_embeddings": True},
@@ -222,7 +232,7 @@ class WrongDimension(FakeEmbeddingProvider):
             "embedding_unavailable",
         ),
     ],
-    ids=["other-model", "wrong-dimension", "unavailable", "no-provider"],
+    ids=["other-model", "wrong-dimension", "provider-rejects", "unavailable", "no-provider"],
 )
 async def test_embedding_never_substitutes_or_stores_bad_vectors(
     world: World, admin: asyncpg.Connection, deps: dict[str, Any], state: S, code: str
@@ -250,10 +260,49 @@ async def test_local_development_without_a_provider_indexes_full_text_only(
     assert checkpoints["VERIFYING"]["self_query"] == "skipped"
 
 
-def test_the_provider_is_named_by_config_and_never_guessed(migrated_settings: Settings) -> None:
-    unknown = migrated_settings.model_copy(update={"embedding_provider": "mystery"})
-    with pytest.raises(RuntimeError, match="unknown EMBEDDING_PROVIDER"):
-        embedding_provider(unknown)
+class RecordingEmbedder(FakeEmbeddingProvider):
+    """Stands in for a T4.1 class to capture the constructor arguments the registry passes."""
+
+    built: ClassVar[list[dict[str, Any]]] = []
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(kwargs["dimension"])
+        RecordingEmbedder.built.append(kwargs)
+
+
+def test_the_provider_is_named_by_config_and_never_guessed(
+    migrated_settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with pytest.raises(ValidationError, match="embedding_provider"):
+        Settings(_env_file=None, embedding_provider="mystery")
+    with pytest.raises(ValidationError, match="EMBEDDING_BASE_URL is required"):
+        Settings(_env_file=None, embedding_provider="openai_compatible")
+
+    monkeypatch.setitem(
+        stages._EMBEDDERS, "openai_compatible", ("tests.test_indexing", "RecordingEmbedder")
+    )
+    monkeypatch.setattr(stages, "_embedders", {})
+    RecordingEmbedder.built.clear()
+    endpoint = migrated_settings.model_copy(
+        update={
+            "embedding_provider": "openai_compatible",
+            "embedding_base_url": "http://embeddings.internal:8080/v1",
+            "embedding_api_key": SecretStr("not-a-real-key"),
+        }
+    )
+    first, again = embedding_provider(endpoint), embedding_provider(endpoint)
+    assert first is not None
+    assert first is again  # one instance per process and configuration
+    assert RecordingEmbedder.built == [
+        {
+            "model_id": endpoint.embedding_model,
+            "dimension": 1024,
+            "max_batch": endpoint.embedding_batch_size,
+            "base_url": "http://embeddings.internal:8080/v1",
+            "is_external": False,
+            "api_key": "not-a-real-key",
+        }
+    ]
 
 
 # --------------------------------------------------------------------------- ACL propagation

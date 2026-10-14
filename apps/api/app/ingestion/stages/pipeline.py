@@ -510,6 +510,11 @@ def embedding(deps: StageDeps) -> StageFn:
                 raise RetryableError(
                     "The embedding model isn't available.", code="embedding_unavailable"
                 ) from exc
+            except ValueError as exc:  # e.g. T4.1's EmbeddingDimensionError: configuration
+                raise PermanentError(
+                    "The embedding model returned malformed vectors.",
+                    code="embedding_dimension_mismatch",
+                ) from exc
             if len(output) != len(part) or not all(
                 _vector_ok(vector, generation.embedding_dimension) for vector in output
             ):
