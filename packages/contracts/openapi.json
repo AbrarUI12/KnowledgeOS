@@ -5248,7 +5248,7 @@
         ]
       },
       "post": {
-        "description": "Create a KB (`kb.create`). The creator gets a `manage` ACL entry; an upload source is\ncreated with it.",
+        "description": "Create a KB (`kb.create`). The creator gets a `manage` ACL entry; an upload source and\nindex generation #1 (the configured embedding model) are created with it.",
         "operationId": "knowledge_bases_create_knowledge_base",
         "parameters": [
           {
@@ -5840,6 +5840,7 @@
     },
     "/v1/knowledge-bases/{kb_id}/index-generations": {
       "get": {
+        "description": "Index generations, newest first: embedding model, chunker config, status (KB managers).",
         "operationId": "knowledge_bases_list_index_generations",
         "parameters": [
           {

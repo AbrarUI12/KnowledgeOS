@@ -40,10 +40,11 @@
 
 ### Claude: architect · security/DB/integration · reviewer
 - **Worktree / ports:** `D:\projects\kos-claude` · API 8000 · web 3000
-- **Current task:** T3.6 in REVIEW; next T4.2 index generations + chunk indexing (needs Codex's T4.1)
+- **Current task:** T3.6 (#34) PASS, waiting for the user's ADR-004 addendum approval; T4.2 in REVIEW (stacked on #34; live 1024-d check waits for Codex's T4.1 provider)
 - **Last finished:** T1.1 (#13), T1.2 (#23), CORS (#20), Pages showcase (#21); live at https://abrarui12.github.io/KnowledgeOS/
 - **Blockers:** none
 - **Recent:**
+  - 2026-10-14 · T4.2 · migration 0010 (vector(1024) + HNSW, weighted tsvector per detected language, identifiers, access_principals, GIN/B-tree/trigram indexes); EMBEDDING (in-org reuse, exact-model guard, no fallback), INDEXING (full text + ACL tokens under a shared KB lock), VERIFYING (completeness + HNSW self-query); acl.changed sync + acl_propagated_at; index-generations API; Hypothesis ACL matrix
   - 2026-10-14 · T3.6 · reconciler (stranded jobs, abandoned uploads, approval reminders) as the dispatcher role with column-limited grants (migration 0008, ADR-004 extension); crash-counted attempts; job timeline; retry/cancel/reindex/inspect APIs; weighted progress; READY sets the active version; live docker-kill crash test passes
   - 2026-10-14 · merged T2.1 (#25), T2.4 (#27), T3.1 (#30), T3.5 (#31); finished and opened Cline's T2.6 (#33)
   - 2026-10-12 · T3.5 · real VALIDATING/MALWARE_SCAN(+promote)/PARSING(artifact)/NORMALIZING/SECURITY_SCAN/CHUNKING stages over library contracts; quarantine (terminal + system audit) and approval hold (approve → CHUNKING, reject → CANCELLED); migration 0007 index_generations + chunks (generation #1 per KB); pipeline never half-wired until Codex's libraries all exist; worker image OCR packages
@@ -618,4 +619,5 @@ All deviations (DV-001…) now live in **[`docs/DECISIONS.md`](docs/DECISIONS.md
 | Workers (Celery) | Dispatcher DB role URL, broker, lease/retry tuning | `DISPATCHER_DATABASE_URL`, `CELERY_BROKER_URL` (defaults to `REDIS_URL`), `INGESTION_LEASE_SECONDS`, `INGESTION_MAX_ATTEMPTS`, `DISPATCHER_BATCH_SIZE`, `DISPATCHER_POLL_SECONDS` | all | S16 (T3.1) |
 | Workers (malware scanning) | Scanner choice | `MALWARE_SCANNER` (`clamav` default, `none` for the core profile; staging/prod still require a scan) | all | S17 (T3.5) |
 | Workers (reconciler) | Sweep interval and staleness; crash-demo stage delay (local/test only) | `RECONCILE_INTERVAL_SECONDS`, `RECONCILE_STALE_SECONDS`, `APPROVAL_REMINDER_SECONDS`, `INGESTION_DEBUG_STAGE_DELAY_SECONDS`, `INGESTION_CONTRACT_FAKES` | all (delay, fakes: local/test) | S20 (T3.6) |
+| Embeddings | Provider and exact model recorded on new index generations (no substitution); model cache; `openai_compatible` endpoint | `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION`, `EMBEDDING_BATCH_SIZE`, `EMBEDDING_DEVICE`, `EMBEDDING_BASE_URL`, `EMBEDDING_API_KEY` (secret), `EMBEDDING_IS_EXTERNAL`, `HF_HOME`, `HF_TOKEN` (optional secret) | all | S22 (T4.2) |
 | *(more rows added as sessions introduce services: Neon, B2, Auth0, HF, Vercel, Groq, Gemini, Langfuse, Grafana Cloud, Google Drive OAuth)* | | | | |

@@ -125,6 +125,18 @@ class Settings(BaseSettings):
     # library has merged. Refused in any other environment.
     ingestion_contract_fakes: bool = False
 
+    # Embeddings (T4.1 providers, T4.2 stage; plan §13, D-004). New KBs record these on their
+    # index generation; a provider whose model or dimension differs from its generation's is
+    # refused, never substituted (§25.2). Providers read the rest via `from_settings`.
+    embedding_provider: str = "sentence_transformers"  # | "openai_compatible"
+    embedding_model: str = "Qwen/Qwen3-Embedding-0.6B"
+    embedding_dimension: int = Field(default=1024, ge=1)
+    embedding_batch_size: int = Field(default=16, ge=1, le=512)
+    embedding_device: Literal["cpu", "cuda", "auto"] = "cpu"
+    embedding_base_url: str | None = None  # openai_compatible endpoint (TEI, Infinity, Ollama)
+    embedding_api_key: SecretStr | None = None
+    embedding_is_external: bool = False  # True if text leaves the deployment (model policy)
+
     # Uploads (T2.4)
     upload_max_bytes: int = Field(default=50 * 1024 * 1024, gt=0)
     upload_url_ttl_seconds: int = Field(default=900, ge=60, le=3600)

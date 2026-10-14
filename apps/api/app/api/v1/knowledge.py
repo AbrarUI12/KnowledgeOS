@@ -65,11 +65,13 @@ async def list_knowledge_bases(
     status_code=status.HTTP_201_CREATED,
 )
 async def create_knowledge_base(
-    org: OrgIdHeader, ctx: CreateKb, session: DbSession, body: KnowledgeBaseCreate
+    request: Request, org: OrgIdHeader, ctx: CreateKb, session: DbSession, body: KnowledgeBaseCreate
 ) -> KnowledgeBaseOut:
-    """Create a KB (`kb.create`). The creator gets a `manage` ACL entry; an upload source is
-    created with it."""
-    return await knowledge_bases.create_knowledge_base(session, ctx, body)
+    """Create a KB (`kb.create`). The creator gets a `manage` ACL entry; an upload source and
+    index generation #1 (the configured embedding model) are created with it."""
+    return await knowledge_bases.create_knowledge_base(
+        session, ctx, body, request.app.state.settings
+    )
 
 
 @router.get("/knowledge-bases/{kb_id}", tags=["knowledge_bases"], response_model=KnowledgeBaseOut)
@@ -137,9 +139,10 @@ async def set_knowledge_base_permissions(
     response_model=list[IndexGenerationOut],
 )
 async def list_index_generations(
-    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID
+    org: OrgIdHeader, ctx: OrgContext, session: DbSession, kb_id: uuid.UUID
 ) -> list[IndexGenerationOut]:
-    stub("T4.2")
+    """Index generations, newest first: embedding model, chunker config, status (KB managers)."""
+    return await knowledge_bases.list_index_generations(session, ctx, kb_id)
 
 
 # ----------------------------------------------------------------------------- uploads

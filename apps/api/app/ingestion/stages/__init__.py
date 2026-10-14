@@ -11,9 +11,14 @@ malware scanning are always real. Parsing → chunking switch on only when *all 
 importable (parser, normalizer, content scanner, chunker: Codex's T3.2-T3.4), so a half-wired
 pipeline can never index content that skipped the content-security scan.
 
-`INGESTION_CONTRACT_FAKES=true` (local/test only) swaps all four for the T1.0 contract fakes in
-`tests/fakes`, which the crash demo mounts into the worker: the real runner, stages and chunk
-persistence then run end to end before every real library has merged.
+EMBEDDING / INDEXING / VERIFYING run with that same chain. The embedding provider named by
+`EMBEDDING_PROVIDER` is built once per process (`embedding_provider()`, models load once). If its
+library isn't installed, local/test skip vectors; staging/production fail EMBEDDING retryably
+instead of indexing without them.
+
+`INGESTION_CONTRACT_FAKES=true` (local/test only) swaps all four libraries and the embedder for the
+T1.0 contract fakes in `tests/fakes`, which the crash demo mounts into the worker: the real runner,
+stages and persistence then run end to end before every real library has merged.
 """
 
 import asyncio
@@ -27,6 +32,7 @@ from app.core.config import Environment, Settings
 from app.domain.enums import IngestionState
 from app.ingestion.runner import Checkpoint, StageContext, StageFn
 from app.ingestion.state_machine import STAGES
+from app.providers.embeddings.base import EmbeddingProvider
 from app.providers.scanning.base import MalwareScanner
 from app.providers.storage import ObjectStore
 
@@ -50,9 +56,27 @@ _COMPONENTS: dict[str, tuple[str, str]] = {
     "chunker": ("app.ingestion.chunking.structure_aware", "StructureAwareChunker"),
 }
 
+# EMBEDDING_PROVIDER → (module, class) of the T4.1 implementation, built with
+# `cls.from_settings(settings)` so each provider reads its own settings.
+_EMBEDDERS: dict[str, tuple[str, str]] = {
+    "sentence_transformers": (
+        "app.providers.embeddings.sentence_transformers",
+        "SentenceTransformersEmbeddingProvider",
+    ),
+    "openai_compatible": (
+        "app.providers.embeddings.openai_compatible",
+        "OpenAICompatibleEmbeddingProvider",
+    ),
+}
+_embedders: dict[tuple[str, str, int, str], EmbeddingProvider] = {}
+
+
+def _local(settings: Settings) -> bool:
+    return settings.environment in {Environment.LOCAL, Environment.TEST}
+
 
 def _contract_fakes(settings: Settings) -> dict[str, Any]:
-    if settings.environment not in {Environment.LOCAL, Environment.TEST}:
+    if not _local(settings):
         raise RuntimeError("INGESTION_CONTRACT_FAKES is only allowed in local/test environments")
     # Explicitly requested, so a missing module fails loudly instead of silently stubbing.
     fakes = importlib.import_module("tests.fakes.providers")
@@ -62,6 +86,7 @@ def _contract_fakes(settings: Settings) -> dict[str, Any]:
         "normalize": _identity,
         "content_scanner": fakes.FakeContentScanner,
         "chunker": fakes.FakeChunker,
+        "embedder": fakes.FakeEmbeddingProvider(dimension=settings.embedding_dimension),
     }
 
 
@@ -86,6 +111,34 @@ def _extra_parsers() -> list[Any]:
     return parsers
 
 
+def embedding_provider(settings: Settings) -> EmbeddingProvider | None:
+    """The configured provider, one instance per process and configuration, or None when its
+    library isn't installed or can't be built (EMBEDDING then skips or fails retryably)."""
+    key = (
+        settings.embedding_provider,
+        settings.embedding_model,
+        settings.embedding_dimension,
+        settings.embedding_base_url or "",
+    )
+    if key in _embedders:
+        return _embedders[key]
+    if settings.embedding_provider not in _EMBEDDERS:
+        raise RuntimeError(f"unknown EMBEDDING_PROVIDER {settings.embedding_provider!r}")
+    module, attribute = _EMBEDDERS[settings.embedding_provider]
+    try:
+        provider: EmbeddingProvider = getattr(
+            importlib.import_module(module), attribute
+        ).from_settings(settings)
+    except (ImportError, AttributeError):
+        logger.warning("embedding_provider_missing", provider=settings.embedding_provider)
+        return None
+    except Exception as exc:
+        logger.error("embedding_provider_failed", error_type=type(exc).__name__)
+        return None
+    _embedders[key] = provider
+    return provider
+
+
 def malware_scanner(settings: Settings) -> MalwareScanner:
     from app.providers.scanning.clamav import ClamAVScanner
     from app.providers.scanning.noop import NoopScanner
@@ -104,7 +157,7 @@ def _with_debug_delay(
 ) -> dict[IngestionState, StageFn]:
     """Local/test only: slow every stage down so crash tests can kill a worker mid-stage."""
     delay = settings.ingestion_debug_stage_delay_seconds
-    if delay <= 0 or settings.environment not in {Environment.LOCAL, Environment.TEST}:
+    if delay <= 0 or not _local(settings):
         return stages
 
     def slow(fn: StageFn) -> StageFn:
@@ -150,6 +203,8 @@ def _real_stages(settings: Settings, store: ObjectStore) -> dict[IngestionState,
         normalize=components["normalize"],
         content_scanner=components["content_scanner"](),
         chunker=components["chunker"](),
+        embedder=components["embedder"] if fakes else embedding_provider(settings),
+        require_embeddings=not _local(settings),
     )
     return pipeline.build_stages(deps, stages)
 
@@ -170,4 +225,4 @@ class _Missing:
         raise RuntimeError("library not installed")
 
 
-__all__ = ["STUB_STAGES", "default_stages", "malware_scanner"]
+__all__ = ["STUB_STAGES", "default_stages", "embedding_provider", "malware_scanner"]

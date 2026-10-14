@@ -15,10 +15,11 @@ from sqlalchemy import (
     Text,
     text,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, REGCONFIG, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.db.types import Vector
 
 
 def _org_fk() -> Mapped[uuid.UUID]:
@@ -302,7 +303,10 @@ class IndexGeneration(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class Chunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """A retrievable unit of a document version within one index generation (plan §7.6, §12).
 
-    `embedding`, `search_vector` and `access_principals` are added by indexing (Session 23).
+    Indexing (migration 0010, S22-S23) adds `embedding` (children only; parents are context),
+    `search_vector` + `fts_config`, `identifiers` and `access_principals`, the materialized ACL
+    tokens matched against the caller's tokens at query time. `embedding` and `search_vector`
+    are deferred so loading chunk rows never drags 1024 floats along.
     """
 
     __tablename__ = "chunks"
@@ -339,6 +343,12 @@ class Chunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     location_json: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
     metadata_json: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
     visibility: Mapped[str] = mapped_column(String(16), server_default="visible")
+    embedding_text_hash: Mapped[str | None] = mapped_column(String(64))
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(1024), deferred=True)
+    search_vector: Mapped[str | None] = mapped_column(TSVECTOR, deferred=True)
+    fts_config: Mapped[str | None] = mapped_column(REGCONFIG)
+    identifiers: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default="{}")
+    access_principals: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default="{}")
 
 
 class JobEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):

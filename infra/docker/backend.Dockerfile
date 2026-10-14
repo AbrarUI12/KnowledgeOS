@@ -33,7 +33,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH=/app/.venv/bin:$PATH \
     ENVIRONMENT=production
 # uid 1000: required by Hugging Face Spaces, harmless elsewhere.
-RUN groupadd --gid 1000 app && useradd --uid 1000 --gid app --no-create-home --shell /usr/sbin/nologin app
+RUN groupadd --gid 1000 app && useradd --uid 1000 --gid app --no-create-home --shell /usr/sbin/nologin app     && mkdir -p /models/hf && chown app:app /models/hf
+# Hugging Face model cache (embeddings, tokenizer). Compose mounts a named volume here, which
+# inherits this directory's ownership on first use.
+ENV HF_HOME=/models/hf
 WORKDIR /app
 COPY --from=builder --chown=app:app /app /app
 USER app

@@ -91,7 +91,7 @@ def effective_access_principals(
     document_acl: Iterable[AclRule] = (),
 ) -> list[str]:
     """Principal tokens copied onto a document's chunks (`access_principals`), matched against
-    `principal_tokens(ctx)` at query time. Stub for Session 23, which adds materialization.
+    `principal_tokens(ctx)` at query time (materialized by `app.services.chunk_acl`).
 
     Document ACL (if any) wins because it can only narrow; otherwise the KB's ACL for restricted
     KBs, or the whole organization.
