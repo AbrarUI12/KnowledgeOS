@@ -58,8 +58,8 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T5.1 #37 review follow-ups: bounded waiting for native slot, lean model-facing evidence view; #35 merged and dependency floor reconciled. Re-running full checks before re-review. #38 re-review PASS; #39 reviewed (19 tests), generation-switch race HIGH reproduced. Next T5.2.
-- **Last finished:** T4.1 #36 merged (a25389f): real Qwen CPU 1024-d verified. T3.3 #28 (6e725fb), T3.2 #26 (0c1f49f), T1.4 #17 (961cb0a) also merged.
+- **Current task:** T5.2 claimed from main: compatible gateway, grounded prompt, abstention/citation safety. Spec/contracts and official protocol docs read; local Ollama installed but offline. #38 re-review PASS; #39 reviewed (19 tests), generation-switch race HIGH reproduced and posted.
+- **Last finished:** T5.1 #37 merged (990fe38), MEDIUM fixes included; combined checks 532 backend / 105 frontend / nine snapshots and all CI green. T3.4 #35 merged (e36b5da); T4.1 #36 (a25389f), T3.3 #28 (6e725fb), T3.2 #26 (0c1f49f), T1.4 #17 (961cb0a) merged.
 - **Blockers:** none
 - **Recent:**
   - 2026-10-12 · T2.2 · S3/MinIO/B2 + in-memory ObjectStore providers and safe key helpers; explicit S3 timeouts/retries · PR #14 (merged)
