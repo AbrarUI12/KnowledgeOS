@@ -410,3 +410,102 @@ async def test_listing_pages_filters_and_delete(acme: Acme, admin: asyncpg.Conne
         await admin.fetchval("SELECT count(*) FROM audit_events WHERE action = 'document.archived'")
         == 1
     )
+
+
+# --------------------------------------------------------------------------- review #27 fixes
+
+
+async def test_document_acl_narrows_reads_inside_an_org_visible_kb(
+    acme: Acme, admin: asyncpg.Connection
+) -> None:
+    """Review #27 (HIGH): a document with its own ACL is invisible to KB readers it doesn't name,
+    in get, list, versions and job reads, while KB managers still see it."""
+    ids: dict[str, Any] = {}
+    for name in ("hr-only.txt", "public.txt"):
+        upload = await acme.start(name=name)
+        await put(upload)
+        ids[name] = (await acme.complete(upload["upload_id"])).json()
+    hr_doc = ids["hr-only.txt"]
+    await admin.execute(
+        "INSERT INTO document_acl "
+        "(document_id, organization_id, principal_type, principal_id, permission) "
+        "VALUES ($1, $2, 'group', $3, 'query')",
+        uuid.UUID(hr_doc["document_id"]),
+        uuid.UUID(acme.org),
+        str(uuid.uuid4()),  # a group bob isn't in
+    )
+
+    listed = (
+        await acme.api.get(f"/v1/knowledge-bases/{acme.kb}/documents", headers=acme.h("bob"))
+    ).json()
+    assert [d["title"] for d in listed["items"]] == ["public"]
+    for url in (
+        f"/v1/documents/{hr_doc['document_id']}",
+        f"/v1/documents/{hr_doc['document_id']}/versions",
+        f"/v1/ingestion-jobs/{hr_doc['ingestion_job_id']}",
+    ):
+        assert (await acme.api.get(url, headers=acme.h("bob"))).status_code == 404, url
+        assert (await acme.api.get(url, headers=acme.h("alice"))).status_code == 200, url
+
+    bob = uuid.UUID(
+        (await acme.api.get("/v1/me", headers={"Authorization": "Bearer bob"})).json()["user"]["id"]
+    )
+    await admin.execute(
+        "INSERT INTO document_acl "
+        "(document_id, organization_id, principal_type, principal_id, permission) "
+        "VALUES ($1, $2, 'user', $3, 'query')",
+        uuid.UUID(hr_doc["document_id"]),
+        uuid.UUID(acme.org),
+        str(bob),
+    )
+    assert (
+        await acme.api.get(f"/v1/documents/{hr_doc['document_id']}", headers=acme.h("bob"))
+    ).status_code == 200
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"sort": "title", "value": 42, "id": "00000000-0000-0000-0000-000000000000"},
+        {
+            "sort": "-created_at",
+            "value": "2026-10-12T10:00:00",
+            "id": "00000000-0000-0000-0000-000000000000",
+        },
+        {"sort": "title", "value": "x", "id": "not-a-uuid"},
+        ["legacy", "list"],
+    ],
+)
+async def test_crafted_cursors_are_422_not_500(acme: Acme, payload: object) -> None:
+    """Review #27 (MEDIUM): type, timezone and shape are validated before SQL sees them."""
+    import base64
+    import json
+
+    cursor = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
+    sort = payload["sort"] if isinstance(payload, dict) else "title"
+    response = await acme.api.get(
+        f"/v1/knowledge-bases/{acme.kb}/documents",
+        params={"cursor": cursor, "sort": sort},
+        headers=acme.h(),
+    )
+    assert response.status_code == 422
+
+
+async def test_cursor_is_bound_to_its_sort(acme: Acme) -> None:
+    for name in ("a.txt", "b.txt", "c.txt"):
+        upload = await acme.start(name=name)
+        await put(upload)
+        await acme.complete(upload["upload_id"])
+    first = (
+        await acme.api.get(
+            f"/v1/knowledge-bases/{acme.kb}/documents",
+            params={"limit": 1, "sort": "title"},
+            headers=acme.h(),
+        )
+    ).json()
+    reused = await acme.api.get(
+        f"/v1/knowledge-bases/{acme.kb}/documents",
+        params={"limit": 1, "sort": "-title", "cursor": first["next_cursor"]},
+        headers=acme.h(),
+    )
+    assert reused.status_code == 422

@@ -20,7 +20,15 @@ from app.core.config import Settings
 from app.db.session import create_engine, create_sessionmaker
 from app.domain.enums import IngestionState
 from app.ingestion.errors import PermanentError, RetryableError
-from app.ingestion.runner import Checkpoint, RunnerConfig, StageContext, StageFn, run_job
+from app.ingestion.runner import (
+    Checkpoint,
+    LeaseBusy,
+    RunnerConfig,
+    StageContext,
+    StageFn,
+    _Run,
+    run_job,
+)
 from app.ingestion.state_machine import STAGES
 from app.workers.dispatcher import Event, create_dispatcher_engine, dispatch_batch
 
@@ -193,10 +201,14 @@ async def test_two_workers_racing_run_the_job_once(
         *(
             run_job(sessionmaker, organization_id=org, job_id=job, worker_id=f"w{i}", stages=stages)
             for i in range(4)
-        )
+        ),
+        return_exceptions=True,
     )
 
-    assert sorted(results, key=str) == sorted([S.READY, None, None, None], key=str)
+    # Exactly one worker ran it; the others saw a live lease (must retry later) or, if they
+    # arrived after it finished, a terminal job (nothing to do). None of them ran a stage.
+    assert results.count(S.READY) == 1
+    assert all(r is None or isinstance(r, LeaseBusy) for r in results if r is not S.READY)
     assert set(counter.values()) == {1}
 
 
@@ -225,8 +237,9 @@ async def test_crash_between_stages_resumes_from_the_checkpoint(
     assert crashed["state"] == "CHUNKING"
     assert "CHUNKING" not in json.loads(crashed["stage_checkpoints"])
 
-    # While the dead worker's lease is live, nobody else may run it...
-    assert (
+    # While the dead worker's lease is live, nobody else may run it, and the redelivered task is
+    # told to come back later instead of silently succeeding (review #30)...
+    with pytest.raises(LeaseBusy) as busy:
         await run_job(
             sessionmaker,
             organization_id=org,
@@ -234,8 +247,7 @@ async def test_crash_between_stages_resumes_from_the_checkpoint(
             worker_id="w2",
             stages=counting_stages(counter),
         )
-        is None
-    )
+    assert 0 < busy.value.retry_after <= RunnerConfig().lease_seconds + 1
     # ...once it expires, a new worker resumes after the last checkpoint.
     await admin.execute(
         "UPDATE ingestion_jobs SET lease_expires_at = now() - interval '1 second' WHERE id = $1",
@@ -450,3 +462,63 @@ async def test_outbox_event_flows_through_dispatcher_to_ready(
     )
     assert (state, event.aggregate_id) == (S.READY, str(job))
     assert event.payload == {} or "traceparent" in event.payload
+
+
+async def test_finalization_failure_after_last_checkpoint_resumes_to_ready(
+    admin: asyncpg.Connection,
+    sessionmaker: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Review #30 (HIGH): VERIFYING committed, then finishing failed once. The retry must reach
+    READY through the guarded table without re-running any stage."""
+    org, job, _ = await make_job(admin)
+    counter: Counter[str] = Counter()
+    original_finish = _Run.finish
+    calls = {"n": 0}
+
+    async def flaky_finish(self: _Run) -> None:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("connection reset while finishing")
+        await original_finish(self)
+
+    monkeypatch.setattr(_Run, "finish", flaky_finish)
+    stages = counting_stages(counter)
+
+    first = await run_job(
+        sessionmaker, organization_id=org, job_id=job, worker_id="w1", stages=stages
+    )
+    assert first is S.FAILED_RETRYABLE
+    row = await job_row(admin, job)
+    assert set(json.loads(row["stage_checkpoints"])) == {stage.value for stage in STAGES}
+
+    second = await run_job(
+        sessionmaker, organization_id=org, job_id=job, worker_id="w1", stages=stages
+    )
+    assert second is S.READY
+    assert set(counter.values()) == {1}  # no stage ran twice
+
+
+def test_celery_task_retries_while_another_lease_is_live(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review #30 (HIGH): a late-ack redelivery during a dead worker's live lease is retried after
+    the lease expires instead of being acknowledged as a no-op."""
+    from app.workers import celery_app as module
+
+    async def busy(organization_id: uuid.UUID, job_id: uuid.UUID) -> str | None:
+        raise LeaseBusy(42.0)
+
+    retried: dict[str, float] = {}
+
+    class Retry(Exception):
+        pass
+
+    def fake_retry(*, countdown: float, **kwargs: object) -> Exception:
+        retried["countdown"] = countdown
+        return Retry()
+
+    monkeypatch.setattr(module, "_process_job", busy)
+    monkeypatch.setattr(module.process_job, "retry", fake_retry)
+
+    with pytest.raises(Retry):
+        module.process_job(str(uuid.uuid4()), str(uuid.uuid4()), {})
+    assert 42.0 <= retried["countdown"] <= 47.0

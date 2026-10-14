@@ -5,9 +5,13 @@ import { PrimitivesShowcase } from "@/components/dev/primitives-showcase";
 
 export const metadata: Metadata = { title: "Primitives", robots: { index: false } };
 
-/** Development-only design-system preview. Disabled in production unless explicitly enabled. */
+/** Design-system preview: public in the static showcase, opt-in in the production app. */
 export default function PrimitivesPage() {
-  if (process.env.NODE_ENV === "production" && process.env.ENABLE_DEV_ROUTES !== "true") {
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.ENABLE_DEV_ROUTES !== "true" &&
+    process.env.KOS_STATIC_EXPORT !== "1"
+  ) {
     notFound();
   }
   return (

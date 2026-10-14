@@ -68,6 +68,16 @@ class LeaseLost(RuntimeError):
     """Another worker took over (our lease expired). Stop without writing anything."""
 
 
+class LeaseBusy(RuntimeError):
+    """The job is runnable but another worker's lease is still live (e.g. Celery redelivered the
+    task of a worker that died mid-stage). The caller must retry after `retry_after` seconds,
+    never drop the delivery, or the job would be stranded until the lease expires unattended."""
+
+    def __init__(self, retry_after: float) -> None:
+        super().__init__(f"job lease busy; retry in {retry_after:.0f}s")
+        self.retry_after = retry_after
+
+
 # States in which a worker may pick the job up.
 _RUNNABLE = {IngestionState.RECEIVED, IngestionState.FAILED_RETRYABLE, *STAGES}
 
@@ -125,6 +135,24 @@ class _Run:
             return None
         self.document_version_id, self.attempt = row.document_version_id, row.attempt_count
         return dict(row.stage_checkpoints or {})
+
+    async def lease_remaining(self) -> float | None:
+        """Seconds left on someone else's live lease if the job is runnable, else None."""
+        async with tenant_session(self.sessionmaker, self.organization_id) as session:
+            row = (
+                await session.execute(
+                    select(
+                        IngestionJob.state,
+                        func.extract("epoch", IngestionJob.lease_expires_at - func.now()),
+                    ).where(
+                        IngestionJob.id == self.job_id,
+                        IngestionJob.organization_id == self.organization_id,
+                    )
+                )
+            ).one_or_none()
+        if row is None or IngestionState(row[0]) not in _RUNNABLE or row[1] is None:
+            return None
+        return max(float(row[1]), 0.0)
 
     async def heartbeat(self) -> None:
         async with tenant_session(self.sessionmaker, self.organization_id) as session:
@@ -206,6 +234,12 @@ class _Run:
     async def finish(self) -> None:
         async with tenant_session(self.sessionmaker, self.organization_id) as session:
             now = _now()
+            current = await session.scalar(select(IngestionJob.state).where(self._mine()))
+            if current is not None and IngestionState(current) is not STAGES[-1]:
+                # Every checkpoint exists but the job isn't at the last stage: finalization failed
+                # after VERIFYING committed (e.g. FAILED_RETRYABLE). Re-enter the last stage
+                # through the guarded table instead of jumping straight to READY.
+                await self._set_state(session, STAGES[-1], stage=STAGES[-1].value)
             await self._set_state(
                 session,
                 IngestionState.READY,
@@ -298,11 +332,15 @@ async def run_job(
     stages: Mapping[IngestionState, StageFn],
     config: RunnerConfig | None = None,
 ) -> IngestionState | None:
-    """Run (or resume) one job. Returns the state it ended in, or None if it wasn't ours to run
-    (another worker holds the lease, or it's already terminal / waiting for approval)."""
+    """Run (or resume) one job. Returns the state it ended in, or None if there's nothing to run
+    (terminal, or waiting for approval). Raises `LeaseBusy` if another worker's lease is still
+    live, so the caller retries after it expires instead of dropping the work."""
     run = _Run(sessionmaker, organization_id, job_id, worker_id, config or RunnerConfig())
     checkpoints = await run.claim()
     if checkpoints is None:
+        remaining = await run.lease_remaining()
+        if remaining is not None:
+            raise LeaseBusy(remaining + 1)
         return None
     log = logger.bind(job_id=str(job_id), worker_id=worker_id)
     try:

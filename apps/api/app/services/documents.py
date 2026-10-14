@@ -17,7 +17,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import PurePath
 from typing import Any
 
-from sqlalchemy import func, select, tuple_
+from sqlalchemy import exists, func, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.errors import (
@@ -32,9 +32,17 @@ from app.api.errors import (
     ValidationFailed,
 )
 from app.auth.authorization import RequestContext
+from app.auth.kb_access import caller_principals, can_manage
 from app.core.config import Settings
 from app.db.base import new_uuid
-from app.db.models import DataSource, Document, DocumentVersion, IngestionJob, Upload
+from app.db.models import (
+    DataSource,
+    Document,
+    DocumentAcl,
+    DocumentVersion,
+    IngestionJob,
+    Upload,
+)
 from app.domain.enums import ApprovalStatus, Classification, DocumentStatus, IngestionState
 from app.domain.schemas.common import Page
 from app.domain.schemas.knowledge import (
@@ -68,9 +76,23 @@ def _check_file(body: UploadCreate, settings: Settings) -> None:
         raise FileTooLarge(details={"max_bytes": settings.upload_max_bytes})
 
 
+def document_readable(ctx: RequestContext) -> Any:
+    """SQL predicate: the document has no ACL of its own (it inherits the KB's), or one of its ACL
+    entries names one of the caller's principals. Document ACLs only ever narrow access."""
+    entries = [
+        (DocumentAcl.principal_type == ptype.value) & (DocumentAcl.principal_id == pid)
+        for ptype, pid in caller_principals(ctx)
+    ]
+    has_acl = exists().where(DocumentAcl.document_id == Document.id)
+    matches = exists().where(DocumentAcl.document_id == Document.id, or_(*entries))
+    return or_(~has_acl, matches)
+
+
 async def _visible_document(
     session: AsyncSession, ctx: RequestContext, document_id: uuid.UUID, *, lock: bool = False
 ) -> Document:
+    """The document if its KB is visible and its own ACL (if any) admits the caller, else 404.
+    KB managers see every document's metadata so they can administer narrowed documents."""
     query = select(Document).where(
         Document.id == document_id,
         Document.organization_id == ctx.organization_id,
@@ -82,9 +104,15 @@ async def _visible_document(
     if document is None:
         raise NotFound(_DOC_NOT_FOUND)
     try:
-        await load_kb(session, ctx, document.knowledge_base_id)
+        _, kb_acl = await load_kb(session, ctx, document.knowledge_base_id)
     except NotFound:
         raise NotFound(_DOC_NOT_FOUND) from None
+    if not can_manage(ctx, kb_acl):
+        readable = await session.scalar(
+            select(Document.id).where(Document.id == document.id, document_readable(ctx))
+        )
+        if readable is None:
+            raise NotFound(_DOC_NOT_FOUND)
     return document
 
 
@@ -358,18 +386,31 @@ def _sort_value(document: Document, field: str) -> str | datetime:
     return document.created_at
 
 
-def _encode_doc_cursor(value: str | datetime, row_id: uuid.UUID) -> str:
+def _encode_doc_cursor(sort: str, value: str | datetime, row_id: uuid.UUID) -> str:
     raw = value.isoformat() if isinstance(value, datetime) else value
-    return base64.urlsafe_b64encode(json.dumps([raw, str(row_id)]).encode()).decode().rstrip("=")
+    payload = {"sort": sort, "value": raw, "id": str(row_id)}
+    return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
 
 
-def _decode_doc_cursor(cursor: str, field: str) -> tuple[str | datetime, uuid.UUID]:
+def _decode_doc_cursor(cursor: str, sort: str) -> tuple[str | datetime, uuid.UUID]:
+    """Strict decoding: the cursor must come from this listing with the same sort (field and
+    direction); values must have the right type, and timestamps a timezone. Else 422."""
+    invalid = ValidationFailed("The cursor is invalid.")
     try:
-        raw, row_id = json.loads(base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4)))
-        value = raw if field == "title" else datetime.fromisoformat(raw)
-        return value, uuid.UUID(row_id)
+        payload = json.loads(base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4)))
+        if not isinstance(payload, dict) or payload.get("sort") != sort:
+            raise invalid
+        raw, row_id = payload.get("value"), uuid.UUID(str(payload.get("id")))
+        if not isinstance(raw, str):
+            raise invalid
+        if sort.lstrip("-") == "title":
+            return raw, row_id
+        value = datetime.fromisoformat(raw)
+        if value.tzinfo is None:
+            raise invalid
+        return value, row_id
     except (binascii.Error, ValueError, TypeError) as exc:
-        raise ValidationFailed("The cursor is invalid.") from exc
+        raise invalid from exc
 
 
 async def list_documents(
@@ -386,7 +427,7 @@ async def list_documents(
 ) -> Page[DocumentOut]:
     """Documents in a KB the caller can see, keyset-paginated on (sort value, id) so pages never
     repeat or skip rows that existed when paging started. The cursor is bound to `sort`."""
-    kb, _ = await load_kb(session, ctx, kb_id)
+    kb, kb_acl = await load_kb(session, ctx, kb_id)
     limit = page_limit(limit)
     descending, field = sort.startswith("-"), sort.lstrip("-")
     column = _sort_column(field)
@@ -395,6 +436,8 @@ async def list_documents(
         Document.knowledge_base_id == kb.id,
         Document.status != DocumentStatus.DELETED.value,  # deleted documents disappear entirely
     )
+    if not can_manage(ctx, kb_acl):
+        query = query.where(document_readable(ctx))  # before LIMIT, so pages stay full
     if status is not None:
         query = query.where(Document.status == status.value)
     if document_type is not None:
@@ -402,7 +445,7 @@ async def list_documents(
     if classification is not None:
         query = query.where(Document.classification == classification.value)
     if cursor is not None:
-        value, row_id = _decode_doc_cursor(cursor, field)
+        value, row_id = _decode_doc_cursor(cursor, sort)
         position = tuple_(column, Document.id)
         query = query.where(
             position < tuple_(value, row_id) if descending else position > tuple_(value, row_id)
@@ -414,7 +457,7 @@ async def list_documents(
     next_cursor = None
     if len(documents) > limit:
         last = page[-1]
-        next_cursor = _encode_doc_cursor(_sort_value(last, field), last.id)
+        next_cursor = _encode_doc_cursor(sort, _sort_value(last, field), last.id)
     return Page[DocumentOut](
         items=[_document_out(d, states.get(d.id)) for d in page], next_cursor=next_cursor
     )
