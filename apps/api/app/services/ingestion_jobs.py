@@ -9,6 +9,7 @@ import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.errors import Conflict, Forbidden, NotFound
@@ -33,6 +34,7 @@ from app.security.content_types import ContentFinding
 from app.services import audit, outbox
 from app.services.documents import (
     _visible_document,
+    can_read_content,
     document_readable,
     get_ingestion_job,
     list_versions,
@@ -42,6 +44,7 @@ from app.services.pagination import after_cursor, encode_cursor, page_limit
 
 S = IngestionState
 _NOT_FOUND = "The ingestion job was not found."
+_ACTIVE_JOB = "This version already has an ingestion job in progress."
 # Stages whose checkpoints a reindex keeps: everything before CHUNKING (the canonical artifact,
 # its normalization and its content-scan outcome stay valid; chunking onward runs again).
 _REINDEX_KEEPS = STAGES[: STAGES.index(S.CHUNKING)]
@@ -50,21 +53,27 @@ _REINDEX_KEEPS = STAGES[: STAGES.index(S.CHUNKING)]
 async def _job_and_document(
     session: AsyncSession, ctx: RequestContext, job_id: uuid.UUID, *, lock: bool = False
 ) -> tuple[IngestionJob, uuid.UUID]:
-    query = (
-        select(IngestionJob, DocumentVersion.document_id)
-        .join(DocumentVersion, DocumentVersion.id == IngestionJob.document_version_id)
+    """The job and its document id, 404 unless the document is visible. With `lock`, the
+    **document** row is locked first, then the job (lock order everywhere: document → job →
+    version). Every path that creates or changes a job for a document locks the document, so
+    "one active job per version" checks can't race across different jobs of that document."""
+    document_id = await session.scalar(
+        select(DocumentVersion.document_id)
+        .join(IngestionJob, IngestionJob.document_version_id == DocumentVersion.id)
         .where(IngestionJob.id == job_id, IngestionJob.organization_id == ctx.organization_id)
     )
-    if lock:
-        query = query.with_for_update(of=IngestionJob)
-    row = (await session.execute(query)).one_or_none()
-    if row is None:
+    if document_id is None:
         raise NotFound(_NOT_FOUND)
-    job, document_id = row
     try:
-        await _visible_document(session, ctx, document_id)
+        await _visible_document(session, ctx, document_id, lock=lock)
     except NotFound:
         raise NotFound(_NOT_FOUND) from None
+    query = select(IngestionJob).where(IngestionJob.id == job_id)
+    if lock:
+        query = query.with_for_update()
+    job = await session.scalar(query.execution_options(populate_existing=True))
+    if job is None:
+        raise NotFound(_NOT_FOUND)
     return job, document_id
 
 
@@ -155,7 +164,12 @@ async def _new_job(
     )
     session.add(job)
     version.ingestion_status = start.value
-    await session.flush()
+    try:
+        async with session.begin_nested():
+            await session.flush()
+    except IntegrityError as exc:
+        # The one-active-job index (migration 0009): backstop for the document lock.
+        raise Conflict(_ACTIVE_JOB) from exc
     session.add(
         JobEvent(
             id=new_uuid(),
@@ -199,7 +213,7 @@ async def retry_job(
         if version.approval_status == ApprovalStatus.REJECTED.value:
             raise Conflict("A reviewer rejected this version; upload a new one instead.")
         if await _active_job_exists(session, version.id):
-            raise Conflict("This version already has an ingestion job in progress.")
+            raise Conflict(_ACTIVE_JOB)
         target = await _new_job(
             session, ctx, version, dict(job.stage_checkpoints or {}), "manual_retry"
         )
@@ -270,7 +284,7 @@ async def reindex_document(
     if not version.canonical_artifact_key:
         raise Conflict("The document's parsed artifact is missing; retry ingestion instead.")
     if await _active_job_exists(session, version.id):
-        raise Conflict("This version already has an ingestion job in progress.")
+        raise Conflict(_ACTIVE_JOB)
     finished = await session.scalar(
         select(IngestionJob)
         .where(IngestionJob.document_version_id == version.id, IngestionJob.state == S.READY.value)
@@ -301,11 +315,15 @@ async def inspect_version(
     version_id: uuid.UUID,
 ) -> DocumentInspection:
     """Inspect mode (S21): the canonical artifact, chunk boundaries of the active generation and
-    the content-scan findings, for KB managers only (it shows the full document content)."""
+    the content-scan findings. It shows the full content, so it needs manage access to the KB
+    *and* read access to the content itself: managing never overrides a restricted KB's ACL or a
+    document's narrowed ACL."""
     document = await _visible_document(session, ctx, document_id)
     _, kb_acl = await load_kb(session, ctx, document.knowledge_base_id)
     if not can_manage(ctx, kb_acl):
         raise Forbidden("Inspect mode needs manage access to the knowledge base.")
+    if not await can_read_content(session, ctx, document):
+        raise Forbidden("Inspect mode needs read access to this document's content.")
     versions = await list_versions(session, ctx, document.id)
     version_out = next((v for v in versions if v.id == version_id), None)
     version = await session.get(DocumentVersion, version_id)

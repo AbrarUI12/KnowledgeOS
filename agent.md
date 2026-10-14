@@ -617,5 +617,5 @@ All deviations (DV-001…) now live in **[`docs/DECISIONS.md`](docs/DECISIONS.md
 | API (uploads) | Upload size limit, presigned URL lifetime | `UPLOAD_MAX_BYTES`, `UPLOAD_URL_TTL_SECONDS` | all | S13 (T2.4) |
 | Workers (Celery) | Dispatcher DB role URL, broker, lease/retry tuning | `DISPATCHER_DATABASE_URL`, `CELERY_BROKER_URL` (defaults to `REDIS_URL`), `INGESTION_LEASE_SECONDS`, `INGESTION_MAX_ATTEMPTS`, `DISPATCHER_BATCH_SIZE`, `DISPATCHER_POLL_SECONDS` | all | S16 (T3.1) |
 | Workers (malware scanning) | Scanner choice | `MALWARE_SCANNER` (`clamav` default, `none` for the core profile; staging/prod still require a scan) | all | S17 (T3.5) |
-| Workers (reconciler) | Sweep interval and staleness; crash-demo stage delay (local/test only) | `RECONCILE_INTERVAL_SECONDS`, `RECONCILE_STALE_SECONDS`, `APPROVAL_REMINDER_SECONDS`, `INGESTION_DEBUG_STAGE_DELAY_SECONDS` | all (delay: local/test) | S20 (T3.6) |
+| Workers (reconciler) | Sweep interval and staleness; crash-demo stage delay (local/test only) | `RECONCILE_INTERVAL_SECONDS`, `RECONCILE_STALE_SECONDS`, `APPROVAL_REMINDER_SECONDS`, `INGESTION_DEBUG_STAGE_DELAY_SECONDS`, `INGESTION_CONTRACT_FAKES` | all (delay, fakes: local/test) | S20 (T3.6) |
 | *(more rows added as sessions introduce services: Neon, B2, Auth0, HF, Vercel, Groq, Gemini, Langfuse, Grafana Cloud, Google Drive OAuth)* | | | | |

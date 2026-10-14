@@ -282,23 +282,41 @@ class _Run:
     async def finish(self) -> None:
         async with tenant_session(self.sessionmaker, self.organization_id) as session:
             now = _now()
+            # Lock the document first (lock order everywhere: document → job → version), so
+            # concurrent finishes of the same document's versions activate one at a time.
+            candidate = (
+                await session.execute(
+                    select(DocumentVersion.document_id, DocumentVersion.version_number).where(
+                        DocumentVersion.id == self.document_version_id
+                    )
+                )
+            ).one()
+            active_id = await session.scalar(
+                select(Document.active_version_id)
+                .where(Document.id == candidate.document_id)
+                .with_for_update()
+            )
             current = await session.scalar(select(IngestionJob.state).where(self._mine()))
             if current is not None and IngestionState(current) is not STAGES[-1]:
                 # Every checkpoint exists but the job isn't at the last stage: finalization failed
                 # after VERIFYING committed (e.g. FAILED_RETRYABLE). Re-enter the last stage
                 # through the guarded table instead of jumping straight to READY.
                 await self._set_state(session, STAGES[-1], stage=STAGES[-1].value)
-            # The newest version that finishes becomes the document's active version.
-            document_id = await session.scalar(
-                select(DocumentVersion.document_id).where(
-                    DocumentVersion.id == self.document_version_id
+            # Activate this version unless a newer one is already active: an out-of-order finish
+            # or a retry of an old version must never roll the document back to stale content.
+            active_number = (
+                await session.scalar(
+                    select(DocumentVersion.version_number).where(DocumentVersion.id == active_id)
                 )
+                if active_id is not None
+                else None
             )
-            await session.execute(
-                update(Document)
-                .where(Document.id == document_id)
-                .values(active_version_id=self.document_version_id, updated_at=now)
-            )
+            if active_number is None or candidate.version_number >= active_number:
+                await session.execute(
+                    update(Document)
+                    .where(Document.id == candidate.document_id)
+                    .values(active_version_id=self.document_version_id, updated_at=now)
+                )
             await self._set_state(
                 session,
                 IngestionState.READY,

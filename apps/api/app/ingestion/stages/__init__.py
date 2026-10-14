@@ -10,6 +10,10 @@ before its checkpoint was stored.
 malware scanning are always real. Parsing → chunking switch on only when *all four* libraries are
 importable (parser, normalizer, content scanner, chunker: Codex's T3.2-T3.4), so a half-wired
 pipeline can never index content that skipped the content-security scan.
+
+`INGESTION_CONTRACT_FAKES=true` (local/test only) swaps all four for the T1.0 contract fakes in
+`tests/fakes`, which the crash demo mounts into the worker: the real runner, stages and chunk
+persistence then run end to end before every real library has merged.
 """
 
 import asyncio
@@ -45,6 +49,20 @@ _COMPONENTS: dict[str, tuple[str, str]] = {
     "content_scanner": ("app.security.content_scanner", "RuleContentScanner"),
     "chunker": ("app.ingestion.chunking.structure_aware", "StructureAwareChunker"),
 }
+
+
+def _contract_fakes(settings: Settings) -> dict[str, Any]:
+    if settings.environment not in {Environment.LOCAL, Environment.TEST}:
+        raise RuntimeError("INGESTION_CONTRACT_FAKES is only allowed in local/test environments")
+    # Explicitly requested, so a missing module fails loudly instead of silently stubbing.
+    fakes = importlib.import_module("tests.fakes.providers")
+    logger.warning("ingestion_contract_fakes_enabled")
+    return {
+        "parser": fakes.FakeParser,
+        "normalize": _identity,
+        "content_scanner": fakes.FakeContentScanner,
+        "chunker": fakes.FakeChunker,
+    }
 
 
 def _discover() -> dict[str, Any] | None:
@@ -109,7 +127,8 @@ def _real_stages(settings: Settings, store: ObjectStore) -> dict[IngestionState,
 
     stages: dict[IngestionState, StageFn] = dict(STUB_STAGES)
     scanner = malware_scanner(settings)
-    components = _discover()
+    fakes = settings.ingestion_contract_fakes
+    components = _contract_fakes(settings) if fakes else _discover()
     if components is None:
         partial = pipeline.StageDeps(
             settings=settings,
@@ -127,7 +146,7 @@ def _real_stages(settings: Settings, store: ObjectStore) -> dict[IngestionState,
         settings=settings,
         store=store,
         malware_scanner=scanner,
-        parsers=(components["parser"](), *_extra_parsers()),
+        parsers=(components["parser"](), *(() if fakes else _extra_parsers())),
         normalize=components["normalize"],
         content_scanner=components["content_scanner"](),
         chunker=components["chunker"](),

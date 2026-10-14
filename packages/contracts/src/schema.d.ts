@@ -171,7 +171,8 @@ export interface paths {
         };
         /**
          * Inspect Document Version
-         * @description Canonical artifact, chunk boundaries and scan findings (KB manage access).
+         * @description Canonical artifact, chunk boundaries and scan findings (KB manage access plus read
+         *     access to the content: a restricted KB's or narrowed document's ACL still applies).
          */
         get: operations["documents_inspect_document_version"];
         put?: never;

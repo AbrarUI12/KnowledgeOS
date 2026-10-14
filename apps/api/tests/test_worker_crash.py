@@ -142,6 +142,9 @@ async def test_killed_worker_resumes_and_matches_a_clean_run() -> None:
         clean_final = await wait_for(conn, clean, lambda r: r["state"] in TERMINAL, within=180)
         assert clean_final["state"] == "READY"
         clean_chunks = await conn.fetchval(CHUNKS_OF_JOB, clean)
+        # The comparison below only proves something if chunking really ran: the worker must
+        # have a complete library set (real, or the contract fakes the demo script mounts).
+        assert clean_chunks > 0, "CHUNKING persisted nothing: the worker's pipeline is stubbed"
 
         # Crash run: kill the worker once the job is past its first checkpoints.
         crashed = await seed(conn, org, kb, source)
@@ -153,7 +156,12 @@ async def test_killed_worker_resumes_and_matches_a_clean_run() -> None:
 
         assert final["state"] == "READY"
         assert final["attempt_count"] >= 1  # the lost lease was counted
-        assert await conn.fetchval(CHUNKS_OF_JOB, crashed) == clean_chunks
+        crashed_chunks = await conn.fetchval(CHUNKS_OF_JOB, crashed)
+        print(  # demo evidence, shown with -s
+            f"\nclean run: {clean_chunks} chunks; crashed run: {crashed_chunks} chunks, "
+            f"attempts {final['attempt_count']}"
+        )
+        assert crashed_chunks == clean_chunks
     finally:
         async with conn.transaction():
             await conn.execute("SET LOCAL app.audit_purge = 'on'")

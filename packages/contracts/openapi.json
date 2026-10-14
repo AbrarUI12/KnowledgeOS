@@ -4430,7 +4430,7 @@
     },
     "/v1/documents/{document_id}/versions/{version_id}/inspect": {
       "get": {
-        "description": "Canonical artifact, chunk boundaries and scan findings (KB manage access).",
+        "description": "Canonical artifact, chunk boundaries and scan findings (KB manage access plus read\naccess to the content: a restricted KB's or narrowed document's ACL still applies).",
         "operationId": "documents_inspect_document_version",
         "parameters": [
           {

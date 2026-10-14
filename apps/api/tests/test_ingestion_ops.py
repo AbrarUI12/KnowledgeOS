@@ -2,6 +2,8 @@
 """Ingestion reliability and operations (T3.6, S20): reconciliation, crash attempts, timeline,
 retry / cancel / reindex, inspect mode."""
 
+import asyncio
+import contextlib
 import json
 import uuid
 from typing import Any
@@ -11,11 +13,12 @@ import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.core.config import Settings
-from app.domain.enums import IngestionState
+from app.domain.enums import TERMINAL_INGESTION_STATES, IngestionState
 from app.ingestion.errors import PermanentError, RetryableError
 from app.ingestion.runner import RunnerConfig, run_job
 from app.ingestion.stages import STUB_STAGES
 from app.ingestion.stages.pipeline import build_stages
+from app.services import ingestion_jobs
 from app.workers.dispatcher import create_dispatcher_engine
 from app.workers.reconcile import reconcile
 from tests.test_ingestion_stages import (  # noqa: F401 (pytest fixtures)
@@ -349,3 +352,200 @@ async def test_inspect_shows_artifact_chunks_and_findings_to_managers(world: Wor
     assert body["canonical"]["title"] == "Notes"
     assert len(body["chunks"]) > 0
     assert body["content_findings"][0]["rule_id"] == "injection.ignore_previous"
+
+
+async def join_as(world: World, who: str, role: str) -> None:
+    invite = await world.api.post(
+        f"/v1/organizations/{world.org}/invitations",
+        json={"email": f"{who}@acme.test", "role": role},
+        headers={"Authorization": "Bearer alice"},
+    )
+    assert invite.status_code == 201, invite.text
+    token = invite.json()["accept_url"].rsplit("/", 1)[1]
+    accepted = await world.api.post(
+        f"/v1/invitations/{token}/accept", headers={"Authorization": f"Bearer {who}"}
+    )
+    assert accepted.status_code == 200, accepted.text
+
+
+async def test_managing_a_kb_never_overrides_content_acls_in_inspect_mode(
+    world: World, admin: asyncpg.Connection
+) -> None:
+    """Bob is an org admin (kb.manage) but on neither the restricted KB's ACL nor the narrowed
+    document's: he may administer them, not read their content (kb_access, Session 23)."""
+    await join_as(world, "bob", "admin")
+    alice = (await world.api.get("/v1/me", headers=world.h())).json()["user"]["id"]
+    job = await world.upload(HANDBOOK)
+    assert await world.run(job) is S.READY
+    url = f"/v1/documents/{job['document_id']}/versions/{job['document_version_id']}/inspect"
+    assert (await world.api.get(url, headers=world.h("bob"))).status_code == 200
+
+    # A document ACL that narrows the (organization) KB to alice.
+    await admin.execute(
+        "INSERT INTO document_acl (organization_id, document_id, principal_type, principal_id, permission) "
+        "VALUES ($1, $2, 'user', $3, 'query')",
+        uuid.UUID(world.org), uuid.UUID(job["document_id"]), alice,
+    )  # fmt: skip
+    denied = await world.api.get(url, headers=world.h("bob"))
+    assert denied.status_code == 403
+    assert "16 weeks" not in denied.text
+    assert (await world.api.get(url, headers=world.h())).status_code == 200
+    await admin.execute(
+        "DELETE FROM document_acl WHERE document_id = $1", uuid.UUID(job["document_id"])
+    )
+
+    # A restricted KB whose ACL names only alice.
+    kb_url = f"/v1/knowledge-bases/{world.kb}"
+    entry = {"principal_type": "user", "principal_id": alice, "permission": "manage"}
+    put = await world.api.put(f"{kb_url}/permissions", json={"entries": [entry]}, headers=world.h())
+    assert put.status_code == 200, put.text
+    patched = await world.api.patch(kb_url, json={"visibility": "restricted"}, headers=world.h())
+    assert patched.status_code == 200, patched.text
+    denied = await world.api.get(url, headers=world.h("bob"))
+    assert denied.status_code == 403
+    assert "16 weeks" not in denied.text
+    assert (await world.api.get(url, headers=world.h())).status_code == 200
+
+
+# --------------------------------------------------------------------------- ordering & concurrency
+
+
+async def upload_version(world: World, document_id: str, data: bytes) -> dict[str, Any]:
+    """A replacement upload: a new version of an existing document."""
+    start = await world.api.post(
+        f"/v1/knowledge-bases/{world.kb}/uploads",
+        json={
+            "filename": "handbook.md",
+            "content_type": "text/markdown",
+            "size_bytes": len(data),
+            "document_id": document_id,
+        },
+        headers=world.h(),
+    )
+    assert start.status_code == 201, start.text
+    upload_id = start.json()["upload_id"]
+    await world.store.put(
+        world.settings.s3_bucket_quarantine,
+        f"{world.org}/{world.kb}/{upload_id}/original",
+        data,
+        content_type="text/markdown",
+    )
+    done = await world.api.post(f"/v1/uploads/{upload_id}/complete", json={}, headers=world.h())
+    assert done.status_code == 200, done.text
+    body: dict[str, Any] = done.json()
+    return body
+
+
+async def test_an_older_version_finishing_last_never_becomes_active(
+    world: World, admin: asyncpg.Connection
+) -> None:
+    v1 = await world.upload(HANDBOOK)
+    v2 = await upload_version(world, v1["document_id"], HANDBOOK + b"\nUpdated for 2026.\n")
+    assert v2["document_version_id"] != v1["document_version_id"]
+
+    assert await world.run(v2) is S.READY  # the newer version finishes first ...
+    assert await world.run(v1) is S.READY  # ... and the older one last
+
+    active = await admin.fetchval(
+        "SELECT active_version_id FROM documents WHERE id = $1", uuid.UUID(v1["document_id"])
+    )
+    assert str(active) == v2["document_version_id"]
+
+
+async def active_jobs(admin: asyncpg.Connection, version_id: str) -> int:
+    count: int = await admin.fetchval(
+        "SELECT count(*) FROM ingestion_jobs WHERE document_version_id = $1 "
+        "AND state NOT IN ('READY', 'QUARANTINED', 'FAILED_PERMANENT', 'CANCELLED')",
+        uuid.UUID(version_id),
+    )
+    return count
+
+
+@pytest.fixture
+def racing_checks(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Force the interleaving a race needs: each "active job exists?" check waits (up to 2 s)
+    for a second request to finish its check too, so without serialization both requests pass
+    the check before either inserts. With the document lock the second request can't reach
+    the check until the first commits, so the first one just times out and carries on."""
+    real = ingestion_jobs._active_job_exists
+    barrier = asyncio.Barrier(2)
+
+    async def check(session: Any, version_id: uuid.UUID) -> bool:
+        found = await real(session, version_id)
+        with contextlib.suppress(TimeoutError, asyncio.BrokenBarrierError):
+            await asyncio.wait_for(barrier.wait(), timeout=2)
+        return found
+
+    monkeypatch.setattr(ingestion_jobs, "_active_job_exists", check)
+
+
+async def two_failed_histories(
+    world: World, *, second_succeeds: bool
+) -> tuple[dict[str, Any], str]:
+    """Version with a FAILED_PERMANENT job and a retried second job (failed or READY)."""
+    first = await world.upload(HANDBOOK)
+    crash = {S.CHUNKING: failing("chunker_crash", retryable=False)}
+    assert await world.run(first, wrap=crash) is S.FAILED_PERMANENT
+    retried = await world.api.post(
+        f"/v1/ingestion-jobs/{first['ingestion_job_id']}/retry", headers=world.h()
+    )
+    second: str = retried.json()["id"]
+    expected = S.READY if second_succeeds else S.FAILED_PERMANENT
+    wrap = None if second_succeeds else crash
+    assert await world.run({"ingestion_job_id": second}, wrap=wrap) is expected
+    return first, second
+
+
+@pytest.mark.usefixtures("racing_checks")
+async def test_concurrent_retries_of_different_histories_start_one_job(
+    world: World, admin: asyncpg.Connection
+) -> None:
+    """Two failed jobs of one version, retried at the same time by two people: one wins, the
+    other gets 409, and the version never has two active jobs."""
+    await join_as(world, "bob", "admin")
+    first, second = await two_failed_histories(world, second_succeeds=False)
+
+    results = await asyncio.gather(
+        world.api.post(f"/v1/ingestion-jobs/{first['ingestion_job_id']}/retry", headers=world.h()),
+        world.api.post(f"/v1/ingestion-jobs/{second}/retry", headers=world.h("bob")),
+    )
+
+    assert sorted(r.status_code for r in results) == [200, 409]
+    assert await active_jobs(admin, first["document_version_id"]) == 1
+
+
+@pytest.mark.usefixtures("racing_checks")
+async def test_concurrent_retry_and_reindex_start_one_job(
+    world: World, admin: asyncpg.Connection
+) -> None:
+    first, _ = await two_failed_histories(world, second_succeeds=True)
+
+    results = await asyncio.gather(
+        world.api.post(f"/v1/ingestion-jobs/{first['ingestion_job_id']}/retry", headers=world.h()),
+        world.api.post(f"/v1/documents/{first['document_id']}/reindex", headers=world.h()),
+    )
+
+    # Whichever wins (retry answers 200, reindex 202), the other one gets 409.
+    retried, reindexed = (r.status_code for r in results)
+    assert (retried, reindexed) in {(200, 409), (409, 202)}
+    assert await active_jobs(admin, first["document_version_id"]) == 1
+
+
+async def test_the_database_allows_one_unfinished_job_per_version(
+    world: World, admin: asyncpg.Connection
+) -> None:
+    """Migration 0009's backstop; its state list matches TERMINAL_INGESTION_STATES."""
+    indexdef = await admin.fetchval(
+        "SELECT indexdef FROM pg_indexes WHERE indexname = 'uq_ingestion_jobs_one_active_per_version'"
+    )
+    assert indexdef is not None
+    assert all(f"'{state.value}'" in indexdef for state in TERMINAL_INGESTION_STATES)
+    non_terminal = [s for s in IngestionState if s not in TERMINAL_INGESTION_STATES]
+    assert not any(f"'{state.value}'" in indexdef for state in non_terminal)
+
+    job = await world.upload(HANDBOOK)
+    with pytest.raises(asyncpg.UniqueViolationError):
+        await admin.execute(
+            "INSERT INTO ingestion_jobs (id, organization_id, document_version_id) VALUES ($1, $2, $3)",
+            uuid.uuid4(), uuid.UUID(world.org), uuid.UUID(job["document_version_id"]),
+        )  # fmt: skip

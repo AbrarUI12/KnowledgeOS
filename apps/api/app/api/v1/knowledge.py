@@ -321,7 +321,8 @@ async def inspect_document_version(
     document_id: uuid.UUID,
     version_id: uuid.UUID,
 ) -> DocumentInspection:
-    """Canonical artifact, chunk boundaries and scan findings (KB manage access)."""
+    """Canonical artifact, chunk boundaries and scan findings (KB manage access plus read
+    access to the content: a restricted KB's or narrowed document's ACL still applies)."""
     return await ingestion_jobs.inspect_version(
         session, ctx, store, request.app.state.settings, document_id, version_id
     )
