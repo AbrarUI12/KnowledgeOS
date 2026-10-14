@@ -58,7 +58,7 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** Addressing T3.4 #35 review: weak/strong scanner calibration and scheme boundaries; benign probes and real corpus regressions. T5.1 draft #37 next. #38 reviewed (16 tests), one HIGH worker-config finding. #34 latest review PASS, user ADR approval still required.
+- **Current task:** T5.1 draft #37 next. T3.4 #35 HIGH scanner fixes verified: 508 backend / 105 frontend / nine snapshots and required lint/types green (three existing platform/opt-in skips); 16-file corpus correct. Re-review requested. #38 reviewed (16 tests), one HIGH worker-config finding remains open; #34 merged after user approval.
 - **Last finished:** T4.1 #36 merged (a25389f): real Qwen CPU 1024-d inference, 426 backend / 105 frontend / nine snapshots and required checks green. T3.3 #28 (6e725fb), T3.2 #26 (0c1f49f), T1.4 #17 (961cb0a) merged.
 - **Blockers:** none
 - **Recent:**
