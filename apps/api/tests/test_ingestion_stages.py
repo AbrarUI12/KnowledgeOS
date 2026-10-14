@@ -18,7 +18,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.api.dependencies.auth import get_identity_verifier
 from app.api.dependencies.storage import get_object_store
-from app.core.config import Settings
+from app.core.config import Environment, Settings
 from app.domain.enums import IngestionState
 from app.ingestion.errors import RetryableError
 from app.ingestion.runner import run_job
@@ -405,6 +405,20 @@ def test_default_stages_never_half_wire_the_pipeline(migrated_settings: Settings
         for s in (S.PARSING, S.NORMALIZING, S.SECURITY_SCAN, S.CHUNKING)
     ]
     assert len(set(real_from_parsing)) == 1  # all or nothing
+
+
+def test_contract_fakes_wire_every_stage_but_only_locally(migrated_settings: Settings) -> None:
+    """The crash demo's INGESTION_CONTRACT_FAKES: the whole pipeline runs (chunks persist), and
+    the switch is refused outside local/test."""
+    fakes = migrated_settings.model_copy(update={"ingestion_contract_fakes": True})
+    stages = default_stages(fakes, InMemoryObjectStore())
+    assert all(
+        stages[s] is not STUB_STAGES[s]
+        for s in (S.PARSING, S.NORMALIZING, S.SECURITY_SCAN, S.CHUNKING)
+    )
+    production = fakes.model_copy(update={"environment": Environment.PRODUCTION})
+    with pytest.raises(RuntimeError, match="only allowed in local/test"):
+        default_stages(production, InMemoryObjectStore())
 
 
 # --------------------------------------------------------------------------- review #31 fixes

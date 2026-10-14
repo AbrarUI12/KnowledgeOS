@@ -32,7 +32,7 @@ from app.api.errors import (
     ValidationFailed,
 )
 from app.auth.authorization import RequestContext
-from app.auth.kb_access import caller_principals, can_manage
+from app.auth.kb_access import caller_principals, can_manage, can_query
 from app.core.config import Settings
 from app.db.base import new_uuid
 from app.db.models import (
@@ -43,7 +43,13 @@ from app.db.models import (
     IngestionJob,
     Upload,
 )
-from app.domain.enums import ApprovalStatus, Classification, DocumentStatus, IngestionState
+from app.domain.enums import (
+    ApprovalStatus,
+    Classification,
+    DocumentStatus,
+    IngestionState,
+    Visibility,
+)
 from app.domain.schemas.common import Page
 from app.domain.schemas.knowledge import (
     DocumentOut,
@@ -114,6 +120,19 @@ async def _visible_document(
         if readable is None:
             raise NotFound(_DOC_NOT_FOUND)
     return document
+
+
+async def can_read_content(session: AsyncSession, ctx: RequestContext, document: Document) -> bool:
+    """May read the document's *content*, not just its metadata: KB query access and, if the
+    document has its own ACL, an entry for the caller. Unlike `_visible_document`, managing the
+    KB grants nothing here, so content reads agree with retrieval's chunk ACLs (kb_access)."""
+    kb, kb_acl = await load_kb(session, ctx, document.knowledge_base_id)
+    if not can_query(ctx, Visibility(kb.visibility), kb_acl):
+        return False
+    readable = await session.scalar(
+        select(Document.id).where(Document.id == document.id, document_readable(ctx))
+    )
+    return readable is not None
 
 
 async def create_upload(
@@ -514,7 +533,8 @@ async def decide_approval(
 ) -> DocumentVersionOut:
     """Approve (resume ingestion at CHUNKING) or reject (cancel) a version that the content scan
     or its source's trust level held for review (S19)."""
-    document = await _visible_document(session, ctx, document_id)
+    # Document first, then the job (the lock order every job-changing path uses).
+    document = await _visible_document(session, ctx, document_id, lock=True)
     version = await session.scalar(
         select(DocumentVersion).where(
             DocumentVersion.id == version_id,

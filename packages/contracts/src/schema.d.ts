@@ -91,7 +91,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Reindex Document */
+        /**
+         * Reindex Document
+         * @description Re-run chunking onward for the active version from its canonical artifact
+         *     (`document.publish`). 409 if nothing is processed yet or a job is already running.
+         */
         post: operations["documents_reindex_document"];
         delete?: never;
         options?: never;
@@ -167,7 +171,8 @@ export interface paths {
         };
         /**
          * Inspect Document Version
-         * @description Canonical artifact, chunk boundaries and scan findings (`kb.manage`).
+         * @description Canonical artifact, chunk boundaries and scan findings (KB manage access plus read
+         *     access to the content: a restricted KB's or narrowed document's ACL still applies).
          */
         get: operations["documents_inspect_document_version"];
         put?: never;
@@ -383,7 +388,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Ingestion Jobs */
+        /**
+         * List Ingestion Jobs
+         * @description Jobs of a KB's documents the caller can see, oldest first; filter with repeated `state`.
+         */
         get: operations["ingestion_list_ingestion_jobs"];
         put?: never;
         post?: never;

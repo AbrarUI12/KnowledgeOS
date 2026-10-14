@@ -34,7 +34,7 @@ from app.domain.schemas.knowledge import (
     UploadCreate,
     UploadOut,
 )
-from app.services import documents, knowledge_bases
+from app.services import documents, ingestion_jobs, knowledge_bases
 
 router = APIRouter(responses=ERRORS)
 
@@ -313,10 +313,19 @@ async def reject_document_version(
     response_model=DocumentInspection,
 )
 async def inspect_document_version(
-    org: OrgIdHeader, ctx: OrgContext, document_id: uuid.UUID, version_id: uuid.UUID
+    request: Request,
+    org: OrgIdHeader,
+    ctx: OrgContext,
+    session: DbSession,
+    store: Storage,
+    document_id: uuid.UUID,
+    version_id: uuid.UUID,
 ) -> DocumentInspection:
-    """Canonical artifact, chunk boundaries and scan findings (`kb.manage`)."""
-    stub("T3.6")
+    """Canonical artifact, chunk boundaries and scan findings (KB manage access plus read
+    access to the content: a restricted KB's or narrowed document's ACL still applies)."""
+    return await ingestion_jobs.inspect_version(
+        session, ctx, store, request.app.state.settings, document_id, version_id
+    )
 
 
 @router.get(
@@ -337,9 +346,11 @@ async def get_document_content_url(
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def reindex_document(
-    org: OrgIdHeader, ctx: OrgContext, document_id: uuid.UUID
+    org: OrgIdHeader, ctx: PublishDocuments, session: DbSession, document_id: uuid.UUID
 ) -> IngestionJobOut:
-    stub("T3.6")
+    """Re-run chunking onward for the active version from its canonical artifact
+    (`document.publish`). 409 if nothing is processed yet or a job is already running."""
+    return await ingestion_jobs.reindex_document(session, ctx, document_id)
 
 
 @router.get("/chunks/{chunk_id}/context", tags=["documents"], response_model=ChunkContext)
@@ -364,12 +375,16 @@ async def get_chunk_context(
 async def list_ingestion_jobs(
     org: OrgIdHeader,
     ctx: OrgContext,
+    session: DbSession,
     kb_id: uuid.UUID,
     cursor: Cursor = None,
     limit: Limit = 50,
     state: Annotated[list[IngestionState] | None, Query()] = None,
 ) -> Page[IngestionJobOut]:
-    stub("T3.6")
+    """Jobs of a KB's documents the caller can see, oldest first; filter with repeated `state`."""
+    return await ingestion_jobs.list_jobs(
+        session, ctx, kb_id, states=state, cursor=cursor, limit=limit
+    )
 
 
 @router.get("/ingestion-jobs/{job_id}", tags=["ingestion"], response_model=IngestionJobOut)
@@ -385,21 +400,21 @@ async def get_ingestion_job(
     response_model=list[IngestionJobEvent],
 )
 async def list_ingestion_job_events(
-    org: OrgIdHeader, ctx: OrgContext, job_id: uuid.UUID
+    org: OrgIdHeader, ctx: OrgContext, session: DbSession, job_id: uuid.UUID
 ) -> list[IngestionJobEvent]:
-    stub("T3.6")
+    return await ingestion_jobs.list_events(session, ctx, job_id)
 
 
 @router.post("/ingestion-jobs/{job_id}/retry", tags=["ingestion"], response_model=IngestionJobOut)
 async def retry_ingestion_job(
-    org: OrgIdHeader, ctx: OrgContext, job_id: uuid.UUID
+    org: OrgIdHeader, ctx: UploadDocuments, session: DbSession, job_id: uuid.UUID
 ) -> IngestionJobOut:
     """Resume from the failed stage using checkpoints."""
-    stub("T3.6")
+    return await ingestion_jobs.retry_job(session, ctx, job_id)
 
 
 @router.post("/ingestion-jobs/{job_id}/cancel", tags=["ingestion"], response_model=IngestionJobOut)
 async def cancel_ingestion_job(
-    org: OrgIdHeader, ctx: OrgContext, job_id: uuid.UUID
+    org: OrgIdHeader, ctx: UploadDocuments, session: DbSession, job_id: uuid.UUID
 ) -> IngestionJobOut:
-    stub("T3.6")
+    return await ingestion_jobs.cancel_job(session, ctx, job_id)
