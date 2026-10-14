@@ -31,11 +31,11 @@
 | T1.1 | OIDC authentication (backend) | 1 | S07 | DONE | ai/claude-t1.1-oidc | #13 |
 | T1.2 | Tenant context, RLS & permission engine | 1 | S08 | DONE | ai/claude-t1.2-rls | #23 (was #15) |
 | T1.3 | Org / member / group / invitation APIs + audit | 2 | S09 | DONE | ai/claude-t1.3-org-apis | #19 |
-| T2.1 | KB & document schema + KB APIs + RLS meta-test | 2 | S12 | REVIEW | ai/claude-t2.1-kb-schema | #25 |
-| T2.4 | Upload & document endpoints | 3 | S13 | REVIEW | ai/claude-t2.4-uploads | |
-| T3.1 | Outbox dispatcher, Celery & job state machine | 3 | S16 | REVIEW | ai/claude-t3.1-dispatcher | #30 |
-| T3.5 | Ingestion stage wiring + chunks schema + approvals | 4 | S17–S19 | REVIEW | ai/claude-t3.5-stages | |
-| T3.6 | Ingestion reliability & recovery | 4 | S20 | TODO | | |
+| T2.1 | KB & document schema + KB APIs + RLS meta-test | 2 | S12 | DONE | ai/claude-t2.1-kb-schema | #25 |
+| T2.4 | Upload & document endpoints | 3 | S13 | DONE | ai/claude-t2.4-uploads | #27 |
+| T3.1 | Outbox dispatcher, Celery & job state machine | 3 | S16 | DONE | ai/claude-t3.1-dispatcher | #30 |
+| T3.5 | Ingestion stage wiring + chunks schema + approvals | 4 | S17–S19 | DONE | ai/claude-t3.5-stages | #31 |
+| T3.6 | Ingestion reliability & recovery | 4 | S20 | REVIEW | ai/claude-t3.6-reliability | |
 | T4.2 | Index generations (DB) + chunk indexing & ACL materialization | 5 | S22–S23 | TODO | | |
 | T4.4 | Permission-aware hybrid search backend | 5 | S24 | TODO | | |
 | T4.6 | Search API, demo seed loader, debug API | 6 | S25–S26 | TODO | | |
@@ -54,8 +54,8 @@
 | T3.2 | Docling parser library (PDF/DOCX/HTML/MD) | 2 | S17 | DONE | ai/codex-t3.2-docling-parser | #26 (0c1f49f) |
 | T3.3 | Office/tabular formats, OCR & normalization library | 3 | S18 | DONE | ai/codex-t3.3-office-normalize | #28 (6e725fb) |
 | T3.4 | Content-security scanner & structure-aware chunker | 4 | S19 | REVIEW | ai/codex-t3.4-content-chunking | #35 |
-| T4.1 | Embedding providers | 4 | S22 | TODO | | |
-| T5.1 | Reranker, context packer & source aliases | 5 | S27 | TODO | | |
+| T4.1 | Embedding providers | 4 | S22 | DONE | ai/codex-t4.1-embedding-providers | #36 (a25389f) |
+| T5.1 | Reranker, context packer & source aliases | 5 | S27 | IN PROGRESS | ai/codex-t5.1-reranker-context | #37 |
 | T5.2 | LLM gateway, prompts, abstention & citation validator | 5 | S28 | TODO | | |
 | T4.8 | Retrieval debugger UI | 6 | S26 | TODO | | |
 | T5.5 | Ask workspace UI | 7 | S30 | TODO | | |

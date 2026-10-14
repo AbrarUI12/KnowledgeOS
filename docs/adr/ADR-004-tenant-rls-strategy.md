@@ -45,3 +45,13 @@ The outbox dispatcher publishes events for every organization, so it is the one 
 - events carry only IDs and safe metadata (no document content), and workers re-enter the tenant context (`tenant_session(org)`) before touching tenant data.
 
 `tests/test_ingestion_runner.py::test_dispatcher_role_can_only_touch_the_outbox` guards this.
+
+### Reconciler extension (Session 20, T3.6)
+
+The ingestion reconciler (`maintenance.reconcile`, Celery beat) must see stranded work in every organization, so it runs as the same `knowledgeos_dispatcher` role, with additions kept to the minimum it needs (migration 0008):
+
+- `ingestion_jobs`: `SELECT` on the scheduling columns only (`id, organization_id, state, lease_owner, lease_expires_at, created_at, updated_at`); checkpoints and error text stay denied; no writes;
+- `uploads`: `SELECT (id, organization_id, status, expires_at, object_key)` and `UPDATE (status)`, to expire abandoned uploads;
+- `outbox_events`: `INSERT`, to re-queue stranded jobs and emit approval reminders.
+
+It never reads tenant content and never moves a job's state itself: re-queued jobs are run by a worker inside the tenant context like any other. `tests/test_ingestion_ops.py::test_reconciler_role_cannot_read_job_content` guards the column limits.

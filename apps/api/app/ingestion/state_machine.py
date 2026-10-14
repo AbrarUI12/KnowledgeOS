@@ -21,9 +21,23 @@ STAGES: tuple[IngestionState, ...] = (
     S.VERIFYING,
 )
 
-# Progress shown to users when a stage *starts* (READY is 100).
+# Relative cost of each stage (parsing/OCR and embedding dominate), so progress moves at a
+# believable pace. Progress shown when a stage *starts* is the share of the stages before it.
+STAGE_WEIGHTS: dict[IngestionState, int] = {
+    S.VALIDATING: 2,
+    S.MALWARE_SCAN: 5,
+    S.PARSING: 30,
+    S.NORMALIZING: 3,
+    S.SECURITY_SCAN: 5,
+    S.CHUNKING: 10,
+    S.EMBEDDING: 30,
+    S.INDEXING: 10,
+    S.VERIFYING: 5,
+}
+_TOTAL_WEIGHT = sum(STAGE_WEIGHTS.values())
 PROGRESS: dict[IngestionState, int] = {
-    stage: round(100 * index / len(STAGES)) for index, stage in enumerate(STAGES)
+    stage: round(100 * sum(STAGE_WEIGHTS[s] for s in STAGES[:index]) / _TOTAL_WEIGHT)
+    for index, stage in enumerate(STAGES)
 }
 
 _FAILURES = {S.FAILED_RETRYABLE, S.FAILED_PERMANENT, S.CANCELLED}

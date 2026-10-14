@@ -18,6 +18,7 @@ from typing import Any
 from celery import Celery
 
 from app.core.config import get_settings
+from app.workers.schedules import beat_schedule
 
 QUEUES = ("ingestion", "sync", "maintenance", "eval", "llm")
 
@@ -38,7 +39,14 @@ celery_app.conf.update(
     task_time_limit=960,
     task_default_queue="maintenance",
     broker_connection_retry_on_startup=True,
+    # Redis redelivers an unacknowledged (late-ack) task only after this timeout, e.g. after a
+    # worker is killed. Must exceed the longest task (task_time_limit) or long tasks get delivered
+    # twice; the reconciler (maintenance.reconcile) is the fast path for crashed work.
+    broker_transport_options={"visibility_timeout": 1200},
 )
+
+
+celery_app.conf.beat_schedule = beat_schedule(settings)
 
 
 def _worker_id() -> str:
@@ -49,19 +57,8 @@ async def _process_job(organization_id: uuid.UUID, job_id: uuid.UUID) -> str | N
     from app.db.session import create_engine, create_sessionmaker
     from app.ingestion.runner import RunnerConfig, run_job
     from app.ingestion.stages import default_stages
-    from app.providers.storage import S3ObjectStore
 
-    store = S3ObjectStore(
-        endpoint_url=settings.s3_endpoint_url,
-        public_endpoint_url=settings.s3_public_endpoint_url,
-        region_name=settings.s3_region,
-        access_key_id=settings.s3_access_key_id.get_secret_value(),
-        secret_access_key=settings.s3_secret_access_key.get_secret_value(),
-        force_path_style=settings.s3_force_path_style,
-        connect_timeout_seconds=settings.s3_connect_timeout_seconds,
-        read_timeout_seconds=settings.s3_read_timeout_seconds,
-        max_attempts=settings.s3_max_attempts,
-    )
+    store = _object_store()
 
     engine = create_engine(settings)
     try:
@@ -106,3 +103,43 @@ def sync_knowledge_base_acl(
 ) -> None:
     """Re-materialize chunk ACLs after a KB permission change. Implemented in T4.2 (S23)."""
     return None
+
+
+def _object_store() -> Any:
+    from app.providers.storage import S3ObjectStore
+
+    return S3ObjectStore(
+        endpoint_url=settings.s3_endpoint_url,
+        public_endpoint_url=settings.s3_public_endpoint_url,
+        region_name=settings.s3_region,
+        access_key_id=settings.s3_access_key_id.get_secret_value(),
+        secret_access_key=settings.s3_secret_access_key.get_secret_value(),
+        force_path_style=settings.s3_force_path_style,
+        connect_timeout_seconds=settings.s3_connect_timeout_seconds,
+        read_timeout_seconds=settings.s3_read_timeout_seconds,
+        max_attempts=settings.s3_max_attempts,
+    )
+
+
+async def _reconcile() -> dict[str, int]:
+    from dataclasses import asdict
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.workers.dispatcher import create_dispatcher_engine
+    from app.workers.reconcile import reconcile
+
+    engine = create_dispatcher_engine(settings)
+    try:
+        report = await reconcile(
+            async_sessionmaker(engine, expire_on_commit=False), _object_store(), settings
+        )
+        return asdict(report)
+    finally:
+        await engine.dispose()
+
+
+@celery_app.task(name="maintenance.reconcile", queue="maintenance")  # type: ignore[untyped-decorator]
+def reconcile_task() -> dict[str, int]:
+    """Re-queue stranded jobs, expire abandoned uploads, remind waiting approvals (S20)."""
+    return asyncio.run(_reconcile())

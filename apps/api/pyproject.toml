@@ -35,6 +35,8 @@ dependencies = [
     "celery[redis]>=5.5",
     "pyyaml>=6.0.3",
     "tokenizers>=0.23.3",
+    "sentence-transformers>=6.1.0",
+    "huggingface-hub>=1.33.0",
 ]
 
 [build-system]
@@ -90,6 +92,7 @@ markers = [
     "security: security regression tests",
     "slow: slow tests (model loading, large fixtures)",
     "llm: tests that call a real LLM provider",
+    "crash: kills a worker on the local Docker stack (KOS_CRASH_TEST=1; scripts/demo_worker_crash.sh)",
 ]
 
 [dependency-groups]
