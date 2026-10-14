@@ -68,7 +68,7 @@ _EMBEDDERS: dict[str, tuple[str, str]] = {
         "OpenAICompatibleEmbeddingProvider",
     ),
 }
-_embedders: dict[tuple[str, str, int, str], EmbeddingProvider] = {}
+_embedders: dict[tuple[object, ...], EmbeddingProvider] = {}
 
 
 def _local(settings: Settings) -> bool:
@@ -132,16 +132,13 @@ def _embedder_kwargs(settings: Settings) -> dict[str, Any]:
 def embedding_provider(settings: Settings) -> EmbeddingProvider | None:
     """The configured provider, one instance per process and configuration, or None when its
     library isn't installed or can't be built (EMBEDDING then skips or fails retryably)."""
-    key = (
-        settings.embedding_provider,
-        settings.embedding_model,
-        settings.embedding_dimension,
-        settings.embedding_base_url or "",
-    )
-    if key in _embedders:
-        return _embedders[key]
     module, attribute = _EMBEDDERS[settings.embedding_provider]
     kwargs = _embedder_kwargs(settings)
+    # Every constructor argument is part of the identity (device, batch, locality, credentials):
+    # a changed configuration never reuses a provider built for another. Never logged.
+    key = (settings.embedding_provider, *sorted(kwargs.items()))
+    if key in _embedders:
+        return _embedders[key]
     try:
         provider: EmbeddingProvider = getattr(importlib.import_module(module), attribute)(**kwargs)
     except (ImportError, AttributeError):

@@ -566,10 +566,14 @@ def indexing(deps: StageDeps) -> StageFn:
         ).all()
         if not rows:
             return {"chunks": 0}
-        principals = await chunk_acl.document_principals(
+        kb_tokens, document_tokens = await chunk_acl.chunk_principals(
             ctx.session, ctx.organization_id, v.kb.id, v.document.id
         )
-        await ctx.session.execute(update(Chunk).where(*scope).values(access_principals=principals))
+        await ctx.session.execute(
+            update(Chunk)
+            .where(*scope)
+            .values(access_principals=kb_tokens, document_principals=document_tokens)
+        )
 
         canonical = await _load_canonical(deps, v)
         block_language = {b.block_id: b.language for b in canonical.blocks if b.language}
@@ -592,7 +596,8 @@ def indexing(deps: StageDeps) -> StageFn:
             )
         return {
             "chunks": len(rows),
-            "principals": len(principals),
+            "principals": len(kb_tokens),
+            "document_principals": len(document_tokens),
             "fts_configs": sorted(set(configs.values())),
         }
 
@@ -600,9 +605,8 @@ def indexing(deps: StageDeps) -> StageFn:
 
 
 def verifying(deps: StageDeps) -> StageFn:
-    """Every child has full text (and a vector, when embeddings run), every chunk has ACL tokens,
-    and a dense self-query finds a child's own vector. The runner then marks the version READY
-    and activates it."""
+    """Every child has full text (and a vector, when embeddings run), and a dense self-query
+    finds a child's own vector. The runner then marks the version READY and activates it."""
 
     async def stage(ctx: StageContext, checkpoint: Checkpoint | None) -> Checkpoint:
         v = await _load(ctx)
@@ -621,13 +625,13 @@ def verifying(deps: StageDeps) -> StageFn:
                     func.count().filter(child),
                     func.count().filter(child, Chunk.search_vector.is_(None)),
                     func.count().filter(child, Chunk.embedding.is_(None)),
-                    func.count().filter(func.cardinality(Chunk.access_principals) == 0),
                 ).where(*scope)
             )
         ).one()
-        total, children, no_text, no_vector, no_acl = counts
+        # Empty ACL tokens are a legitimate "nobody may read" (fail closed), not a failure.
+        total, children, no_text, no_vector = counts
         embeddings_expected = deps.embedder is not None or deps.require_embeddings
-        if no_text or no_acl or (embeddings_expected and no_vector):
+        if no_text or (embeddings_expected and no_vector):
             raise PermanentError(
                 "The document's index is incomplete; reindex it.", code="index_incomplete"
             )

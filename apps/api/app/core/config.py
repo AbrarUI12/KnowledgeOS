@@ -127,7 +127,8 @@ class Settings(BaseSettings):
 
     # Embeddings (T4.1 providers, T4.2 stage; plan §13, D-004). New KBs record these on their
     # index generation; a provider whose model or dimension differs from its generation's is
-    # refused, never substituted (§25.2). Providers read the rest via `from_settings`.
+    # refused, never substituted (§25.2). The stage registry maps them onto the providers'
+    # keyword constructors (`app.ingestion.stages._embedder_kwargs`).
     embedding_provider: Literal["sentence_transformers", "openai_compatible"] = (
         "sentence_transformers"
     )
@@ -171,6 +172,9 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _embedding_endpoint(self) -> "Settings":
         # Fail at startup, not in every ingestion job, when the endpoint provider has no URL.
+        # chunks.embedding is vector(1024) (migration 0010); other sizes need a new index schema.
+        if self.embedding_dimension != 1024:
+            raise ValueError("EMBEDDING_DIMENSION must be 1024 (chunks.embedding is vector(1024))")
         if self.embedding_provider == "openai_compatible" and not self.embedding_base_url:
             raise ValueError(
                 "EMBEDDING_BASE_URL is required when EMBEDDING_PROVIDER=openai_compatible"

@@ -12,7 +12,8 @@ from app.auth.kb_access import (
     can_manage,
     can_query,
     can_view,
-    effective_access_principals,
+    document_access_principals,
+    kb_access_principals,
     widening_entries,
 )
 from app.auth.permissions import SYSTEM_ROLE_PERMISSIONS, Permission, SystemRole
@@ -112,15 +113,13 @@ def test_document_acl_may_narrow_but_not_widen_a_restricted_kb() -> None:
     assert widening_entries(Visibility.ORGANIZATION, [], wider) == []
 
 
-def test_effective_principals_prefer_document_then_kb_then_org() -> None:
+def test_kb_and_document_principals_are_materialized_separately() -> None:
     hr, alice = uuid.uuid4(), uuid.uuid4()
     kb_acl = [rule(PrincipalType.GROUP, hr), rule(PrincipalType.USER, alice, AclPermission.MANAGE)]
 
-    assert effective_access_principals(ORG, Visibility.ORGANIZATION, kb_acl) == [f"org:{ORG}"]
-    assert effective_access_principals(ORG, Visibility.RESTRICTED, kb_acl) == sorted(
+    assert kb_access_principals(ORG, Visibility.ORGANIZATION, kb_acl) == [f"org:{ORG}"]
+    assert kb_access_principals(ORG, Visibility.RESTRICTED, kb_acl) == sorted(
         [f"group:{hr}", f"user:{alice}"]
     )
-    doc_acl = [rule(PrincipalType.USER, alice)]
-    assert effective_access_principals(ORG, Visibility.RESTRICTED, kb_acl, doc_acl) == [
-        f"user:{alice}"
-    ]
+    assert document_access_principals([]) == []  # inherits the KB
+    assert document_access_principals([rule(PrincipalType.USER, alice)]) == [f"user:{alice}"]
