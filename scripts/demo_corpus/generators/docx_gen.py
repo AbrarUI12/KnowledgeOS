@@ -6,13 +6,23 @@ from pathlib import Path
 
 from docx import Document
 
+from scripts.demo_corpus.generators.determinism import (
+    CREATOR,
+    FIXED_DATE,
+    normalize_ooxml,
+)
+
 
 def generate_docx(
     output_path: Path,
     title: str,
     sections: list[dict[str, str | list[str]]],
 ) -> None:
-    """Generate a DOCX with the given title and sections."""
+    """Generate a DOCX with the given title and sections.
+
+    Core properties are pinned and the ZIP container is normalized so the file is
+    byte-identical on every run (see ``determinism.py``).
+    """
     doc = Document()
 
     # Title
@@ -31,4 +41,12 @@ def generate_docx(
         elif isinstance(content, str):
             doc.add_paragraph(content)
 
+    # Pin core properties (python-docx honors these on save).
+    core = doc.core_properties
+    core.author = CREATOR
+    core.last_modified_by = CREATOR
+    core.created = FIXED_DATE
+    core.modified = FIXED_DATE
+
     doc.save(str(output_path))
+    normalize_ooxml(output_path)

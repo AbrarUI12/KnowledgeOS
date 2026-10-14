@@ -18,6 +18,10 @@ def generate_pdf(
     """Generate a PDF with the given title and sections.
 
     Each section is a dict with 'heading' and 'content' (list of paragraphs).
+
+    ``invariant=1`` tells reportlab to emit fixed timestamps and a deterministic
+    document ID instead of wall-clock values, so the output is byte-identical on
+    every run (see ``determinism.py``).
     """
     doc = SimpleDocTemplate(
         str(output_path),
@@ -26,6 +30,7 @@ def generate_pdf(
         leftMargin=72,
         topMargin=72,
         bottomMargin=18,
+        invariant=1,
     )
 
     styles = getSampleStyleSheet()

@@ -65,7 +65,7 @@
 
 | ID | Task | Wave | Session | Status | Branch | PR |
 |---|---|---|---|---|---|---|
-| T4.5 | Demo corpus file generator | 0 | S25 | DONE | ai/cline-t4.5-demo-corpus | #12 |
+| T4.5 | Demo corpus file generator | 0 | S25 | REVIEW | ai/cline-t4.5-deterministic | #32 (was #12) |
 | T1.8 | `scripts/get_token.py` | 0 | S07 | DONE | ai/cline-t4.5-demo-corpus | #12 |
 | T4.3 | RRF fusion module | 1 | S24 | REVIEW | ai/cline-t4.3-rrf-fusion | #16 |
 | T1.5 | Command palette, shortcuts, status center | 2 | S11 | TODO | | |
