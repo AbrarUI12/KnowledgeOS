@@ -312,8 +312,8 @@ export interface paths {
         put?: never;
         /**
          * Create Knowledge Base
-         * @description Create a KB (`kb.create`). The creator gets a `manage` ACL entry; an upload source is
-         *     created with it.
+         * @description Create a KB (`kb.create`). The creator gets a `manage` ACL entry; an upload source and
+         *     index generation #1 (the configured embedding model) are created with it.
          */
         post: operations["knowledge_bases_create_knowledge_base"];
         delete?: never;
@@ -371,7 +371,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Index Generations */
+        /**
+         * List Index Generations
+         * @description Index generations, newest first: embedding model, chunker config, status (KB managers).
+         */
         get: operations["knowledge_bases_list_index_generations"];
         put?: never;
         post?: never;

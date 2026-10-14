@@ -97,12 +97,32 @@ def process_job(
         raise self.retry(countdown=busy.retry_after + random.uniform(0, 5)) from busy  # noqa: S311
 
 
-@celery_app.task(name="acl.sync_knowledge_base", queue="maintenance")  # type: ignore[untyped-decorator]
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="acl.sync_knowledge_base",
+    queue="maintenance",
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    max_retries=8,
+)
 def sync_knowledge_base_acl(
     organization_id: str, aggregate_id: str, payload: dict[str, Any]
-) -> None:
-    """Re-materialize chunk ACLs after a KB permission change. Implemented in T4.2 (S23)."""
-    return None
+) -> int:
+    """Re-materialize chunk ACLs after a KB visibility or permission change (`acl.changed`).
+    Idempotent: a redelivered or repeated event rewrites nothing that's already right."""
+    return asyncio.run(_sync_acl(uuid.UUID(organization_id), uuid.UUID(aggregate_id)))
+
+
+async def _sync_acl(organization_id: uuid.UUID, kb_id: uuid.UUID) -> int:
+    from app.db.session import create_engine, create_sessionmaker
+    from app.db.tenant import tenant_session
+    from app.services.chunk_acl import sync_knowledge_base
+
+    engine = create_engine(settings)
+    try:
+        async with tenant_session(create_sessionmaker(engine), organization_id) as session:
+            return await sync_knowledge_base(session, organization_id, kb_id)
+    finally:
+        await engine.dispose()
 
 
 def _object_store() -> Any:

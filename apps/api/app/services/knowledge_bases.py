@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.errors import Forbidden, InvalidPrincipal, NotFound
 from app.auth.authorization import RequestContext
 from app.auth.kb_access import AclRule, can_manage, can_view
+from app.core.config import Settings
 from app.db.base import new_uuid
 from app.db.models import (
     DataSource,
@@ -30,6 +31,7 @@ from app.db.models import (
 from app.domain.enums import AclPermission, DocumentStatus, PrincipalType, Visibility
 from app.domain.schemas.knowledge import (
     AclEntry,
+    IndexGenerationOut,
     KnowledgeBaseCreate,
     KnowledgeBaseOut,
     KnowledgeBasePermissions,
@@ -39,11 +41,6 @@ from app.ingestion.chunking.types import ChunkerConfig
 from app.services import audit, outbox
 
 _NOT_FOUND = "The knowledge base was not found."
-
-# Defaults for new KBs' first generation (D-004); model IDs move to config with T4.1/T4.2.
-DEFAULT_EMBEDDING_PROVIDER = "sentence_transformers"
-DEFAULT_EMBEDDING_MODEL = "Qwen/Qwen3-Embedding-0.6B"
-DEFAULT_EMBEDDING_DIMENSION = 1024
 
 
 def _slugify(name: str) -> str:
@@ -183,7 +180,7 @@ async def _unique_slug(session: AsyncSession, ctx: RequestContext, name: str) ->
 
 
 async def create_knowledge_base(
-    session: AsyncSession, ctx: RequestContext, body: KnowledgeBaseCreate
+    session: AsyncSession, ctx: RequestContext, body: KnowledgeBaseCreate, settings: Settings
 ) -> KnowledgeBaseOut:
     kb = KnowledgeBase(
         id=new_uuid(),
@@ -203,9 +200,9 @@ async def create_knowledge_base(
         knowledge_base_id=kb.id,
         generation_number=1,
         status="active",
-        embedding_provider=DEFAULT_EMBEDDING_PROVIDER,
-        embedding_model=DEFAULT_EMBEDDING_MODEL,
-        embedding_dimension=DEFAULT_EMBEDDING_DIMENSION,
+        embedding_provider=settings.embedding_provider,
+        embedding_model=settings.embedding_model,
+        embedding_dimension=settings.embedding_dimension,
         chunker_name=ChunkerConfig().name,
         chunker_config_json=ChunkerConfig().model_dump(),
         activated_at=datetime.now(UTC),
@@ -254,6 +251,7 @@ async def update_knowledge_base(
             session, ctx, "kb.updated", "knowledge_base", kb.id, {"fields": sorted(changed)}
         )
         if "visibility" in changed:
+            kb.acl_propagated_at = None  # chunks catch up through the acl.changed sync
             await outbox.emit(
                 session, ctx, "acl.changed", "knowledge_base", kb.id, {"reason": "visibility"}
             )
@@ -369,7 +367,7 @@ async def set_permissions(
         )
     )
     session.add_all(_acl_row(ctx, kb.id, rule) for rule in desired)
-    kb.acl_propagated_at = None  # chunks no longer reflect the ACL until Session 23 re-syncs
+    kb.acl_propagated_at = None  # chunks catch up through the acl.changed sync
     await audit.record(
         session,
         ctx,
@@ -380,3 +378,30 @@ async def set_permissions(
     )
     await outbox.emit(session, ctx, "acl.changed", "knowledge_base", kb.id, {"reason": "acl"})
     return KnowledgeBasePermissions(entries=_entries(desired), propagated_at=None)
+
+
+async def list_index_generations(
+    session: AsyncSession, ctx: RequestContext, kb_id: uuid.UUID
+) -> list[IndexGenerationOut]:
+    """The KB's index generations, newest first (KB managers; ADR-007)."""
+    kb, _ = await load_kb(session, ctx, kb_id, manage=True)
+    generations = await session.scalars(
+        select(IndexGeneration)
+        .where(IndexGeneration.knowledge_base_id == kb.id)
+        .order_by(IndexGeneration.generation_number.desc())
+    )
+    return [
+        IndexGenerationOut(
+            id=g.id,
+            generation_number=g.generation_number,
+            status=g.status,
+            embedding_provider=g.embedding_provider,
+            embedding_model=g.embedding_model,
+            embedding_dimension=g.embedding_dimension,
+            chunker_name=g.chunker_name,
+            chunker_config=g.chunker_config_json,
+            created_at=g.created_at,
+            activated_at=g.activated_at,
+        )
+        for g in generations
+    ]
