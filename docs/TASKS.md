@@ -72,7 +72,7 @@
 | T1.6 | Access pages: Members & Groups | 2 | S11 | TODO | | |
 | T1.7 | Playwright E2E harness + first journeys | 2 | S11 | TODO | | |
 | T2.5 | Knowledge library & upload UI | 3 | S15 | TODO | | |
-| T2.6 | `scripts/upload_file.py` | 4 | S13 | TODO | | |
+| T2.6 | `scripts/upload_file.py` | 4 | S13 | REVIEW | ai/cline-t2.6-upload-script | |
 | T3.7 | Ingestion UI: pipeline, diagnostics, reader/inspect, approvals | 4 | S21 | TODO | | |
 | T5.6 | Answer-state components, copy & feedback controls | 5 | S31 | TODO | | |
 | T4.7 | Search UI + demo journeys | 6 | S25 | TODO | | |
