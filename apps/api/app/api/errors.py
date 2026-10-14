@@ -84,6 +84,10 @@ class IdempotencyKeyReused(Conflict):
     )
 
 
+class InvalidPrincipal(ValidationFailed):
+    code, message = "invalid_principal", "An ACL principal doesn't belong to this organization."
+
+
 class InvitationExpired(Gone):
     code, message = "invitation_expired", "This invitation has expired."
 
