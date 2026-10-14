@@ -58,7 +58,7 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T1.4 review fixes (#17): workspace contracts Docker build and live auth walkthrough pass; final main-integrated checks running. Next: finish stacked T3.3 (#28), then remaining batch libraries. #25 PASS; #27/#30/#31 changes requested.
+- **Current task:** Refreshing T3.2 (#26) against main and addressing parser isolation review; T3.3 (#28) implementation complete, final checks pending. T1.4 (#17) merged; #27/#30/#31 re-review PASS (61 tests). Next: T3.4, T4.1, T5.1, T5.2.
 - **Last finished:** T2.2 ObjectStore providers (2026-10-12, PR #14; review MEDIUM fixed by Claude while Codex was at its usage limit)
 - **Blockers:** none
 - **Recent:**
