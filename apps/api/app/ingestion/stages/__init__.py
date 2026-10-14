@@ -12,13 +12,14 @@ importable (parser, normalizer, content scanner, chunker: Codex's T3.2-T3.4), so
 pipeline can never index content that skipped the content-security scan.
 """
 
+import asyncio
 import importlib
 from collections.abc import Mapping
 from typing import Any
 
 import structlog
 
-from app.core.config import Settings
+from app.core.config import Environment, Settings
 from app.domain.enums import IngestionState
 from app.ingestion.runner import Checkpoint, StageContext, StageFn
 from app.ingestion.state_machine import STAGES
@@ -80,8 +81,30 @@ def malware_scanner(settings: Settings) -> MalwareScanner:
     )
 
 
+def _with_debug_delay(
+    settings: Settings, stages: dict[IngestionState, StageFn]
+) -> dict[IngestionState, StageFn]:
+    """Local/test only: slow every stage down so crash tests can kill a worker mid-stage."""
+    delay = settings.ingestion_debug_stage_delay_seconds
+    if delay <= 0 or settings.environment not in {Environment.LOCAL, Environment.TEST}:
+        return stages
+
+    def slow(fn: StageFn) -> StageFn:
+        async def stage(ctx: StageContext, checkpoint: Checkpoint | None) -> Checkpoint:
+            await asyncio.sleep(delay)
+            return await fn(ctx, checkpoint)
+
+        return stage
+
+    return {state: slow(fn) for state, fn in stages.items()}
+
+
 def default_stages(settings: Settings, store: ObjectStore) -> Mapping[IngestionState, StageFn]:
     """The stage implementations workers run."""
+    return _with_debug_delay(settings, _real_stages(settings, store))
+
+
+def _real_stages(settings: Settings, store: ObjectStore) -> dict[IngestionState, StageFn]:
     from app.ingestion.stages import pipeline
 
     stages: dict[IngestionState, StageFn] = dict(STUB_STAGES)

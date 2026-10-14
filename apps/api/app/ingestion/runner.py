@@ -20,16 +20,17 @@ from datetime import timedelta
 from typing import Any
 
 import structlog
-from sqlalchemy import bindparam, func, or_, select, update
+from sqlalchemy import bindparam, case, func, or_, select, update
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.base import new_uuid
-from app.db.models import AuditEvent, DocumentVersion, IngestionJob
+from app.db.models import AuditEvent, Document, DocumentVersion, IngestionJob, JobEvent
 from app.db.tenant import tenant_session
 from app.domain.enums import IngestionState
 from app.ingestion.errors import (
     APPROVAL_HOLD,
+    PermanentError,
     Quarantined,
     RetryableError,
     StageError,
@@ -121,6 +122,11 @@ class _Run:
                         ),
                     )
                     .values(
+                        # A lease still set here expired without being released: its worker died
+                        # mid-stage. That counts as an attempt, so a job that keeps killing
+                        # workers (e.g. a parser OOM) ends FAILED_PERMANENT instead of looping.
+                        attempt_count=IngestionJob.attempt_count
+                        + case((IngestionJob.lease_owner.is_not(None), 1), else_=0),
                         lease_owner=self.worker_id,
                         lease_expires_at=now + timedelta(seconds=self.config.lease_seconds),
                         heartbeat_at=now,
@@ -190,6 +196,17 @@ class _Run:
             update(DocumentVersion)
             .where(DocumentVersion.id == self.document_version_id)
             .values(ingestion_status=target.value)
+        )
+        session.add(
+            JobEvent(
+                id=new_uuid(),
+                organization_id=self.organization_id,
+                job_id=self.job_id,
+                state=target.value,
+                stage=values.get("stage"),
+                attempt=values.get("attempt_count", self.attempt),
+                message_safe=values.get("error_detail_safe"),
+            )
         )
 
     async def run_stage(
@@ -271,6 +288,17 @@ class _Run:
                 # after VERIFYING committed (e.g. FAILED_RETRYABLE). Re-enter the last stage
                 # through the guarded table instead of jumping straight to READY.
                 await self._set_state(session, STAGES[-1], stage=STAGES[-1].value)
+            # The newest version that finishes becomes the document's active version.
+            document_id = await session.scalar(
+                select(DocumentVersion.document_id).where(
+                    DocumentVersion.id == self.document_version_id
+                )
+            )
+            await session.execute(
+                update(Document)
+                .where(Document.id == document_id)
+                .values(active_version_id=self.document_version_id, updated_at=now)
+            )
             await self._set_state(
                 session,
                 IngestionState.READY,
@@ -364,6 +392,13 @@ async def run_job(
             raise LeaseBusy(remaining + 1)
         return None
     log = logger.bind(job_id=str(job_id), worker_id=worker_id)
+    if run.attempt >= run.config.max_attempts:
+        log.warning("ingestion_worker_lost_too_often", attempts=run.attempt)
+        return await run.fail(
+            PermanentError(
+                "Processing stopped this document's worker too many times.", code="worker_lost"
+            )
+        )
     try:
         for stage in STAGES:
             if stage.value in checkpoints:

@@ -110,10 +110,16 @@ class Settings(BaseSettings):
     celery_broker_url: SecretStr | None = Field(
         default=None, description="Defaults to REDIS_URL when unset"
     )
-    ingestion_lease_seconds: int = Field(default=300, ge=30)
+    ingestion_lease_seconds: int = Field(default=300, ge=10)
     ingestion_max_attempts: int = Field(default=5, ge=1, le=20)
     dispatcher_batch_size: int = Field(default=100, ge=1, le=1000)
     dispatcher_poll_seconds: float = Field(default=1.0, gt=0)
+    # Reconciliation sweeper (T3.6)
+    reconcile_interval_seconds: int = Field(default=120, ge=10)
+    reconcile_stale_seconds: int = Field(default=600, ge=30)
+    approval_reminder_seconds: int = Field(default=86_400, ge=60)
+    # Local/test only: sleep in every ingestion stage so crash tests can kill a worker mid-stage.
+    ingestion_debug_stage_delay_seconds: float = Field(default=0.0, ge=0, le=60)
 
     # Uploads (T2.4)
     upload_max_bytes: int = Field(default=50 * 1024 * 1024, gt=0)
