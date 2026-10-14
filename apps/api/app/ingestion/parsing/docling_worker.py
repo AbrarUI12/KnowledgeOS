@@ -3,6 +3,7 @@
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 
 def main() -> None:
@@ -41,7 +42,7 @@ def main() -> None:
         }
     )
     source = Path(request["source"])
-    metadata: dict[str, str] = {}
+    metadata: dict[str, Any] = {}
     if request["mime_type"] == "text/html":
         cleaned, metadata = clean_html(source.read_bytes())
         source.write_bytes(cleaned)

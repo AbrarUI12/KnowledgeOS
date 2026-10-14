@@ -124,6 +124,8 @@ def test_html_cleanup_keeps_evidence() -> None:
     assert b"16 weeks" in cleaned
     _, malicious = clean_html(b'<link rel="canonical" href="javascript:evil()">')
     assert "canonical_url" not in malicious
+    _, links = clean_html(b'<a href="javascript:evil()">Untrusted link</a>')
+    assert links["links"] == ["javascript:evil()"]
 
 
 def make_document(texts: list[str]) -> CanonicalDocument:

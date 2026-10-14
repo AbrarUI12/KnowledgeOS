@@ -56,7 +56,7 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T3.3 (#28): Office/OCR/normalization implemented, final main-integrated checks pending. T1.4 (#17) merged after PASS and green CI. #27/#30/#31 re-reviewed PASS (61 stack tests). Next: T3.4, T4.1, T5.1, T5.2.
+- **Current task:** T3.3 (#28) ready: 399 backend / 105 frontend tests and nine snapshots pass. T1.4 (#17) merged; #26 refreshed with isolation fixes and green CI. #27/#30/#31 re-review PASS. Next: stacked T3.4, then T4.1/T5.1/T5.2.
 - **Last finished:** T1.4 frontend foundation (2026-10-14, PR #17, merge 961cb0a); live auth and Docker/static checks pass.
 - **Blockers:** none
 - **Recent:**

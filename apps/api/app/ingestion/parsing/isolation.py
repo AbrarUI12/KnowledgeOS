@@ -29,7 +29,13 @@ def child_environment(*, offline: bool = False) -> dict[str, str]:
         "HF_HOME",
     )
     environment = {name: os.environ[name] for name in allowed if name in os.environ}
-    environment.update(OMP_NUM_THREADS="2", MKL_NUM_THREADS="2", TOKENIZERS_PARALLELISM="false")
+    environment.update(
+        OMP_NUM_THREADS="2",
+        MKL_NUM_THREADS="2",
+        OPENBLAS_NUM_THREADS="2",
+        NUMEXPR_NUM_THREADS="2",
+        TOKENIZERS_PARALLELISM="false",
+    )
     if offline:
         environment["HF_HUB_OFFLINE"] = "1"
     return environment
