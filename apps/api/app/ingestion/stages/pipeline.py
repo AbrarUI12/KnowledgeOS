@@ -38,6 +38,7 @@ from app.db.models import (
     KnowledgeBase,
     Upload,
 )
+from app.db.text_search import fts_config
 from app.domain.enums import IngestionState
 from app.ingestion.canonical import CanonicalDocument
 from app.ingestion.chunking.types import Chunker
@@ -63,16 +64,6 @@ Normalizer = Callable[[CanonicalDocument], CanonicalDocument]
 APPROVAL_TRUST_LEVELS = frozenset({"untrusted", "high_risk"})
 
 MAX_CANONICAL_BYTES = 256 * 1024 * 1024  # canonical.json read limit
-
-# Detected language (ISO 639-1) → PostgreSQL text search configuration; anything else → simple.
-FTS_CONFIGS = {
-    "ar": "arabic", "ca": "catalan", "da": "danish", "de": "german", "el": "greek",
-    "en": "english", "es": "spanish", "eu": "basque", "fi": "finnish", "fr": "french",
-    "ga": "irish", "hi": "hindi", "hu": "hungarian", "hy": "armenian", "id": "indonesian",
-    "it": "italian", "lt": "lithuanian", "nb": "norwegian", "ne": "nepali", "nl": "dutch",
-    "no": "norwegian", "pt": "portuguese", "ro": "romanian", "ru": "russian", "sr": "serbian",
-    "sv": "swedish", "ta": "tamil", "tr": "turkish", "yi": "yiddish",
-}  # fmt: skip
 
 
 @dataclass(frozen=True, slots=True)
@@ -589,7 +580,7 @@ def indexing(deps: StageDeps) -> StageFn:
                 continue
             seen = Counter(block_language[b] for b in row.block_ids if b in block_language)
             language = seen.most_common(1)[0][0] if seen else document_language
-            configs[row.id] = FTS_CONFIGS.get(language or "", "simple")
+            configs[row.id] = fts_config(language)
         if configs:
             await ctx.session.execute(
                 _SEARCH_VECTOR_SQL,
