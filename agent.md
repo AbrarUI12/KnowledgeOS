@@ -58,8 +58,8 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** Refreshing T3.2 (#26) against main and addressing parser isolation review; T3.3 (#28) implementation complete, final checks pending. T1.4 (#17) merged; #27/#30/#31 re-review PASS (61 tests). Next: T3.4, T4.1, T5.1, T5.2.
-- **Last finished:** T2.2 ObjectStore providers (2026-10-12, PR #14; review MEDIUM fixed by Claude while Codex was at its usage limit)
+- **Current task:** Addressing T3.3 review (#28): workbook-wide budgets, sparse rows, grouped/missing-position shapes and portable fixed-reference bbox checks; seven regression tests. Full checks running. Next: resume stacked T3.4 (#35), then T4.1/T5.1/T5.2.
+- **Last finished:** T1.4 frontend foundation (2026-10-14, PR #17, merge 961cb0a); live auth and Docker/static checks pass.
 - **Blockers:** none
 - **Recent:**
   - 2026-10-12 · T2.2 · S3/MinIO/B2 + in-memory ObjectStore providers and safe key helpers; explicit S3 timeouts/retries · PR #14 (merged)

@@ -21,6 +21,7 @@ FORMATS = {
     "text/html": ".html",
     "text/markdown": ".md",
 }
+IMAGE_FORMATS = {"image/png": ".png", "image/jpeg": ".jpg", "image/tiff": ".tiff"}
 
 
 def block_id(order: int, text: str) -> str:
@@ -96,6 +97,14 @@ def to_canonical(document: DoclingDocument, *, filename: str, mime_type: str) ->
         blocks=blocks,
         parser_name="docling",
         parser_version=version("docling"),
+        metadata={
+            "page_sizes": {
+                str(number): {"width": page.size.width, "height": page.size.height}
+                for number, page in document.pages.items()
+            }
+        }
+        if document.pages
+        else {},
     )
 
 
@@ -108,26 +117,35 @@ class DoclingParser:
         timeout_seconds: float = 120,
         memory_bytes: int = 4 * 1024**3,
         artifacts_path: Path | None = None,
+        max_input_bytes: int = 50 * 1024**2,
+        max_pages: int = 500,
+        ocr: bool = True,
     ) -> None:
         self.timeout_seconds = timeout_seconds
         self.memory_bytes = memory_bytes
         self.artifacts_path = artifacts_path
+        self.max_input_bytes = max_input_bytes
+        self.max_pages = max_pages
+        self.ocr = ocr
+        if max_input_bytes < 1 or max_pages < 1:
+            raise ValueError("parser input/page limits must be positive")
 
     @property
     def version(self) -> str:
         return version("docling")
 
     def supports(self, mime_type: str) -> bool:
-        return mime_type in FORMATS
+        return mime_type in FORMATS or (self.ocr and mime_type in IMAGE_FORMATS)
 
     def parse(self, data: bytes, *, filename: str, mime_type: str) -> CanonicalDocument:
         if not self.supports(mime_type):
             raise ParserError("Unsupported document format.", code="unsupported_format")
-        if not data or len(data) > 50 * 1024**2:
+        if not data or len(data) > self.max_input_bytes:
             raise ParserError("Document is empty or too large.", code="parser_input_limit")
         with tempfile.TemporaryDirectory(prefix="kos-parser-") as temporary:
             directory = Path(temporary)
-            source = directory / f"input{FORMATS[mime_type]}"
+            extension = FORMATS.get(mime_type) or IMAGE_FORMATS[mime_type]
+            source = directory / f"input{extension}"
             output = directory / "canonical.json"
             source.write_bytes(data)
             request = directory / "request.json"
@@ -139,6 +157,8 @@ class DoclingParser:
                         "filename": filename,
                         "mime_type": mime_type,
                         "memory_bytes": self.memory_bytes,
+                        "max_pages": self.max_pages,
+                        "ocr": self.ocr,
                         "artifacts_path": str(self.artifacts_path.resolve())
                         if self.artifacts_path
                         else None,
