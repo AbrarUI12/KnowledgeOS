@@ -5983,7 +5983,7 @@
     },
     "/v1/knowledge-bases/{kb_id}/ingestion-jobs": {
       "get": {
-        "description": "Jobs of a KB's documents the caller can see, oldest first; filter with repeated `state`.",
+        "description": "Jobs of a KB's documents the caller can see, oldest first (`sort=-created_at`: newest\nfirst, so a page of recent documents finds its latest jobs); filter with repeated `state`.",
         "operationId": "ingestion_list_ingestion_jobs",
         "parameters": [
           {
@@ -6043,6 +6043,20 @@
                 }
               ],
               "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "created_at",
+              "enum": [
+                "created_at",
+                "-created_at"
+              ],
+              "title": "Sort",
+              "type": "string"
             }
           },
           {

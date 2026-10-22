@@ -33,12 +33,14 @@ def decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
 
 
 def after_cursor(
-    created_at_col: Any, id_col: Any, cursor: str | None
+    created_at_col: Any, id_col: Any, cursor: str | None, *, descending: bool = False
 ) -> ColumnElement[bool] | None:
-    """WHERE clause continuing after `cursor` (None for the first page)."""
+    """WHERE clause continuing after `cursor` (None for the first page), in either direction."""
     if cursor is None:
         return None
     created_at, row_id = decode_cursor(cursor)
+    if descending:
+        return tuple_(created_at_col, id_col) < tuple_(created_at, row_id)
     return tuple_(created_at_col, id_col) > tuple_(created_at, row_id)
 
 

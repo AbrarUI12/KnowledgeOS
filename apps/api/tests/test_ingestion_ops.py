@@ -335,6 +335,24 @@ async def test_job_list_filters_by_state(world: World) -> None:
     assert len(everything["items"]) == 2
 
 
+async def test_job_list_pages_newest_first_on_request(world: World) -> None:
+    jobs = [(await world.upload(HANDBOOK, name=f"d{i}.md"))["ingestion_job_id"] for i in range(3)]
+    url = f"/v1/knowledge-bases/{world.kb}/ingestion-jobs"
+
+    async def ids(**params: object) -> tuple[list[str], str | None]:
+        page = (await world.api.get(url, params=params, headers=world.h())).json()
+        return [j["id"] for j in page["items"]], page["next_cursor"]
+
+    oldest, _ = await ids()
+    assert oldest == jobs
+    first, cursor = await ids(sort="-created_at", limit=2)
+    assert first == jobs[::-1][:2]
+    rest, end = await ids(sort="-created_at", limit=2, cursor=cursor)
+    assert (rest, end) == ([jobs[0]], None)  # keyset continues in the same direction
+    bad = await world.api.get(url, params={"sort": "state"}, headers=world.h())
+    assert bad.status_code == 422
+
+
 # --------------------------------------------------------------------------- inspect mode
 
 
