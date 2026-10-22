@@ -20,20 +20,20 @@ import re
 import time
 import uuid
 from collections.abc import AsyncGenerator, Callable, Coroutine
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 import structlog
 from pydantic import BaseModel
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.api.errors import AppError, RateLimited, ServiceUnavailable, ValidationFailed
 from app.auth.authorization import RequestContext
 from app.db.base import new_uuid
-from app.db.models import Answer, Citation, QueryRun
+from app.db.models import Answer, Citation, Document, QueryRun
 from app.db.tenant import tenant_session
-from app.domain.enums import EvidenceStatus
+from app.domain.enums import Classification, EvidenceStatus
 from app.domain.schemas.retrieval import (
     AnswerOut,
     QueryRequest,
@@ -62,6 +62,7 @@ from app.rag.orchestration.profiles import ActiveProfile, active_profile
 from app.rag.query import normalize_query
 from app.rag.types import EvidenceItem, RankedHit, SourceAlias, Usage
 from app.services.search import (
+    ContextSelection,
     SearchDeps,
     _hit_rows,
     _principal_summary,
@@ -130,7 +131,8 @@ async def prepare(
         raise ValidationFailed("The question is empty.") from None
     (kb,) = await _queryable_kbs(session, ctx, [kb_id])
     profile = await active_profile(session, kb)
-    generator = deps.generator_for(await model_policy(session, kb))  # 503 before any work
+    policy = await model_policy(session, kb)
+    generator = deps.generator_for(policy)  # 503 before any work
 
     filters = _filters(body)
     evidence: tuple[EvidenceItem, ...] = ()
@@ -147,8 +149,9 @@ async def prepare(
         generations, embedding_model = retrieval.generations, retrieval.embedding_model
         if fused:
             context = await select_context(deps.search, retrieval.scope, query.text, fused, profile)
+            context, withheld = await _external_limit(session, context, generator, policy)
             evidence, rerank_ms = context.evidence, context.rerank_ms
-            degraded += context.degraded
+            degraded += context.degraded + withheld
             reranker_model = context.reranker_model
 
     run = QueryRun(
@@ -196,13 +199,40 @@ async def prepare(
     )
 
 
+_CLASSIFICATION_RANK = {c.value: rank for rank, c in enumerate(Classification)}
+
+
+async def _external_limit(
+    session: AsyncSession, context: ContextSelection, generator: Generator, policy: PolicyView
+) -> tuple[ContextSelection, list[str]]:
+    """Evidence an external model may see: documents at or below the policy's
+    `max_external_classification` (plan §25.2). Unknown classifications are withheld (fail
+    closed). Applies whenever any permitted generation target is external."""
+    if not generator.provider.is_external or not context.evidence:
+        return context, []
+    limit = _CLASSIFICATION_RANK.get(policy.max_external_classification, 1)
+    documents = {item.source.document_id for item in context.evidence}
+    rows = await session.execute(
+        select(Document.id, Document.classification).where(Document.id.in_(documents))
+    )
+    allowed = {doc for doc, label in rows.all() if _CLASSIFICATION_RANK.get(label, 99) <= limit}
+    kept = tuple(item for item in context.evidence if item.source.document_id in allowed)
+    if len(kept) == len(context.evidence):
+        return context, []
+    chunks = {item.source.chunk_id for item in kept}
+    narrowed = replace(
+        context, evidence=kept, selected=[h for h in context.selected if h.chunk_id in chunks]
+    )
+    return narrowed, ["evidence_withheld_external"]
+
+
 def evidence_status(answer: GroundedAnswer, degraded: list[str]) -> EvidenceStatus:
     """Explicit rules, never model confidence (plan §21.3); conflicts are cut for M1."""
     if answer.abstained:
         return EvidenceStatus.INSUFFICIENT
     if _RETRIEVAL_DEGRADED.intersection(degraded):
         return EvidenceStatus.RETRIEVAL_DEGRADED
-    if "rerank_bypassed" in degraded:
+    if "rerank_bypassed" in degraded or "evidence_withheld_external" in degraded:
         return EvidenceStatus.PARTIAL
     return EvidenceStatus.STRONG
 
