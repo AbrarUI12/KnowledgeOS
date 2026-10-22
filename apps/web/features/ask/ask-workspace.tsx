@@ -10,6 +10,7 @@ import { initialQueryState, queryReducer, readQueryStream } from "@/lib/events/q
 import { Button } from "@/components/primitives/button";
 import { Textarea } from "@/components/primitives/textarea";
 import { EvidenceRail } from "@/components/shell/evidence-rail";
+import { AnswerContent } from "./answer-content";
 
 type Source = components["schemas"]["SourceAlias"];
 export function AskWorkspace({
@@ -178,22 +179,12 @@ export function AskWorkspace({
           aria-label="Answer"
           className="prose-reading whitespace-pre-wrap rounded-panel border border-line bg-surface-0 p-6"
         >
-          {state.text.split(/(\[S[1-9][0-9]*\])/g).map((part, index) => {
-            const alias = part.slice(1, -1);
-            const source = state.sources.find((item) => item.alias === alias);
-            return source && state.citations[alias] !== false ? (
-              <button
-                key={index}
-                className="rounded-control bg-accent-soft px-1 text-accent"
-                aria-label={`Inspect source ${alias}`}
-                onClick={() => setSelected(source)}
-              >
-                {part}
-              </button>
-            ) : (
-              <span key={index}>{part}</span>
-            );
-          })}
+          <AnswerContent
+            text={state.text}
+            sources={state.sources}
+            citations={state.citations}
+            onInspect={setSelected}
+          />
         </article>
       )}
       {state.phase === "completed" && state.runId && token && (
