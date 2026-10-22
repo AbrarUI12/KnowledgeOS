@@ -304,3 +304,38 @@ async def test_document_scope_never_widens_the_search(world: World) -> None:
 
     assert disjoint.json()["abstain_reason"] == "no_evidence"
     assert scoped.json()["abstained"] is False
+
+
+async def test_external_models_never_see_evidence_above_the_policy_limit(
+    world: World, admin: asyncpg.Connection
+) -> None:
+    class External(ExtractiveFakeLLM):
+        is_external = True
+
+    use_query(world, External())
+    policy = await ready(world, POLICY, "parental-leave.md")
+    await admin.execute(
+        "UPDATE documents SET classification = 'confidential' WHERE id = $1",
+        uuid.UUID(policy["document_id"]),
+    )
+
+    # No model policy row: the default limit is `internal`, so the confidential source is withheld.
+    withheld = (await ask(world, "How many weeks of parental leave?")).json()
+    assert withheld["abstained"] is True
+    assert withheld["abstain_reason"] == "no_evidence"
+    assert withheld["sources"] == []
+    run = await admin.fetchrow(
+        "SELECT degraded FROM query_runs WHERE id = $1", uuid.UUID(withheld["query_run_id"])
+    )
+    assert "evidence_withheld_external" in run["degraded"]
+
+    # The KB's policy allows confidential evidence externally: nothing withheld, answered.
+    await admin.execute(
+        "INSERT INTO model_policies "
+        "(id, organization_id, knowledge_base_id, max_external_classification) "
+        "VALUES ($1, $2, $3, 'confidential')",
+        uuid.uuid4(), uuid.UUID(world.org), uuid.UUID(world.kb),
+    )  # fmt: skip
+    allowed = (await ask(world, "How many weeks of parental leave?")).json()
+    assert allowed["abstained"] is False
+    assert allowed["evidence_status"] == "strong"
