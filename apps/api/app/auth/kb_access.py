@@ -84,21 +84,24 @@ def _token(rule: AclRule) -> str:
     return f"{rule.principal_type.value}:{rule.principal_id}"
 
 
-def effective_access_principals(
-    organization_id: object,
-    visibility: Visibility,
-    kb_acl: Iterable[AclRule],
-    document_acl: Iterable[AclRule] = (),
+def kb_access_principals(
+    organization_id: object, visibility: Visibility, kb_acl: Iterable[AclRule]
 ) -> list[str]:
-    """Principal tokens copied onto a document's chunks (`access_principals`), matched against
-    `principal_tokens(ctx)` at query time. Stub for Session 23, which adds materialization.
-
-    Document ACL (if any) wins because it can only narrow; otherwise the KB's ACL for restricted
-    KBs, or the whole organization.
-    """
-    document_acl = list(document_acl)
-    if document_acl:
-        return sorted({_token(r) for r in document_acl})
+    """Tokens of everyone the KB lets read its content, copied onto every chunk as
+    `access_principals`: the whole organization, or a restricted KB's ACL principals."""
     if visibility is Visibility.RESTRICTED:
         return sorted({_token(r) for r in kb_acl})
     return [f"org:{organization_id}"]
+
+
+def document_access_principals(document_acl: Iterable[AclRule]) -> list[str]:
+    """Tokens of a document's own ACL, copied onto its chunks as `document_principals`; empty
+    when the document inherits its KB's access.
+
+    A caller may read a chunk iff `access_principals && caller` **and** (`document_principals` is
+    empty **or** `document_principals && caller`): KB query access and the document ACL, checked
+    separately, exactly like `can_query` + `document_readable`. One merged token set can't express
+    that conjunction, and keeping both means a later KB ACL or visibility change can never leave
+    a document ACL wider than its KB (no reliance on write-time `widening_entries`).
+    """
+    return sorted({_token(r) for r in document_acl})

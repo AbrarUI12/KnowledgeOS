@@ -24,12 +24,14 @@ from app.ingestion.errors import RetryableError
 from app.ingestion.runner import run_job
 from app.ingestion.stages import STUB_STAGES, default_stages
 from app.ingestion.stages.pipeline import StageDeps, build_stages
+from app.ingestion.state_machine import STAGES
 from app.main import create_app
 from app.providers.identity.base import VerifiedToken
 from app.providers.storage import InMemoryObjectStore
 from tests.fakes import (
     FakeChunker,
     FakeContentScanner,
+    FakeEmbeddingProvider,
     FakeIdentityVerifier,
     FakeMalwareScanner,
     FakeParser,
@@ -66,7 +68,13 @@ async def app(
     migrated_settings: Settings, admin: asyncpg.Connection, store: InMemoryObjectStore
 ) -> AsyncIterator[FastAPI]:
     settings = migrated_settings.model_copy(
-        update={"malware_scanner": "none", "require_malware_scan": False}
+        update={
+            "malware_scanner": "none",
+            "require_malware_scan": False,
+            # New KBs' generation #1 records the model the fake embedder reports.
+            "embedding_provider": FakeEmbeddingProvider.provider_id,
+            "embedding_model": FakeEmbeddingProvider.model_id,
+        }
     )
     application = create_app(settings)
     tokens = {
@@ -103,6 +111,7 @@ class World:
             "normalize": lambda d: d,
             "content_scanner": FakeContentScanner(),
             "chunker": FakeChunker(),
+            "embedder": FakeEmbeddingProvider(),
             **overrides,
         }
         return StageDeps(**values)
@@ -412,10 +421,7 @@ def test_contract_fakes_wire_every_stage_but_only_locally(migrated_settings: Set
     the switch is refused outside local/test."""
     fakes = migrated_settings.model_copy(update={"ingestion_contract_fakes": True})
     stages = default_stages(fakes, InMemoryObjectStore())
-    assert all(
-        stages[s] is not STUB_STAGES[s]
-        for s in (S.PARSING, S.NORMALIZING, S.SECURITY_SCAN, S.CHUNKING)
-    )
+    assert all(stages[s] is not STUB_STAGES[s] for s in STAGES)  # embeddings → verifying too
     production = fakes.model_copy(update={"environment": Environment.PRODUCTION})
     with pytest.raises(RuntimeError, match="only allowed in local/test"):
         default_stages(production, InMemoryObjectStore())

@@ -124,7 +124,7 @@ async def test_killed_worker_resumes_and_matches_a_clean_run() -> None:
         await conn.execute(
             "INSERT INTO index_generations (id, organization_id, knowledge_base_id, generation_number, status, "
             "embedding_provider, embedding_model, embedding_dimension, chunker_name) "
-            "VALUES ($1,$2,$3,1,'active','sentence_transformers','Qwen/Qwen3-Embedding-0.6B',1024,'structure_aware')",
+            "VALUES ($1,$2,$3,1,'active','fake','fake-hash-embedding-v1',1024,'fake')",  # the contract fakes' embedder
             generation, org, kb,
         )  # fmt: skip
         await conn.execute(
