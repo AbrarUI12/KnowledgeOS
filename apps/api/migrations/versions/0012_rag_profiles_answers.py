@@ -69,6 +69,26 @@ _DDL = [
     # The column exists since 0005; only now is there a table to reference.
     "ALTER TABLE knowledge_bases ADD CONSTRAINT fk_knowledge_bases_active_rag_profile "
     "FOREIGN KEY (active_rag_profile_version_id) REFERENCES rag_profiles (id) ON DELETE SET NULL",
+    # A system profile has no organization, so no composite FK (D-012) can express the tenant
+    # rule; this trigger does: a KB may point only at a system profile or one of its own org's.
+    # It runs with the caller's rights, so under RLS another org's profile is simply not found.
+    """
+    CREATE FUNCTION kos_check_kb_rag_profile() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN
+      IF NEW.active_rag_profile_version_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM rag_profiles p
+        WHERE p.id = NEW.active_rag_profile_version_id
+          AND (p.organization_id IS NULL OR p.organization_id = NEW.organization_id)
+      ) THEN
+        RAISE EXCEPTION 'a knowledge base may only use a system RAG profile or its own organization''s'
+          USING ERRCODE = 'foreign_key_violation';
+      END IF;
+      RETURN NEW;
+    END $$
+    """,
+    "CREATE TRIGGER trg_knowledge_bases_rag_profile "
+    "BEFORE INSERT OR UPDATE OF active_rag_profile_version_id, organization_id ON knowledge_bases "
+    "FOR EACH ROW EXECUTE FUNCTION kos_check_kb_rag_profile()",
     """
     CREATE TABLE model_policies (
       id uuid PRIMARY KEY,
@@ -158,6 +178,8 @@ def downgrade() -> None:
     for table in ("citations", "answers", "model_policies"):
         disable_tenant_rls(table)
         op.execute(f"DROP TABLE {table}")
+    op.execute("DROP TRIGGER IF EXISTS trg_knowledge_bases_rag_profile ON knowledge_bases")
+    op.execute("DROP FUNCTION IF EXISTS kos_check_kb_rag_profile()")
     op.execute(
         "ALTER TABLE knowledge_bases "
         "DROP CONSTRAINT IF EXISTS fk_knowledge_bases_active_rag_profile"

@@ -134,6 +134,48 @@ async def test_another_organizations_profile_cant_be_activated(
             await activate(session, ctx, kb, foreign)
 
 
+async def test_the_database_refuses_a_kb_pointing_at_another_organizations_profile(
+    world: World, admin: asyncpg.Connection
+) -> None:
+    other_org, foreign = uuid.uuid4(), uuid.uuid4()
+    await admin.execute(
+        "INSERT INTO organizations (id, name, slug) VALUES ($1, 'Other', $2)",
+        other_org,
+        f"o-{uuid.uuid4().hex[:6]}",
+    )
+    await admin.execute(
+        "INSERT INTO rag_profiles (id, organization_id, name, version, config_json) VALUES ($1, $2, 'theirs', 1, '{}')",
+        foreign, other_org,
+    )  # fmt: skip
+    kb = uuid.UUID(world.kb)
+
+    # Even as the superuser (no RLS, no service checks) the pointer can't cross organizations.
+    with pytest.raises(asyncpg.ForeignKeyViolationError, match="own organization"):
+        await admin.execute(
+            "UPDATE knowledge_bases SET active_rag_profile_version_id = $1 WHERE id = $2",
+            foreign, kb,
+        )  # fmt: skip
+    system = await admin.fetchval(
+        "SELECT id FROM rag_profiles WHERE organization_id IS NULL AND name = 'default-hybrid'"
+    )
+    await admin.execute(
+        "UPDATE knowledge_bases SET active_rag_profile_version_id = $1 WHERE id = $2", system, kb
+    )
+    assert (
+        await admin.fetchval(
+            "SELECT active_rag_profile_version_id FROM knowledge_bases WHERE id = $1", kb
+        )
+        == system
+    )
+
+
+def test_a_profile_needs_at_least_one_weighted_branch() -> None:
+    assert RagProfileConfig(dense_weight=0).lexical_weight > 0
+    assert RagProfileConfig(lexical_weight=0).dense_weight > 0
+    with pytest.raises(ValueError, match="must be positive"):
+        RagProfileConfig(dense_weight=0, lexical_weight=0)
+
+
 # --------------------------------------------------------------------------- debug RERANK / CONTEXT
 
 

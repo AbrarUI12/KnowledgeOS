@@ -82,6 +82,21 @@ async def test_content_links_need_content_access_and_a_promoted_original(
     assert (await world.api.get(missing, headers=world.h())).status_code == 404
 
 
+async def test_archived_documents_and_kbs_get_no_content_links(world: World) -> None:
+    document = await ready(world)
+    kept = await ready(world, THREE + b"\nKept.\n", name="kept.md")
+    assert (await world.api.get(content_url(document), headers=world.h())).status_code == 200
+
+    archived = await world.api.delete(f"/v1/documents/{document['document_id']}", headers=world.h())
+    assert archived.status_code == 204, archived.text
+    assert (await world.api.get(content_url(document), headers=world.h())).status_code == 410
+
+    assert (await world.api.get(content_url(kept), headers=world.h())).status_code == 200
+    gone = await world.api.delete(f"/v1/knowledge-bases/{world.kb}", headers=world.h())
+    assert gone.status_code == 204, gone.text
+    assert (await world.api.get(content_url(kept), headers=world.h())).status_code in {404, 410}
+
+
 # --------------------------------------------------------------------------- chunk context
 
 

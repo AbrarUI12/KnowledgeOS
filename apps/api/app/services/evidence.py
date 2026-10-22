@@ -14,13 +14,13 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.errors import Conflict, Forbidden, NotFound
+from app.api.errors import Conflict, Forbidden, Gone, NotFound
 from app.auth.authorization import RequestContext, principal_tokens
 from app.auth.kb_access import can_query
 from app.core.config import Settings
 from app.db.base import new_uuid
-from app.db.models import Chunk, DocumentVersion, Feedback, QueryRun, Upload
-from app.domain.enums import Visibility
+from app.db.models import Chunk, DocumentVersion, Feedback, KnowledgeBase, QueryRun, Upload
+from app.domain.enums import DocumentStatus, Visibility
 from app.domain.schemas.knowledge import ChunkContext, ChunkSummary, ContentUrl
 from app.domain.schemas.retrieval import FeedbackCreate, FeedbackOut
 from app.ingestion.canonical import SourceLocation
@@ -42,10 +42,21 @@ async def content_url(
     document_id: uuid.UUID,
     version_id: uuid.UUID,
 ) -> ContentUrl:
-    """A five-minute link to the version's trusted original (never the quarantine copy)."""
+    """A five-minute link to the version's trusted original (never the quarantine copy), only
+    while the document and its KB are active."""
     document = await _visible_document(session, ctx, document_id)  # 404 unless visible
     if not await can_read_content(session, ctx, document):
         raise Forbidden("You can't open this document's content.")
+    # Archiving takes content out of retrieval; it must not stay downloadable either.
+    kb_archived = await session.scalar(
+        select(KnowledgeBase.archived_at).where(KnowledgeBase.id == document.knowledge_base_id)
+    )
+    if (
+        document.status != DocumentStatus.ACTIVE.value
+        or document.archived_at is not None
+        or kb_archived is not None
+    ):
+        raise Gone("This document is archived; its content is no longer available.")
     version = await session.scalar(
         select(DocumentVersion).where(
             DocumentVersion.id == version_id, DocumentVersion.document_id == document.id
