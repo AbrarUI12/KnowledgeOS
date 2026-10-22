@@ -131,3 +131,58 @@ async def test_the_seed_builds_the_demo_through_the_api_and_is_idempotent(
     again = await run_seed(demo_app, store)
     assert again.jobs == {}  # nothing re-uploaded
     assert again.orgs == first.orgs
+
+
+# --------------------------------------------------------------------------- tokens (no Docker)
+
+
+@pytest.mark.unit
+def test_seed_tokens_are_never_printed(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import httpx
+
+    secret = "sentinel-access-token-" + "z" * 16  # a distinctive, non-credential value
+    request = httpx.Request("POST", "http://localhost:8080/token")
+    monkeypatch.setattr(
+        httpx,
+        "post",
+        lambda *a, **k: httpx.Response(200, json={"access_token": secret}, request=request),
+    )
+    tokens = seed_module()._get_token()
+
+    assert tokens("alice") == secret
+    captured = capsys.readouterr()
+    assert secret not in captured.out + captured.err
+
+
+@pytest.mark.unit
+async def test_seed_retries_once_with_a_fresh_token_after_401() -> None:
+    import httpx
+
+    issued: list[str] = []
+    seen: list[str] = []
+
+    def fetch(who: str) -> str:
+        issued.append(f"{who}-{len(issued)}")
+        return issued[-1]
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers["Authorization"])
+        return httpx.Response(401 if len(seen) == 1 else 200, json={"ok": True})
+
+    module = seed_module()
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handle), base_url="http://t"
+    ) as client:
+        seeder = module.Seeder(client, module.CachedTokens(fetch), log=lambda _: None)
+        assert await seeder.call("GET", "/me", "alice") == {"ok": True}
+        # A second 401 isn't retried forever.
+        seen.clear()
+        handle_401 = httpx.MockTransport(lambda r: httpx.Response(401, json={}))
+        seeder.client = httpx.AsyncClient(transport=handle_401, base_url="http://t")
+        with pytest.raises(RuntimeError, match="401"):
+            await seeder.call("GET", "/me", "alice")
+        await seeder.client.aclose()
+
+    assert issued == ["alice-0", "alice-1", "alice-2"]

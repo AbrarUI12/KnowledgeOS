@@ -2,7 +2,8 @@
 """Gate G4 (session.md §6, S26): retrieval over the full demo corpus with the real libraries.
 
 Seeds the demo through the API (`scripts/seed_demo.py`), ingests every document with the real
-parsers (Docling, Office), normalization and the real Qwen3 embedder, then checks the G4
+parsers (Docling, Office), normalization, the rule-based content scanner, the structure-aware
+chunker and the real Qwen3 embedder, then checks the G4
 checklist through the search API:
 - an exact identifier (`HR-142-B`) is in the top 3;
 - a paraphrased question (Demo 1) finds the 2026 handbook in the top 5;
@@ -11,7 +12,6 @@ checklist through the search API:
 - Carol (Globex) can't reach Acme at all (Demo 6).
 
 Opt-in (`KOS_GATE=1`, `make gate-g4`): Docling and the embedding model make it take minutes.
-Content scanning and chunking use the contract fakes until T3.4's libraries merge.
 """
 
 import os
@@ -31,6 +31,7 @@ from app.api.dependencies.storage import get_object_store
 from app.core.config import Settings
 from app.db.types import vector_literal
 from app.domain.enums import IngestionState
+from app.ingestion.chunking.structure_aware import StructureAwareChunker
 from app.ingestion.normalize import normalize
 from app.ingestion.parsing.docling import DoclingParser
 from app.ingestion.parsing.office import OfficeParser
@@ -42,10 +43,10 @@ from app.providers.embeddings.sentence_transformers import SentenceTransformersE
 from app.providers.identity.base import VerifiedToken
 from app.providers.search.postgres import PostgresSearchBackend
 from app.providers.storage import InMemoryObjectStore
+from app.security.content_scanner import RuleContentScanner
 from app.services.search import SearchDeps
-from tests.fakes import FakeContentScanner, FakeIdentityVerifier, FakeMalwareScanner
+from tests.fakes import FakeIdentityVerifier, FakeMalwareScanner
 from tests.test_ingestion_stages import ISSUER, admin, store  # noqa: F401 (pytest fixtures)
-from tests.test_search_backend import IdentifierChunker
 from tests.test_seed_demo import PEOPLE, run_seed, seed_module
 
 pytestmark = [
@@ -99,8 +100,8 @@ async def ingest(app: FastAPI, store: InMemoryObjectStore, seeder: Any, embedder
             OfficeParser(),
         ),
         normalize=normalize,
-        content_scanner=FakeContentScanner(),
-        chunker=IdentifierChunker(),
+        content_scanner=RuleContentScanner(),
+        chunker=StructureAwareChunker(),
         embedder=embedder,
     )
     stages = build_stages(deps, STUB_STAGES)

@@ -150,6 +150,47 @@ async def test_multi_kb_search_and_kb_access_errors(world: World) -> None:
     assert forbidden.status_code == 403
 
 
+async def test_a_kb_on_another_embedding_model_is_searched_lexically_and_reported(
+    world: World, admin: asyncpg.Connection
+) -> None:
+    use_search(world)
+    policy = await ready(world, POLICY, "parental-leave.md")
+    travel_kb = (
+        await world.api.post("/v1/knowledge-bases", json={"name": "Travel"}, headers=world.h())
+    ).json()["id"]
+    travel = World(world.app, world.api, world.store, world.org, travel_kb)
+    await ready(travel, TRAVEL, "travel.md")
+    await admin.execute(
+        "UPDATE index_generations SET embedding_model = 'another/model' "
+        "WHERE knowledge_base_id = $1",
+        uuid.UUID(travel_kb),
+    )
+
+    response = await world.api.post(
+        "/v1/search",
+        json={"query": "economy flights", "knowledge_base_ids": [world.kb, travel_kb]},
+        headers=world.h(),
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["degraded"] is True  # part of the request had no dense coverage
+    by_kb = {
+        kb: [h for h in body["hits"] if h["knowledge_base_id"] == kb]
+        for kb in (world.kb, travel_kb)
+    }
+    assert any(h["match_type"] in {"semantic", "both"} for h in by_kb[world.kb])  # dense kept
+    assert by_kb[travel_kb]
+    assert all(h["match_type"] == "exact" for h in by_kb[travel_kb])
+    assert policy["document_id"] in {h["document_id"] for h in by_kb[world.kb]}
+    run = await admin.fetchrow(
+        "SELECT degraded, embedding_model FROM query_runs WHERE id = $1",
+        uuid.UUID(body["query_run_id"]),
+    )
+    assert run["degraded"] == ["dense_model_mismatch"]
+    assert run["embedding_model"] == FakeEmbeddingProvider.model_id
+
+
 async def test_filters_are_validated(world: World) -> None:
     use_search(world)
     await ready(world, POLICY, "parental-leave.md")
