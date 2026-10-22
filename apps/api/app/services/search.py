@@ -57,7 +57,7 @@ from app.rag.context.rerank import rerank_hits
 from app.rag.fusion.rrf import reciprocal_rank_fusion
 from app.rag.orchestration.profiles import ActiveProfile, active_profile, default_profile
 from app.rag.query import NormalizedQuery, normalize_query
-from app.rag.types import Candidate, RankedHit
+from app.rag.types import Candidate, EvidenceItem, RankedHit
 from app.services.documents import document_readable
 from app.services.knowledge_bases import load_kb
 
@@ -86,6 +86,19 @@ class ContextSelection:
     reranker_model: str | None
     rerank_ms: float
     degraded: list[str]
+    evidence: tuple[EvidenceItem, ...] = ()  # the same items with their `[S#]` aliases
+
+
+@dataclass(frozen=True, slots=True)
+class Retrieval:
+    """One permission-aware hybrid retrieval, fused (shared by search and query)."""
+
+    scope: SearchScope
+    fused: list[RankedHit]
+    embedding_model: str | None
+    generations: dict[uuid.UUID, uuid.UUID]  # KB → the active generation searched
+    degraded: list[str]
+    retrieval_ms: float
 
 
 async def select_context(
@@ -137,7 +150,7 @@ async def select_context(
     )
     by_id = {h.chunk_id: h for h in ranked} | neighbor_hits
     selected = [by_id[item.source.chunk_id] for item in packed.items]
-    return ContextSelection(scores, selected, model, rerank_ms, degraded)
+    return ContextSelection(scores, selected, model, rerank_ms, degraded, packed.items)
 
 
 def _principal_summary(ctx: RequestContext) -> str:
@@ -217,6 +230,47 @@ async def _snippets(
     return snippets
 
 
+async def retrieve(
+    session: AsyncSession,
+    ctx: RequestContext,
+    deps: SearchDeps,
+    kbs: Sequence[KnowledgeBase],
+    query: NormalizedQuery,
+    filters: QueryFilters,
+    profile: ActiveProfile,
+) -> Retrieval:
+    """Embed (with the generations' model), run both branches with the authorization predicate
+    in SQL (T4.4), and fuse them with the profile's weights (T4.3)."""
+    vector, model, generations, degraded = await _query_vector(session, deps, kbs, query)
+    scope = SearchScope(
+        organization_id=ctx.organization_id,
+        knowledge_base_ids=tuple(kb.id for kb in kbs),
+        principal_tokens=tuple(principal_tokens(ctx)),
+    )
+    request = HybridSearchRequest(
+        scope=scope,
+        query=query.text,
+        filters=filters,
+        query_embedding=vector,
+        embedding_model=model,
+        dense_k=profile.config.dense_k,
+        lexical_k=profile.config.lexical_k,
+    )
+    started = time.perf_counter()
+    try:
+        result = await deps.backend.hybrid_search(request)
+    except UnsupportedFilter as exc:
+        raise UnsupportedSearchFilter(details={"reason": str(exc)}) from None
+    retrieval_ms = (time.perf_counter() - started) * 1000
+    if result.degraded.dense_unavailable and "dense_unavailable" not in degraded:
+        degraded.append("dense_unavailable")
+    if result.degraded.lexical_unavailable:
+        degraded.append("lexical_unavailable")
+    fused = reciprocal_rank_fusion(result.dense, result.lexical, profile.config.fusion())
+    searched = dict(result.index_generation_ids) or generations
+    return Retrieval(scope, fused, model, searched, degraded, retrieval_ms)
+
+
 def _match_type(hit: RankedHit) -> MatchType:
     if hit.dense_rank is not None and hit.lexical_rank is not None:
         return MatchType.BOTH
@@ -242,36 +296,16 @@ async def search(
     profile = (
         await active_profile(session, kbs[0]) if len(kbs) == 1 else await default_profile(session)
     )
-    vector, model, generations, degraded = await _query_vector(session, deps, kbs, query)
-    scope = SearchScope(
-        organization_id=ctx.organization_id,
-        knowledge_base_ids=tuple(kb.id for kb in kbs),
-        principal_tokens=tuple(principal_tokens(ctx)),
-    )
-    request = HybridSearchRequest(
-        scope=scope,
-        query=query.text,
-        filters=body.filters,
-        query_embedding=vector,
-        embedding_model=model,
-        dense_k=profile.config.dense_k,
-        lexical_k=profile.config.lexical_k,
-    )
-    retrieval_started = time.perf_counter()
-    try:
-        result = await deps.backend.hybrid_search(request)
-    except UnsupportedFilter as exc:
-        raise UnsupportedSearchFilter(details={"reason": str(exc)}) from None
-    retrieval_ms = (time.perf_counter() - retrieval_started) * 1000
-    if result.degraded.dense_unavailable and "dense_unavailable" not in degraded:
-        degraded.append("dense_unavailable")
-    if result.degraded.lexical_unavailable:
-        degraded.append("lexical_unavailable")
-    fused = reciprocal_rank_fusion(result.dense, result.lexical, profile.config.fusion())
+    retrieval = await retrieve(session, ctx, deps, kbs, query, body.filters, profile)
+    fused, degraded = retrieval.fused, list(retrieval.degraded)
     shown = fused[: body.limit]
     # The debugger's RERANK and CONTEXT steps (S27, Demo 3): rerank and pack what an answer
     # would use. Plain search stays fast and skips both.
-    context = await select_context(deps, scope, query.text, fused, profile) if body.debug else None
+    context = (
+        await select_context(deps, retrieval.scope, query.text, fused, profile)
+        if body.debug
+        else None
+    )
     if context:
         degraded += context.degraded
     snippets = await _snippets(session, shown, query.text)
@@ -288,14 +322,13 @@ async def search(
         query_language=query.language,
         filters_json=body.filters.model_dump(mode="json", exclude_defaults=True),
         principal_summary=_principal_summary(ctx),
-        index_generations_json={str(kb): str(g) for kb, g in result.index_generation_ids.items()}
-        or {str(kb): str(g) for kb, g in generations.items()},
-        embedding_model=model,
+        index_generations_json={str(kb): str(g) for kb, g in retrieval.generations.items()},
+        embedding_model=retrieval.embedding_model,
         rag_profile_version=profile.label,
         reranker_model=context.reranker_model if context else None,
         rerank_latency_ms=context.rerank_ms if context else None,
         degraded=degraded,
-        retrieval_latency_ms=retrieval_ms,
+        retrieval_latency_ms=retrieval.retrieval_ms,
     )
     session.add(run)
     await session.flush()

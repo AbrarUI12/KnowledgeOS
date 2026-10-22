@@ -153,6 +153,17 @@ class Settings(BaseSettings):
     retain_query_text: bool = False
     search_max_candidates: int = Field(default=50, ge=1, le=500)
 
+    # Grounded generation (T5.2 gateway, T5.3 pipeline; plan §16, §25.2). Each provider's model,
+    # key and account limits come from its own `<PROVIDER>_*` variables (providers/llm/config.py).
+    # None = answers unavailable (503); `fake` = deterministic extractive answers, local/test only.
+    llm_provider: Literal["ollama", "groq", "gemini", "openrouter", "fake"] | None = None
+    llm_fallback_providers: str = ""  # comma-separated, tried in order, only if policy allows
+    llm_allow_external: bool = False  # evidence may leave the deployment (Groq/Gemini/OpenRouter)
+    llm_max_input_tokens: int = Field(default=6000, ge=512, le=128_000)
+    llm_max_output_tokens: int = Field(default=700, ge=16, le=8192)
+    llm_temperature: float = Field(default=0.1, ge=0, le=2)
+    llm_timeout_seconds: float = Field(default=60.0, gt=0, le=600)
+
     # Uploads (T2.4)
     upload_max_bytes: int = Field(default=50 * 1024 * 1024, gt=0)
     upload_url_ttl_seconds: int = Field(default=900, ge=60, le=3600)
@@ -192,7 +203,20 @@ class Settings(BaseSettings):
             raise ValueError(
                 "EMBEDDING_BASE_URL is required when EMBEDDING_PROVIDER=openai_compatible"
             )
+        if self.llm_provider == "fake" and self.environment in {
+            Environment.STAGING,
+            Environment.PRODUCTION,
+        }:
+            raise ValueError("LLM_PROVIDER=fake is for local development and tests only")
         return self
+
+    @property
+    def llm_fallback_list(self) -> list[str]:
+        names = [n.strip() for n in self.llm_fallback_providers.split(",") if n.strip()]
+        unknown = set(names) - {"ollama", "groq", "gemini", "openrouter"}
+        if unknown:
+            raise ValueError(f"unknown LLM_FALLBACK_PROVIDERS: {sorted(unknown)}")
+        return names
 
     @property
     def json_logs(self) -> bool:

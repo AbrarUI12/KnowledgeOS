@@ -6344,7 +6344,7 @@
     },
     "/v1/knowledge-bases/{kb_id}/query": {
       "post": {
-        "description": "Grounded answer with validated citations (non-streaming).",
+        "description": "Grounded answer with validated `[S#]` citations (non-streaming), or an abstention with the\nclosest authorized sources. KB access like search (404 / 403); 503 when generation isn't\nconfigured or fails, 429 when the model's quota is exhausted.",
         "operationId": "query_query_knowledge_base",
         "parameters": [
           {
@@ -6455,6 +6455,7 @@
     },
     "/v1/knowledge-bases/{kb_id}/query/stream": {
       "post": {
+        "description": "The same answer as SSE (docs/api/sse-events.md). Errors before the stream starts (auth,\nvalidation, KB access, generation not configured) are normal JSON errors; after that they\narrive as one `error` event. Closing the connection cancels generation.",
         "operationId": "query_query_knowledge_base_stream",
         "parameters": [
           {
