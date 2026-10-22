@@ -81,11 +81,8 @@ def test_materialized_tokens_match_the_access_rules(
     assert matched == may_read_content(ctx, visibility, kb_acl, document_acl)
 
 
-@given(document_acl=st.lists(rules, min_size=1, max_size=3), ctx=callers)
-def test_a_document_acl_only_ever_narrows(document_acl: list[AclRule], ctx: RequestContext) -> None:
-    caller = set(principal_tokens(ctx))
-    kb_tokens = set(kb_access_principals(ORG, Visibility.ORGANIZATION, []))
-    narrowed = set(document_access_principals(document_acl))
-    if kb_tokens & caller and narrowed & caller:
-        assert kb_tokens & caller  # matching the document ACL never replaces KB access
-    assert narrowed  # a document with an ACL never falls back to "inherits"
+@given(document_acl=st.lists(rules, min_size=1, max_size=3))
+def test_a_document_with_an_acl_never_falls_back_to_inheriting(document_acl: list[AclRule]) -> None:
+    """Empty `document_principals` means "inherits the KB"; an ACL must never materialize as
+    empty (review #38: replaces a tautological property)."""
+    assert document_access_principals(document_acl)

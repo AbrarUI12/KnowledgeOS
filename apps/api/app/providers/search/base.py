@@ -7,9 +7,9 @@ must apply organization, KB, active index generation, active document version, n
 
 import uuid
 from datetime import date
-from typing import Protocol, runtime_checkable
+from typing import Protocol, Self, runtime_checkable
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.rag.types import DegradedFlags, RankedHit
 
@@ -53,9 +53,20 @@ class HybridSearchRequest(BaseModel):
         default=None,
         description="Pre-computed with the active generation's model; None = lexical only",
     )
+    embedding_model: str | None = Field(
+        default=None,
+        description="Model that produced `query_embedding` (required with it). The dense branch "
+        "only compares it with chunks whose active generation used this exact model.",
+    )
     dense_k: int = Field(default=50, ge=1, le=500)
     lexical_k: int = Field(default=50, ge=1, le=500)
     allow_degraded: bool = True
+
+    @model_validator(mode="after")
+    def _embedding_names_its_model(self) -> Self:
+        if (self.query_embedding is None) != (self.embedding_model is None):
+            raise ValueError("query_embedding and embedding_model go together")
+        return self
 
 
 class BranchTiming(BaseModel):
@@ -68,7 +79,9 @@ class HybridSearchResult(BaseModel):
 
     dense: list[RankedHit] = Field(default_factory=list)
     lexical: list[RankedHit] = Field(default_factory=list)
-    index_generation_id: uuid.UUID
+    index_generation_ids: dict[uuid.UUID, uuid.UUID] = Field(
+        default_factory=dict, description="Knowledge base id → the active generation searched"
+    )
     degraded: DegradedFlags = DegradedFlags()
     timing: BranchTiming = BranchTiming()
 
