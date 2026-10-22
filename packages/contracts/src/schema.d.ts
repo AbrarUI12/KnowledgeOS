@@ -51,7 +51,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Chunk Context */
+        /**
+         * Get Chunk Context
+         * @description A cited passage with its neighbors in the same section, authorized exactly like search
+         *     (404 for anything the caller couldn't retrieve).
+         */
         get: operations["documents_get_chunk_context"];
         put?: never;
         post?: never;
@@ -152,7 +156,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Document Content Url */
+        /**
+         * Get Document Content Url
+         * @description A five-minute signed link to the version's trusted original (source viewer). Needs read
+         *     access to the content: 404 if the document isn't visible, 403 if it's visible but not
+         *     readable, 409 if the original hasn't been scanned and promoted.
+         */
         get: operations["documents_get_document_content_url"];
         put?: never;
         post?: never;
@@ -438,7 +447,9 @@ export interface paths {
         put?: never;
         /**
          * Query Knowledge Base
-         * @description Grounded answer with validated citations (non-streaming).
+         * @description Grounded answer with validated `[S#]` citations (non-streaming), or an abstention with the
+         *     closest authorized sources. KB access like search (404 / 403); 503 when generation isn't
+         *     configured or fails, 429 when the model's quota is exhausted.
          */
         post: operations["query_query_knowledge_base"];
         delete?: never;
@@ -456,7 +467,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Query Knowledge Base Stream */
+        /**
+         * Query Knowledge Base Stream
+         * @description The same answer as SSE (docs/api/sse-events.md). Errors before the stream starts (auth,
+         *     validation, KB access, generation not configured) are normal JSON errors; after that they
+         *     arrive as one `error` event. Closing the connection cancels generation.
+         */
         post: operations["query_query_knowledge_base_stream"];
         delete?: never;
         options?: never;
@@ -723,7 +739,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create Feedback */
+        /**
+         * Create Feedback
+         * @description Thumbs up/down with an optional reason code and comment on your own run; giving feedback
+         *     again replaces it.
+         */
         post: operations["query_runs_create_feedback"];
         delete?: never;
         options?: never;

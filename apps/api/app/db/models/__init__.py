@@ -28,16 +28,27 @@ from app.db.models.knowledge import (
     SourceObject,
     Upload,
 )
-from app.db.models.retrieval import QueryRun, RetrievalHit
+from app.db.models.retrieval import (
+    Answer,
+    Citation,
+    Feedback,
+    ModelPolicy,
+    QueryRun,
+    RagProfile,
+    RetrievalHit,
+)
 
 __all__ = [
+    "Answer",
     "ApiKey",
     "AuditEvent",
     "Chunk",
+    "Citation",
     "DataSource",
     "Document",
     "DocumentAcl",
     "DocumentVersion",
+    "Feedback",
     "Group",
     "GroupMembership",
     "IdempotencyKey",
@@ -48,9 +59,11 @@ __all__ = [
     "KnowledgeBase",
     "KnowledgeBaseAcl",
     "Membership",
+    "ModelPolicy",
     "Organization",
     "OutboxEvent",
     "QueryRun",
+    "RagProfile",
     "RetrievalHit",
     "Role",
     "RolePermission",

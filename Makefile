@@ -10,7 +10,7 @@ API_PORT ?= 8000
 WEB_PORT ?= 3000
 
 # openapi: regenerate packages/contracts/openapi.json (T1.0 contract)
-.PHONY: openapi help install lint format typecheck test test-unit test-int migrate migration api web hooks env up up-full down reset logs ps psql infra-check demo-corpus worker dispatcher seed gate-g4 space-build space-run space-smoke
+.PHONY: openapi help install lint format typecheck test test-unit test-int migrate migration api web hooks env up up-full down reset logs ps psql infra-check demo-corpus worker dispatcher seed gate-g4 gate-g5 space-build space-run space-smoke
 
 help:
 	@echo "install    Install backend (uv) and frontend (pnpm) dependencies + git hooks"
@@ -117,6 +117,9 @@ seed: ## Seed the demo orgs, people, KBs and corpus through the running local AP
 
 gate-g4: ## Gate G4: full demo corpus with real parsers and Qwen3, searched through the API
 	KOS_GATE=1 $(UV) run pytest -m gate tests/test_gate_g4.py -v
+
+gate-g5: ## Gate G5: grounded answers over the demo corpus (KOS_GATE_LLM=ollama|groq)
+	KOS_GATE=1 KOS_GATE_LLM=$(or $(KOS_GATE_LLM),ollama) $(UV) run pytest -m gate tests/test_gate_g5.py -v
 
 demo-corpus:
 	$(UV) run python ../../scripts/demo_corpus/generate.py

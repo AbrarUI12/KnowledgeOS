@@ -13,14 +13,20 @@ filtered through the viewer's own access, and the principal summary names no doc
 
 import time
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 import structlog
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.errors import Forbidden, NotFound, UnsupportedSearchFilter, ValidationFailed
+from app.api.errors import (
+    Forbidden,
+    NotFound,
+    ServiceUnavailable,
+    UnsupportedSearchFilter,
+    ValidationFailed,
+)
 from app.auth.authorization import RequestContext, has_permission, principal_tokens
 from app.auth.kb_access import can_query
 from app.auth.permissions import Permission
@@ -38,6 +44,7 @@ from app.domain.schemas.retrieval import (
     Timing,
 )
 from app.providers.embeddings.base import EmbeddingProvider, EmbeddingUnavailableError
+from app.providers.rerankers.base import RerankerProvider
 from app.providers.search.base import (
     HybridSearchRequest,
     QueryFilters,
@@ -45,9 +52,12 @@ from app.providers.search.base import (
     SearchScope,
 )
 from app.providers.search.postgres import UnsupportedFilter
+from app.rag.context.packer import pack_context
+from app.rag.context.rerank import rerank_hits
 from app.rag.fusion.rrf import reciprocal_rank_fusion
+from app.rag.orchestration.profiles import ActiveProfile, active_profile, default_profile
 from app.rag.query import NormalizedQuery, normalize_query
-from app.rag.types import RankedHit
+from app.rag.types import Candidate, EvidenceItem, RankedHit
 from app.services.documents import document_readable
 from app.services.knowledge_bases import load_kb
 
@@ -63,6 +73,84 @@ class SearchDeps:
     backend: SearchBackend
     embedder: EmbeddingProvider | None
     settings: Settings
+    reranker: RerankerProvider | None = None
+    count_tokens: Callable[[str], int] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ContextSelection:
+    """Rerank + packing of a run's fused hits (S27): what the answer would be grounded on."""
+
+    rerank_scores: dict[uuid.UUID, float]
+    selected: list[RankedHit]  # packed evidence, seeds and neighbors, in context order
+    reranker_model: str | None
+    rerank_ms: float
+    degraded: list[str]
+    evidence: tuple[EvidenceItem, ...] = ()  # the same items with their `[S#]` aliases
+
+
+@dataclass(frozen=True, slots=True)
+class Retrieval:
+    """One permission-aware hybrid retrieval, fused (shared by search and query)."""
+
+    scope: SearchScope
+    fused: list[RankedHit]
+    embedding_model: str | None
+    generations: dict[uuid.UUID, uuid.UUID]  # KB → the active generation searched
+    degraded: list[str]
+    retrieval_ms: float
+
+
+async def select_context(
+    deps: SearchDeps,
+    scope: SearchScope,
+    query: str,
+    fused: Sequence[RankedHit],
+    profile: ActiveProfile,
+) -> ContextSelection:
+    """Rerank the top `rerank_candidates`, then pack the token-budgeted evidence set with
+    neighbor expansion through the search backend, so neighbors pass the same authorization
+    predicate as search itself (S27). Reranker failure degrades to the fused order when the
+    profile allows it; otherwise it propagates."""
+    config = profile.config
+    candidates = list(fused[: config.rerank_candidates])
+    started = time.perf_counter()
+    degraded: list[str] = []
+    model = None
+    if deps.reranker is None:
+        if not config.allow_degraded_rerank:
+            raise ServiceUnavailable("The reranker is unavailable.")
+        ranked, degraded = candidates, ["rerank_bypassed"]
+    else:
+        reranked = await rerank_hits(
+            query,
+            candidates,
+            deps.reranker,
+            timeout_seconds=config.rerank_timeout_seconds,
+            allow_degraded=config.allow_degraded_rerank,
+        )
+        ranked = list(reranked.hits)
+        if reranked.degraded.rerank_bypassed:
+            degraded.append("rerank_bypassed")
+        else:
+            model = reranked.model_id
+    rerank_ms = (time.perf_counter() - started) * 1000
+    scores = {h.chunk_id: h.rerank_score for h in ranked if h.rerank_score is not None}
+
+    neighbor_hits: dict[uuid.UUID, RankedHit] = {}
+
+    async def neighbors(candidate: Candidate) -> list[Candidate]:
+        found = await deps.backend.neighbors(scope, candidate.chunk_id)
+        neighbor_hits.update({h.chunk_id: h for h in found})
+        return [h.candidate for h in found]
+
+    count = deps.count_tokens or (lambda text: len(text.split()))
+    packed = await pack_context(
+        ranked, count_tokens=count, config=config.packing(), neighbors=neighbors
+    )
+    by_id = {h.chunk_id: h for h in ranked} | neighbor_hits
+    selected = [by_id[item.source.chunk_id] for item in packed.items]
+    return ContextSelection(scores, selected, model, rerank_ms, degraded, packed.items)
 
 
 def _principal_summary(ctx: RequestContext) -> str:
@@ -142,6 +230,47 @@ async def _snippets(
     return snippets
 
 
+async def retrieve(
+    session: AsyncSession,
+    ctx: RequestContext,
+    deps: SearchDeps,
+    kbs: Sequence[KnowledgeBase],
+    query: NormalizedQuery,
+    filters: QueryFilters,
+    profile: ActiveProfile,
+) -> Retrieval:
+    """Embed (with the generations' model), run both branches with the authorization predicate
+    in SQL (T4.4), and fuse them with the profile's weights (T4.3)."""
+    vector, model, generations, degraded = await _query_vector(session, deps, kbs, query)
+    scope = SearchScope(
+        organization_id=ctx.organization_id,
+        knowledge_base_ids=tuple(kb.id for kb in kbs),
+        principal_tokens=tuple(principal_tokens(ctx)),
+    )
+    request = HybridSearchRequest(
+        scope=scope,
+        query=query.text,
+        filters=filters,
+        query_embedding=vector,
+        embedding_model=model,
+        dense_k=profile.config.dense_k,
+        lexical_k=profile.config.lexical_k,
+    )
+    started = time.perf_counter()
+    try:
+        result = await deps.backend.hybrid_search(request)
+    except UnsupportedFilter as exc:
+        raise UnsupportedSearchFilter(details={"reason": str(exc)}) from None
+    retrieval_ms = (time.perf_counter() - started) * 1000
+    if result.degraded.dense_unavailable and "dense_unavailable" not in degraded:
+        degraded.append("dense_unavailable")
+    if result.degraded.lexical_unavailable:
+        degraded.append("lexical_unavailable")
+    fused = reciprocal_rank_fusion(result.dense, result.lexical, profile.config.fusion())
+    searched = dict(result.index_generation_ids) or generations
+    return Retrieval(scope, fused, model, searched, degraded, retrieval_ms)
+
+
 def _match_type(hit: RankedHit) -> MatchType:
     if hit.dense_rank is not None and hit.lexical_rank is not None:
         return MatchType.BOTH
@@ -163,32 +292,22 @@ async def search(
     except ValueError:
         raise ValidationFailed("The query is empty.") from None
     kbs = await _queryable_kbs(session, ctx, kb_ids)
-    vector, model, generations, degraded = await _query_vector(session, deps, kbs, query)
-    request = HybridSearchRequest(
-        scope=SearchScope(
-            organization_id=ctx.organization_id,
-            knowledge_base_ids=tuple(kb.id for kb in kbs),
-            principal_tokens=tuple(principal_tokens(ctx)),
-        ),
-        query=query.text,
-        filters=body.filters,
-        query_embedding=vector,
-        embedding_model=model,
-        dense_k=deps.settings.search_max_candidates,
-        lexical_k=deps.settings.search_max_candidates,
+    # One KB: its profile. Several: the system default (their own profiles may disagree).
+    profile = (
+        await active_profile(session, kbs[0]) if len(kbs) == 1 else await default_profile(session)
     )
-    retrieval_started = time.perf_counter()
-    try:
-        result = await deps.backend.hybrid_search(request)
-    except UnsupportedFilter as exc:
-        raise UnsupportedSearchFilter(details={"reason": str(exc)}) from None
-    retrieval_ms = (time.perf_counter() - retrieval_started) * 1000
-    if result.degraded.dense_unavailable and "dense_unavailable" not in degraded:
-        degraded.append("dense_unavailable")
-    if result.degraded.lexical_unavailable:
-        degraded.append("lexical_unavailable")
-    fused = reciprocal_rank_fusion(result.dense, result.lexical)
+    retrieval = await retrieve(session, ctx, deps, kbs, query, body.filters, profile)
+    fused, degraded = retrieval.fused, list(retrieval.degraded)
     shown = fused[: body.limit]
+    # The debugger's RERANK and CONTEXT steps (S27, Demo 3): rerank and pack what an answer
+    # would use. Plain search stays fast and skips both.
+    context = (
+        await select_context(deps, retrieval.scope, query.text, fused, profile)
+        if body.debug
+        else None
+    )
+    if context:
+        degraded += context.degraded
     snippets = await _snippets(session, shown, query.text)
 
     run = QueryRun(
@@ -203,30 +322,17 @@ async def search(
         query_language=query.language,
         filters_json=body.filters.model_dump(mode="json", exclude_defaults=True),
         principal_summary=_principal_summary(ctx),
-        index_generations_json={str(kb): str(g) for kb, g in result.index_generation_ids.items()}
-        or {str(kb): str(g) for kb, g in generations.items()},
-        embedding_model=model,
+        index_generations_json={str(kb): str(g) for kb, g in retrieval.generations.items()},
+        embedding_model=retrieval.embedding_model,
+        rag_profile_version=profile.label,
+        reranker_model=context.reranker_model if context else None,
+        rerank_latency_ms=context.rerank_ms if context else None,
         degraded=degraded,
-        retrieval_latency_ms=retrieval_ms,
+        retrieval_latency_ms=retrieval.retrieval_ms,
     )
     session.add(run)
     await session.flush()
-    session.add_all(
-        RetrievalHit(
-            query_run_id=run.id,
-            chunk_id=hit.chunk_id,
-            organization_id=ctx.organization_id,
-            document_id=hit.candidate.document_id,
-            knowledge_base_id=hit.candidate.knowledge_base_id,
-            rank=rank,
-            dense_rank=hit.dense_rank,
-            dense_score=hit.dense_score,
-            lexical_rank=hit.lexical_rank,
-            lexical_score=hit.lexical_score,
-            fusion_score=hit.fused_score,
-        )
-        for rank, hit in enumerate(fused, 1)
-    )
+    session.add_all(_hit_rows(run, ctx, fused, context))
     run.total_latency_ms = (time.perf_counter() - started) * 1000
     await session.flush()
 
@@ -247,6 +353,47 @@ async def search(
     ]
     debug = await _debug(session, ctx, run) if body.debug else None
     return SearchResponse(query_run_id=run.id, hits=hits, degraded=bool(degraded), debug=debug)
+
+
+def _hit_rows(
+    run: QueryRun, ctx: RequestContext, fused: Sequence[RankedHit], context: ContextSelection | None
+) -> list[RetrievalHit]:
+    """Every fused hit with its branch ranks/scores; with a context selection, also rerank scores,
+    which hits reached the context, and the neighbors expansion added (no fused rank)."""
+    selected = {h.chunk_id for h in context.selected} if context else set()
+    scores = context.rerank_scores if context else {}
+    rows = [
+        RetrievalHit(
+            query_run_id=run.id,
+            chunk_id=hit.chunk_id,
+            organization_id=ctx.organization_id,
+            document_id=hit.candidate.document_id,
+            knowledge_base_id=hit.candidate.knowledge_base_id,
+            rank=rank,
+            dense_rank=hit.dense_rank,
+            dense_score=hit.dense_score,
+            lexical_rank=hit.lexical_rank,
+            lexical_score=hit.lexical_score,
+            fusion_score=hit.fused_score,
+            rerank_score=scores.get(hit.chunk_id),
+            selected_for_context=hit.chunk_id in selected,
+        )
+        for rank, hit in enumerate(fused, 1)
+    ]
+    fused_ids = {hit.chunk_id for hit in fused}
+    rows += [
+        RetrievalHit(
+            query_run_id=run.id,
+            chunk_id=hit.chunk_id,
+            organization_id=ctx.organization_id,
+            document_id=hit.candidate.document_id,
+            knowledge_base_id=hit.candidate.knowledge_base_id,
+            selected_for_context=True,
+        )
+        for hit in (context.selected if context else [])
+        if hit.chunk_id not in fused_ids
+    ]
+    return rows
 
 
 # --------------------------------------------------------------------------- query runs

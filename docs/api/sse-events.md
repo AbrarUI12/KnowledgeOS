@@ -27,6 +27,8 @@ done | error                     (exactly one, always last)
 
 Clients must tolerate missing optional events and must not assume a fixed number of `answer_delta` events.
 
+**M1 delivery (DV-009):** the server validates the whole answer (citations, one bounded correction, link stripping) before sending any of it, so `answer_delta` events arrive in a burst after `generation.started`, one per paragraph, and every `citation` is `valid: true`. A `: keep-alive` comment is sent every 15 s while the model works. Token-by-token streaming with in-place citation flags may come later; the event shapes stay the same.
+
 ## Events
 
 | Event | Payload model | Fields | Notes |

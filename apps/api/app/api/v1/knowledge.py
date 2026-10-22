@@ -6,9 +6,10 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, Request, status
 
+from app.api.dependencies.search import SearchServices
 from app.api.dependencies.storage import Storage
 from app.api.dependencies.tenancy import OrgContext, require_permission
-from app.api.v1._stub import ERRORS, IdempotencyKeyHeader, OrgIdHeader, stub
+from app.api.v1._stub import ERRORS, IdempotencyKeyHeader, OrgIdHeader
 from app.auth.authorization import RequestContext
 from app.auth.permissions import Permission
 from app.db.session import DbSession
@@ -34,7 +35,7 @@ from app.domain.schemas.knowledge import (
     UploadCreate,
     UploadOut,
 )
-from app.services import documents, ingestion_jobs, knowledge_bases
+from app.services import documents, evidence, ingestion_jobs, knowledge_bases
 
 router = APIRouter(responses=ERRORS)
 
@@ -337,9 +338,20 @@ async def inspect_document_version(
     response_model=ContentUrl,
 )
 async def get_document_content_url(
-    org: OrgIdHeader, ctx: OrgContext, document_id: uuid.UUID, version_id: uuid.UUID
+    request: Request,
+    org: OrgIdHeader,
+    ctx: OrgContext,
+    session: DbSession,
+    store: Storage,
+    document_id: uuid.UUID,
+    version_id: uuid.UUID,
 ) -> ContentUrl:
-    stub("T5.4")
+    """A five-minute signed link to the version's trusted original (source viewer). Needs read
+    access to the content: 404 if the document isn't visible, 403 if it's visible but not
+    readable, 409 if the original hasn't been scanned and promoted."""
+    return await evidence.content_url(
+        session, ctx, store, request.app.state.settings, document_id, version_id
+    )
 
 
 @router.post(
@@ -361,10 +373,16 @@ async def get_chunk_context(
     org: OrgIdHeader,
     ctx: OrgContext,
     chunk_id: uuid.UUID,
+    session: DbSession,
+    services: SearchServices,
     before: Annotated[int, Query(ge=0, le=5)] = 1,
     after: Annotated[int, Query(ge=0, le=5)] = 1,
 ) -> ChunkContext:
-    stub("T5.4")
+    """A cited passage with its neighbors in the same section, authorized exactly like search
+    (404 for anything the caller couldn't retrieve)."""
+    return await evidence.chunk_context(
+        session, ctx, services.backend, chunk_id, before=before, after=after
+    )
 
 
 # ----------------------------------------------------------------------------- ingestion jobs

@@ -3607,6 +3607,7 @@
     },
     "/v1/chunks/{chunk_id}/context": {
       "get": {
+        "description": "A cited passage with its neighbors in the same section, authorized exactly like search\n(404 for anything the caller couldn't retrieve).",
         "operationId": "documents_get_chunk_context",
         "parameters": [
           {
@@ -4358,6 +4359,7 @@
     },
     "/v1/documents/{document_id}/versions/{version_id}/content-url": {
       "get": {
+        "description": "A five-minute signed link to the version's trusted original (source viewer). Needs read\naccess to the content: 404 if the document isn't visible, 403 if it's visible but not\nreadable, 409 if the original hasn't been scanned and promoted.",
         "operationId": "documents_get_document_content_url",
         "parameters": [
           {
@@ -6356,7 +6358,7 @@
     },
     "/v1/knowledge-bases/{kb_id}/query": {
       "post": {
-        "description": "Grounded answer with validated citations (non-streaming).",
+        "description": "Grounded answer with validated `[S#]` citations (non-streaming), or an abstention with the\nclosest authorized sources. KB access like search (404 / 403); 503 when generation isn't\nconfigured or fails, 429 when the model's quota is exhausted.",
         "operationId": "query_query_knowledge_base",
         "parameters": [
           {
@@ -6467,6 +6469,7 @@
     },
     "/v1/knowledge-bases/{kb_id}/query/stream": {
       "post": {
+        "description": "The same answer as SSE (docs/api/sse-events.md). Errors before the stream starts (auth,\nvalidation, KB access, generation not configured) are normal JSON errors; after that they\narrive as one `error` event. Closing the connection cancels generation.",
         "operationId": "query_query_knowledge_base_stream",
         "parameters": [
           {
@@ -8342,6 +8345,7 @@
     },
     "/v1/query-runs/{query_run_id}/feedback": {
       "post": {
+        "description": "Thumbs up/down with an optional reason code and comment on your own run; giving feedback\nagain replaces it.",
         "operationId": "query_runs_create_feedback",
         "parameters": [
           {
