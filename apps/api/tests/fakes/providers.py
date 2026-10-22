@@ -20,7 +20,12 @@ from app.providers.search.base import (
     QueryFilters,
     SearchScope,
 )
-from app.providers.storage.base import ObjectInfo, ObjectStoreError, PresignedUpload
+from app.providers.storage.base import (
+    ObjectInfo,
+    ObjectStoreError,
+    PresignedDownload,
+    PresignedUpload,
+)
 from app.rag.types import Candidate, RankedHit, Usage
 from app.security.content_types import (
     ContentFinding,
@@ -50,6 +55,14 @@ class FakeObjectStore:
         return PresignedUpload(
             url=f"{self.public_base_url}/{bucket}/{key}?signature=fake",
             headers={"Content-Type": content_type},
+            expires_at=datetime.now(UTC) + timedelta(seconds=expires_in_seconds),
+        )
+
+    async def presign_get(
+        self, bucket: str, key: str, *, expires_in_seconds: int = 300, filename: str | None = None
+    ) -> PresignedDownload:
+        return PresignedDownload(
+            url=f"{self.public_base_url}/{bucket}/{key}?signature=fake-get",
             expires_at=datetime.now(UTC) + timedelta(seconds=expires_in_seconds),
         )
 

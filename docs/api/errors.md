@@ -47,7 +47,8 @@ Every error response uses one envelope:
 | 429 | `rate_limited` | Too many requests (`Retry-After` header when known) |
 | 500 | `internal_error` | Unexpected server error |
 | 501 | `not_implemented` | Contract stub (T1.0): endpoint exists with its final schema; `details.task` names the task implementing it |
-| 503 | `service_unavailable` | A dependency is unavailable |
+| 503 | `service_unavailable` | A dependency is unavailable (also: answer generation not configured, or no model allowed by the knowledge base's model policy) |
+| 503 | `generation_failed` | The answer model failed or timed out; no partial answer is returned (`/query`; the stream sends it as an `error` event) |
 
 Domain-specific codes keep the HTTP status of their generic parent (`last_owner` is a 409 like `conflict`), so clients can fall back to the status. Uploads, ingestion and retrieval codes are added as sessions introduce them.
 

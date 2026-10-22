@@ -175,6 +175,18 @@ async def test_s3_store_minio_presign_put_head_get_copy_delete(
             )
             == data
         )
+        # A signed GET (T5.4 source viewer) downloads the bytes inline, under the given name.
+        download = await store.presign_get(
+            integration_settings.s3_bucket_trusted,
+            copied_object_path,
+            expires_in_seconds=60,
+            filename='Leave "policy".pdf',
+        )
+        async with httpx.AsyncClient(trust_env=False) as client:
+            fetched = await client.get(download.url)
+        assert fetched.status_code == 200
+        assert fetched.content == data
+        assert fetched.headers["content-disposition"] == 'inline; filename="Leave policy.pdf"'
         artifact = await store.put(
             integration_settings.s3_bucket_artifacts,
             artifact_object_path,

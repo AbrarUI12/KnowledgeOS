@@ -4,13 +4,15 @@ T5.3, T5.4). SSE event payloads: docs/api/sse-events.md."""
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Request, status
 from fastapi.responses import StreamingResponse
 
+from app.api.dependencies.query import QueryServices
 from app.api.dependencies.search import SearchServices
 from app.api.dependencies.tenancy import OrgContext, require_permission
 from app.api.openapi import STREAM_EVENT_REF
-from app.api.v1._stub import ERRORS, OrgIdHeader, stub
+from app.api.sse import sse_frames
+from app.api.v1._stub import ERRORS, OrgIdHeader
 from app.auth.authorization import RequestContext
 from app.auth.permissions import Permission
 from app.db.session import DbSession
@@ -24,6 +26,8 @@ from app.domain.schemas.retrieval import (
     SearchRequest,
     SearchResponse,
 )
+from app.services import evidence
+from app.services import query as query_service
 from app.services import search as search_service
 
 router = APIRouter(responses=ERRORS)
@@ -59,10 +63,20 @@ async def search(
 
 @router.post("/knowledge-bases/{kb_id}/query", tags=["query"], response_model=AnswerOut)
 async def query_knowledge_base(
-    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID, body: QueryRequest
+    request: Request,
+    org: OrgIdHeader,
+    ctx: QueryExecute,
+    session: DbSession,
+    services: QueryServices,
+    kb_id: uuid.UUID,
+    body: QueryRequest,
 ) -> AnswerOut:
-    """Grounded answer with validated citations (non-streaming)."""
-    stub("T5.3")
+    """Grounded answer with validated `[S#]` citations (non-streaming), or an abstention with the
+    closest authorized sources. KB access like search (404 / 403); 503 when generation isn't
+    configured or fails, 429 when the model's quota is exhausted."""
+    prepared = await query_service.prepare(session, ctx, services, kb_id, body)
+    await session.commit()  # retrieval is persisted; no transaction stays open while generating
+    return await query_service.answer(prepared, request.app.state.sessionmaker)
 
 
 @router.post(
@@ -78,9 +92,25 @@ async def query_knowledge_base(
     },
 )
 async def query_knowledge_base_stream(
-    org: OrgIdHeader, ctx: OrgContext, kb_id: uuid.UUID, body: QueryRequest
+    request: Request,
+    org: OrgIdHeader,
+    ctx: QueryExecute,
+    session: DbSession,
+    services: QueryServices,
+    kb_id: uuid.UUID,
+    body: QueryRequest,
 ) -> StreamingResponse:
-    stub("T5.4")
+    """The same answer as SSE (docs/api/sse-events.md). Errors before the stream starts (auth,
+    validation, KB access, generation not configured) are normal JSON errors; after that they
+    arrive as one `error` event. Closing the connection cancels generation."""
+    prepared = await query_service.prepare(session, ctx, services, kb_id, body)
+    await session.commit()  # the stream runs without a database transaction
+    stream = query_service.events(prepared, request.app.state.sessionmaker)
+    return StreamingResponse(
+        sse_frames(stream),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/query-runs/{query_run_id}", tags=["query_runs"], response_model=QueryRunOut)
@@ -99,6 +129,12 @@ async def get_query_run(
     status_code=status.HTTP_201_CREATED,
 )
 async def create_feedback(
-    org: OrgIdHeader, ctx: OrgContext, query_run_id: uuid.UUID, body: FeedbackCreate
+    org: OrgIdHeader,
+    ctx: OrgContext,
+    session: DbSession,
+    query_run_id: uuid.UUID,
+    body: FeedbackCreate,
 ) -> FeedbackOut:
-    stub("T5.4")
+    """Thumbs up/down with an optional reason code and comment on your own run; giving feedback
+    again replaces it."""
+    return await evidence.give_feedback(session, ctx, query_run_id, body)

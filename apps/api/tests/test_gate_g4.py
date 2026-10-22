@@ -85,12 +85,8 @@ async def gate_app(
         yield application
 
 
-async def ingest(app: FastAPI, store: InMemoryObjectStore, seeder: Any, embedder: Any) -> None:
-    org_of = {
-        entry["title"]: seeder.orgs[entry["org"]]
-        for entry in seed_module().manifest()
-        if entry["title"] in seeder.jobs
-    }
+def pipeline(app: FastAPI, store: InMemoryObjectStore, embedder: Any) -> Any:
+    """The production stages over the real libraries (shared with the G5 gate)."""
     deps = StageDeps(
         settings=app.state.settings,
         store=store,
@@ -104,7 +100,16 @@ async def ingest(app: FastAPI, store: InMemoryObjectStore, seeder: Any, embedder
         chunker=StructureAwareChunker(),
         embedder=embedder,
     )
-    stages = build_stages(deps, STUB_STAGES)
+    return build_stages(deps, STUB_STAGES)
+
+
+async def ingest(app: FastAPI, store: InMemoryObjectStore, seeder: Any, embedder: Any) -> None:
+    org_of = {
+        entry["title"]: seeder.orgs[entry["org"]]
+        for entry in seed_module().manifest()
+        if entry["title"] in seeder.jobs
+    }
+    stages = pipeline(app, store, embedder)
     states = {}
     for title, job in seeder.jobs.items():
         states[title] = await run_job(

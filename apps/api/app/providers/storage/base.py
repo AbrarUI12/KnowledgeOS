@@ -22,6 +22,15 @@ class PresignedUpload(BaseModel):
     expires_at: datetime
 
 
+class PresignedDownload(BaseModel):
+    """A short-lived GET link to one object, issued only after the caller's access check."""
+
+    model_config = ConfigDict(frozen=True)
+
+    url: str
+    expires_at: datetime
+
+
 class ObjectInfo(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -42,6 +51,14 @@ class ObjectStore(Protocol):
     async def presign_put(
         self, bucket: str, key: str, *, content_type: str, expires_in_seconds: int = 900
     ) -> PresignedUpload: ...
+
+    async def presign_get(
+        self, bucket: str, key: str, *, expires_in_seconds: int = 300, filename: str | None = None
+    ) -> PresignedDownload:
+        """Short-lived download link on the public endpoint (T5.4 source viewer), issued only after
+        the caller's access check. `filename` sets `Content-Disposition: inline; filename=...`;
+        it is never part of the key."""
+        ...
 
     async def head(self, bucket: str, key: str) -> ObjectInfo | None:
         """Metadata, or None if the object doesn't exist."""
