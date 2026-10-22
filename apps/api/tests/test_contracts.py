@@ -9,8 +9,7 @@ from fastapi import FastAPI
 from httpx import AsyncClient
 from pydantic import ValidationError
 
-from app.api.dependencies.tenancy import get_request_context
-from app.auth.authorization import RequestContext
+from app.api.v1._stub import stub
 from app.ingestion.canonical import Block, CanonicalDocument, SourceLocation
 from app.ingestion.chunking.types import ChunkDraft, Chunker
 from app.ingestion.parsing.base import DocumentParser
@@ -193,34 +192,19 @@ async def test_fake_reranker_scores_overlap() -> None:
 # ----------------------------------------------------------------------------- stub routes
 
 
-@pytest.mark.parametrize(
-    ("method", "path", "task"),
-    [
-        ("POST", "/v1/knowledge-bases/{id}/query", "T5.3"),
-    ],
-)
-async def test_stub_routes_answer_501_with_task(
-    app: FastAPI, client: AsyncClient, method: str, path: str, task: str
-) -> None:
-    # Org-scoped stubs resolve the tenant context first (T1.2); stand in a member's context.
-    app.dependency_overrides[get_request_context] = lambda: RequestContext(
-        user_id=uuid.uuid4(),
-        organization_id=uuid.uuid4(),
-        role="member",
-        permissions=frozenset(),
-        group_ids=frozenset(),
-    )
-    body = {"query": "leave"} if path.endswith("search") else {"question": "leave?"}
-    response = await client.request(
-        method,
-        path.replace("{id}", str(uuid.uuid4())),
-        headers={"X-Organization-Id": str(uuid.uuid4())},
-        json=body if method == "POST" else None,
-    )
+async def test_stub_helper_answers_501_with_its_task(app: FastAPI, client: AsyncClient) -> None:
+    # Every T1.0 stub route is implemented now (T5.3/T5.4 replaced the last one); the helper
+    # and its error envelope stay the contract for any future placeholder endpoint.
+    @app.get("/__stub_probe")
+    async def probe() -> None:
+        stub("T9.9")
+
+    response = await client.get("/__stub_probe")
+
     assert response.status_code == 501
     error = response.json()["error"]
     assert error["code"] == "not_implemented"
-    assert error["details"] == {"task": task}
+    assert error["details"] == {"task": "T9.9"}
 
 
 async def test_org_scoped_stubs_require_authentication_first(client: AsyncClient) -> None:

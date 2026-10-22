@@ -446,7 +446,9 @@ export interface paths {
         put?: never;
         /**
          * Query Knowledge Base
-         * @description Grounded answer with validated citations (non-streaming).
+         * @description Grounded answer with validated `[S#]` citations (non-streaming), or an abstention with the
+         *     closest authorized sources. KB access like search (404 / 403); 503 when generation isn't
+         *     configured or fails, 429 when the model's quota is exhausted.
          */
         post: operations["query_query_knowledge_base"];
         delete?: never;
@@ -464,7 +466,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Query Knowledge Base Stream */
+        /**
+         * Query Knowledge Base Stream
+         * @description The same answer as SSE (docs/api/sse-events.md). Errors before the stream starts (auth,
+         *     validation, KB access, generation not configured) are normal JSON errors; after that they
+         *     arrive as one `error` event. Closing the connection cancels generation.
+         */
         post: operations["query_query_knowledge_base_stream"];
         delete?: never;
         options?: never;
