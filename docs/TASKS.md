@@ -28,10 +28,10 @@ The user's call (D-015, DV-008): **M1 live staging within 3–5 days, Claude and
 | 1 | **C1** `/query` + SSE (T5.3 part 2 + slim T5.4 part 2): normalize → search → rerank → pack → `generate_grounded` → validate → persist answers/citations/selected hits; SSE per `docs/api/sse-events.md`; evidence status (no conflicts); strip non-citation links/images server-side; transaction closed before generation; `test_gate_g5.py` | T5.2 merged (#40); review #48, #49. **X1** knowledge library + upload + lean ingestion (T2.5 + T3.7): KB list, document table with live pipeline status, retry, approve/reject, lean Inspect (chunks, scan findings, timeline) | Create the free accounts: Hugging Face, Neon, Backblaze B2, Auth0, Vercel, Groq key |
 | 2 | **C2** deployable image (T6.1): `infra/docker/space.Dockerfile`, supervisord, `staging` settings, Neon roles by SQL, B2 buckets + CORS, Auth0, `make space-smoke` | **X2** Ask workspace + evidence rail (T5.5 + T5.7 + slim T5.6): streaming answer, `[S#]` → chunk context and source link, abstention/degraded banners, feedback buttons | Enter secrets in HF and Vercel |
 | 3 | **C3** staging deploy (T6.3, manual `make deploy-staging`): HF Space, Vercel, Neon migrations, demo seed; `scripts/smoke.py` (T6.2 API part) | **X3** search UI + retrieval debugger (T4.7 + T4.8, lean) | |
-| 4 | **C4** lean admin pages (T1.6 + T1.5 navigation-only palette + approvals queue); staging integration fixes | Integration fixes on staging; review C3/C4 | Try the live demo |
+| 4 | ~~C4~~ → Codex (2026-10-23, starter `ai/claude-c4-access-pages`); approvals live in X1's Inspect; staging integration fixes, jobs `sort` param, gate runs | Integration fixes on staging; review C3/C4 | Try the live demo |
 | 5 | Final verification → tags `gate-G5`, `M1`; README "Live demo" link | Buffer, fixes | |
 
-**Reassigned from Cline:** T2.5, T3.7 → Codex X1 · T5.6 (slim) → Codex X2 · T4.7 → Codex X3 · T1.5 (navigation only), T1.6 → Claude C4 · T6.2 → `smoke.py` in Claude C3 (the Playwright parts are cut) · T1.7 cut. T2.6 merged (#33).
+**Reassigned from Cline:** T2.5, T3.7 → Codex X1 · T5.6 (slim) → Codex X2 · T4.7 → Codex X3 · T1.5 (navigation only), T1.6 → Claude C4, then handed to Codex with a starter (frontend is Codex's) · T6.2 → `smoke.py` in Claude C3 (the Playwright parts are cut) · T1.7 cut. T2.6 merged (#33).
 
 ---
 
