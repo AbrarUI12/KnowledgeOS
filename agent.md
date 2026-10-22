@@ -24,7 +24,7 @@
 | **Project phase** | Building: **M1 fast track** (Claude + Codex; Cline paused), see `docs/TASKS.md` §0 and D-015 |
 | **Current sprint** | Sprints 5–6: grounded answers + staging deployment (target M1 by 2026-10-28) |
 | **Last completed session** | Session 06: Identity & organization schema |
-| **Next work** | Fast-track day 1: Claude C1 (`/query` + SSE) · Codex merges T5.2, reviews #48/#49, builds X1 (knowledge + ingestion UI) · user creates the free-tier accounts |
+| **Next work** | Fast-track day 1: Claude C1 (`/query` + SSE) · Codex reviews #48/#49 (T5.2 merged in #40), builds X1 (knowledge + ingestion UI) · user creates the free-tier accounts |
 | **Sessions done** | 6 / 65 (9%) |
 | **Last gate passed** | **G0** (2026-10-12), next gate: **G1** after Session 11 |
 | **Repository** | https://github.com/AbrarUI12/KnowledgeOS (public, branch `main`) |
@@ -60,15 +60,17 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T5.1 #37 review follow-ups: bounded waiting for native slot, lean model-facing evidence view; #35 merged and dependency floor reconciled. Re-running full checks before re-review. #38 re-review PASS; #39 reviewed (19 tests), generation-switch race HIGH reproduced. Next T5.2.
-- **Last finished:** T4.1 #36 merged (a25389f): real Qwen CPU 1024-d verified. T3.3 #28 (6e725fb), T3.2 #26 (0c1f49f), T1.4 #17 (961cb0a) also merged.
+- **Current task:** T5.2 #40 reviewed PASS by Claude. Review hardening rejects model-authored Markdown links, remote images, URLs and raw HTML before answers can be returned or persisted. Focused security tests: 40 passed; lint and strict types green. Post-main full run: 667 passed / 4 skipped with one existing 20 ms reranker timing failure that passed immediately in isolation; fresh CI is the merge gate.
+- **Last finished:** T5.1 #37 merged (990fe38), MEDIUM fixes included; combined checks 532 backend / 105 frontend / nine snapshots and all CI green. T3.4 #35 merged (e36b5da); T4.1 #36 (a25389f), T3.3 #28 (6e725fb), T3.2 #26 (0c1f49f), T1.4 #17 (961cb0a) merged.
 - **Blockers:** none
 - **Recent:**
+  - 2026-10-23 · T5.2 · Claude review PASS; added fail-closed generated-link/image/URL/HTML validation and correction guidance with regression coverage. No dependency, contract, database or route changes.
+  - 2026-10-22 · T5.2 · 903ba1f implementation; final serial full checks green after one native Windows Qwen subprocess crash (unchanged isolated rerun also passed). Four standard-suite skips: two POSIX, opt-in crash, new manual LLM test (separately forced and passed). Redis daily-cap assertion independently verified after refilling minute buckets, including midnight-safe wait bounds. No dependency, contract, database or route changes.
   - 2026-10-12 · T2.2 · S3/MinIO/B2 + in-memory ObjectStore providers and safe key helpers; explicit S3 timeouts/retries · PR #14 (merged)
   - 2026-10-12 · T2.3 · strict file validator, valid-format fixtures, ClamAV/Noop scanners · PR #10
 
 ### Cline: UI pages · scripts · local QA
-> **Paused since 2026-10-23 (D-015).** Open tasks reassigned or cut in `docs/TASKS.md` §0; #33 (T2.6) stays open for Codex's review.
+> **Paused since 2026-10-23 (D-015).** Open tasks reassigned or cut in `docs/TASKS.md` §0; T2.6 merged (#33, reviewed by Codex).
 
 - **Worktree / ports:** `D:\projects\kos-cline` · API 8200 · web 3200
 - **Current task:** T4.5 deterministic demo corpus regeneration — PR #32 open, awaiting review (T4.3 draft PR #16 also open)
@@ -635,3 +637,4 @@ All deviations (DV-001…) now live in **[`docs/DECISIONS.md`](docs/DECISIONS.md
 | Search | Keep the query text on query runs (otherwise only its hash); candidates per branch | `RETAIN_QUERY_TEXT`, `SEARCH_MAX_CANDIDATES` | all | S25 (T4.6) |
 | Embeddings | Provider and exact model recorded on new index generations (no substitution); model cache; `openai_compatible` endpoint | `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION`, `EMBEDDING_BATCH_SIZE`, `EMBEDDING_DEVICE`, `EMBEDDING_BASE_URL`, `EMBEDDING_API_KEY` (secret), `EMBEDDING_IS_EXTERNAL`, `HF_HOME`, `HF_TOKEN` (optional secret) | all | S22 (T4.2) |
 | *(more rows added as sessions introduce services: Neon, B2, Auth0, HF, Vercel, Groq, Gemini, Langfuse, Grafana Cloud, Google Drive OAuth)* | | | | |
+| Generation libraries | Explicit provider model, endpoint, key, real account limits and shared quota label; no implicit model or external fallback | `OLLAMA_MODEL`, `OLLAMA_BASE_URL`, `OLLAMA_RPM`, `OLLAMA_TPM`, `OLLAMA_RPD`; `GROQ_API_KEY`, `GROQ_MODEL`, `GROQ_RPM`, `GROQ_TPM`, `GROQ_RPD`; `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_RPM`, `GEMINI_TPM`, `GEMINI_RPD`; `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `OPENROUTER_RPM`, `OPENROUTER_TPM`, `OPENROUTER_RPD`; optional `<PROVIDER>_BASE_URL`, `<PROVIDER>_QUOTA_GROUP`; `KOS_LLM_TEST` (manual/nightly only) | all (test opt-in: local/CI); `OLLAMA_NO_CLOUD=1` required on local-only Ollama server | S28 (T5.2) |

@@ -25,13 +25,13 @@ The user's call (D-015, DV-008): **M1 live staging within 3–5 days, Claude and
 
 | Day | Claude | Codex | User |
 |---|---|---|---|
-| 1 | **C1** `/query` + SSE (T5.3 part 2 + slim T5.4 part 2): normalize → search → rerank → pack → `generate_grounded` → validate → persist answers/citations/selected hits; SSE per `docs/api/sse-events.md`; evidence status (no conflicts); strip non-citation links/images server-side; transaction closed before generation; `test_gate_g5.py` | Merge #40 (T5.2); review #48, #49. **X1** knowledge library + upload + lean ingestion (T2.5 + T3.7): KB list, document table with live pipeline status, retry, approve/reject, lean Inspect (chunks, scan findings, timeline) | Create the free accounts: Hugging Face, Neon, Backblaze B2, Auth0, Vercel, Groq key |
+| 1 | **C1** `/query` + SSE (T5.3 part 2 + slim T5.4 part 2): normalize → search → rerank → pack → `generate_grounded` → validate → persist answers/citations/selected hits; SSE per `docs/api/sse-events.md`; evidence status (no conflicts); strip non-citation links/images server-side; transaction closed before generation; `test_gate_g5.py` ~~Merge #40 (T5.2)~~ done; review #48, #49. **X1** knowledge library + upload + lean ingestion (T2.5 + T3.7): KB list, document table with live pipeline status, retry, approve/reject, lean Inspect (chunks, scan findings, timeline) | Create the free accounts: Hugging Face, Neon, Backblaze B2, Auth0, Vercel, Groq key |
 | 2 | **C2** deployable image (T6.1): `infra/docker/space.Dockerfile`, supervisord, `staging` settings, Neon roles by SQL, B2 buckets + CORS, Auth0, `make space-smoke` | **X2** Ask workspace + evidence rail (T5.5 + T5.7 + slim T5.6): streaming answer, `[S#]` → chunk context and source link, abstention/degraded banners, feedback buttons | Enter secrets in HF and Vercel |
 | 3 | **C3** staging deploy (T6.3, manual `make deploy-staging`): HF Space, Vercel, Neon migrations, demo seed; `scripts/smoke.py` (T6.2 API part) | **X3** search UI + retrieval debugger (T4.7 + T4.8, lean) | |
 | 4 | **C4** lean admin pages (T1.6 + T1.5 navigation-only palette + approvals queue); staging integration fixes | Integration fixes on staging; review C3/C4 | Try the live demo |
 | 5 | Final verification → tags `gate-G5`, `M1`; README "Live demo" link | Buffer, fixes | |
 
-**Reassigned from Cline:** T2.5, T3.7 → Codex X1 · T5.6 (slim) → Codex X2 · T4.7 → Codex X3 · T1.5 (navigation only), T1.6 → Claude C4 · T6.2 → `smoke.py` in Claude C3 (the Playwright parts are cut) · T1.7 cut. T2.6 (#33) stays open for Codex's review and merge.
+**Reassigned from Cline:** T2.5, T3.7 → Codex X1 · T5.6 (slim) → Codex X2 · T4.7 → Codex X3 · T1.5 (navigation only), T1.6 → Claude C4 · T6.2 → `smoke.py` in Claude C3 (the Playwright parts are cut) · T1.7 cut. T2.6 merged (#33).
 
 ---
 
@@ -83,7 +83,7 @@ The user's call (D-015, DV-008): **M1 live staging within 3–5 days, Claude and
 | T3.4 | Content-security scanner & structure-aware chunker | 4 | S19 | DONE | ai/codex-t3.4-content-chunking | #35 (e36b5da) |
 | T4.1 | Embedding providers | 4 | S22 | DONE | ai/codex-t4.1-embedding-providers | #36 (a25389f) |
 | T5.1 | Reranker, context packer & source aliases | 5 | S27 | DONE | ai/codex-t5.1-reranker-context | #37 (990fe38) |
-| T5.2 | LLM gateway, prompts, abstention & citation validator | 5 | S28 | TODO | | |
+| T5.2 | LLM gateway, prompts, abstention & citation validator | 5 | S28 | DONE | ai/codex-t5.2-grounded-generation | #40 (9926e98) |
 | T4.8 | Retrieval debugger UI | 6 | S26 | TODO | | |
 | T5.5 | Ask workspace UI | 7 | S30 | TODO | | |
 | T5.7 | Evidence rail, source viewer & feedback UI | 8 | S31 | TODO | | |
@@ -99,7 +99,7 @@ The user's call (D-015, DV-008): **M1 live staging within 3–5 days, Claude and
 | T1.6 | Access pages: Members & Groups | 2 | S11 | → Claude C4 | | |
 | T1.7 | Playwright E2E harness + first journeys | 2 | S11 | CUT (DV-008) | | |
 | T2.5 | Knowledge library & upload UI | 3 | S15 | → Codex X1 | | |
-| T2.6 | `scripts/upload_file.py` | 4 | S13 | REVIEW (Codex reviews) | ai/cline-t2.6-upload-script | #33 |
+| T2.6 | `scripts/upload_file.py` | 4 | S13 | DONE | ai/cline-t2.6-upload-script | #33 (95d0240) |
 | T3.7 | Ingestion UI: pipeline, diagnostics, reader/inspect, approvals | 4 | S21 | → Codex X1 (lean) | | |
 | T5.6 | Answer-state components, copy & feedback controls | 5 | S31 | → Codex X2 (slim; copy formatters cut) | | |
 | T4.7 | Search UI + demo journeys | 6 | S25 | → Codex X3 (journeys cut) | | |
