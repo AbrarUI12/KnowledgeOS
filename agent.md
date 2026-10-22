@@ -21,16 +21,16 @@
 
 | Field | Value |
 |---|---|
-| **Project phase** | Building: Sprint 1, **three-agent mode** (Claude + Codex + Cline, see §1b and `docs/TASKS.md`) |
-| **Current sprint** | Sprint 1: Identity, tenancy & authorization |
+| **Project phase** | Building: **M1 fast track** (Claude + Codex; Cline paused), see `docs/TASKS.md` §0 and D-015 |
+| **Current sprint** | Sprints 5–6: grounded answers + staging deployment (target M1 by 2026-10-28) |
 | **Last completed session** | Session 06: Identity & organization schema |
-| **Next work** | Wave 0 in `docs/TASKS.md`: Claude T1.0 contracts · Codex T2.3 file validation · Cline T4.5 demo corpus + T1.8 get_token |
+| **Next work** | Fast-track day 1: Claude C1 (`/query` + SSE) · Codex reviews #48/#49 (T5.2 merged in #40), builds X1 (knowledge + ingestion UI) · user creates the free-tier accounts |
 | **Sessions done** | 6 / 65 (9%) |
 | **Last gate passed** | **G0** (2026-10-12), next gate: **G1** after Session 11 |
 | **Repository** | https://github.com/AbrarUI12/KnowledgeOS (public, branch `main`) |
 | **Live environments** | none yet (staging planned in Session 33, production in Session 62) |
 | **Blockers** | none |
-| **Last updated** | 2026-10-12, by Claude (T0.1 multi-agent bootstrap) |
+| **Last updated** | 2026-10-23, by Claude (M1 fast-track plan) |
 
 ---
 
@@ -40,8 +40,8 @@
 
 ### Claude: architect · security/DB/integration · reviewer
 - **Worktree / ports:** `D:\projects\kos-claude` · API 8000 · web 3000
-- **Current task:** T4.2 (#38), T4.4 (#39) and T4.6 (stacked on #39) in REVIEW; G4 gate script ready (`make gate-g4`)
-- **Last finished:** T3.6 ingestion reliability (2026-10-14, #34, merge a09b48e; ADR-004 reconciler addendum approved by the user)
+- **Current task:** fast-track C1 (`/query` + SSE); T5.3 part 1 (#48) and T5.4 part 1 (#49) in REVIEW
+- **Last finished:** T4.6 search API, seed loader, debug API, G4 gate on the real libraries (2026-10-23, #41, merge 4dadd27); T4.4 (#39, f328b1d); T4.2 (#38, d3bdda3)
 - **Blockers:** none
 - **Recent:**
   - 2026-10-14 · T4.4 · PostgresSearchBackend: one chunk-only authorization predicate (org, KBs, active generation + version via semi-joins, live docs, children, ACL tokens) for every query; dense HNSW iterative scan in a materialized CTE limited to the request's embedding model; lexical per-language websearch tsquery + ts_rank_cd + identifier boost + title-trigram fallback; concurrent branches on two connections with degraded flags; neighbors; whitelisted filters; one-time inferred-filter relaxation; contract change (embedding_model, index_generation_ids) approved by the user; Hypothesis brute-force predicate test; filtered HNSW recall@10 = 1.0 on 5k chunks
@@ -70,6 +70,8 @@
   - 2026-10-12 · T2.3 · strict file validator, valid-format fixtures, ClamAV/Noop scanners · PR #10
 
 ### Cline: UI pages · scripts · local QA
+> **Paused since 2026-10-23 (D-015).** Open tasks reassigned or cut in `docs/TASKS.md` §0; T2.6 merged (#33, reviewed by Codex).
+
 - **Worktree / ports:** `D:\projects\kos-cline` · API 8200 · web 3200
 - **Current task:** T4.5 deterministic demo corpus regeneration — PR #32 open, awaiting review (T4.3 draft PR #16 also open)
 - **Last finished:** T4.3 RRF fusion module (2026-10-12) · T4.5 + T1.8 merged in PR #12 (2026-10-12)

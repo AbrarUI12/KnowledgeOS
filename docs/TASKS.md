@@ -4,7 +4,34 @@
 > Rules for working on these tasks: [`docs/AGENT_WORKFLOW.md`](AGENT_WORKFLOW.md). Detailed spec of each task: the referenced **session.md** section (its "Tasks" list is the scope, its "Done when" is the bar).
 
 **Milestone:** M1: live MVP on staging (Vercel + HF Space + Neon + B2 + Auth0) · **Status:** IN PROGRESS
-**Agents:** Claude (architect, security/DB/integration, reviewer) · Codex (libraries, frontend foundation, Ask experience, reviews Claude) · Cline (UI pages, scripts, local QA)
+**Agents:** Claude (architect, security/DB/integration, reviewer) · Codex (libraries, frontend foundation, Ask experience, reviews Claude) · ~~Cline~~ (paused since 2026-10-23, see §0)
+
+---
+
+## 0. M1 fast track (since 2026-10-23; overrides the waves and per-gate tags below)
+
+The user's call (D-015, DV-008): **M1 live staging within 3–5 days, Claude and Codex only.** The bar is still S33's: on the public staging URL a user can sign in → upload → reach READY → search → ask and get cited answers.
+
+**Never cut:** RLS, ACLs inside the retrieval SQL, malware scan, untrusted-evidence prompt, citation validation, DB transaction closed before generation.
+**Cut (DV-008):** Playwright suite (replaced by `scripts/smoke.py` plus a manual browser walk-through), answer conflict detection, copy-answer formatters, rich answer-state cards (a plain abstention or degraded banner stays), keep-warm workflow, deploy-on-push workflow (manual deploy), separate G1–G4 tags, Cline QA passes.
+**Kept but lean:** admin pages (members, groups, approvals, command palette with navigation only), ingestion Inspect, retrieval debugger (no rank animation).
+
+**Fast-track rules:**
+1. One PR per lane item below; at most one level of stacking; merge promptly.
+2. Review in the same session. Only BLOCKER and HIGH block a merge. MEDIUM and LOW go into one follow-up issue per PR, unless they're security findings.
+3. Locally run only the targeted tests; CI runs the full suite. Gate scripts run once, on day 5.
+4. One final verification (G4 and G5 scripts, staging smoke, manual walk-through) tags `gate-G5` and `M1`.
+5. `agent.md` and this file: update once per day per agent.
+
+| Day | Claude | Codex | User |
+|---|---|---|---|
+| 1 | **C1** `/query` + SSE (T5.3 part 2 + slim T5.4 part 2): normalize → search → rerank → pack → `generate_grounded` → validate → persist answers/citations/selected hits; SSE per `docs/api/sse-events.md`; evidence status (no conflicts); strip non-citation links/images server-side; transaction closed before generation; `test_gate_g5.py` | T5.2 merged (#40); review #48, #49. **X1** knowledge library + upload + lean ingestion (T2.5 + T3.7): KB list, document table with live pipeline status, retry, approve/reject, lean Inspect (chunks, scan findings, timeline) | Create the free accounts: Hugging Face, Neon, Backblaze B2, Auth0, Vercel, Groq key |
+| 2 | **C2** deployable image (T6.1): `infra/docker/space.Dockerfile`, supervisord, `staging` settings, Neon roles by SQL, B2 buckets + CORS, Auth0, `make space-smoke` | **X2** Ask workspace + evidence rail (T5.5 + T5.7 + slim T5.6): streaming answer, `[S#]` → chunk context and source link, abstention/degraded banners, feedback buttons | Enter secrets in HF and Vercel |
+| 3 | **C3** staging deploy (T6.3, manual `make deploy-staging`): HF Space, Vercel, Neon migrations, demo seed; `scripts/smoke.py` (T6.2 API part) | **X3** search UI + retrieval debugger (T4.7 + T4.8, lean) | |
+| 4 | **C4** lean admin pages (T1.6 + T1.5 navigation-only palette + approvals queue); staging integration fixes | Integration fixes on staging; review C3/C4 | Try the live demo |
+| 5 | Final verification → tags `gate-G5`, `M1`; README "Live demo" link | Buffer, fixes | |
+
+**Reassigned from Cline:** T2.5, T3.7 → Codex X1 · T5.6 (slim) → Codex X2 · T4.7 → Codex X3 · T1.5 (navigation only), T1.6 → Claude C4 · T6.2 → `smoke.py` in Claude C3 (the Playwright parts are cut) · T1.7 cut. T2.6 merged (#33).
 
 ---
 
@@ -37,10 +64,10 @@
 | T3.5 | Ingestion stage wiring + chunks schema + approvals | 4 | S17–S19 | DONE | ai/claude-t3.5-stages | #31 |
 | T3.6 | Ingestion reliability & recovery | 4 | S20 | DONE | ai/claude-t3.6-reliability | #34 (a09b48e) |
 | T4.2 | Index generations (DB) + chunk indexing & ACL materialization | 5 | S22–S23 | DONE | ai/claude-t4.2-indexing | #38 (d3bdda3) |
-| T4.4 | Permission-aware hybrid search backend | 5 | S24 | REVIEW | ai/claude-t4.4-search | #39 (on #38) |
-| T4.6 | Search API, demo seed loader, debug API | 6 | S25–S26 | REVIEW | ai/claude-t4.6-search-api | #41 (on #39) |
-| T5.3 | RAG profiles, model policies & `/query` orchestration | 7 | S27–S28 | TODO | | |
-| T5.4 | SSE streaming, evidence status, conflicts + evidence endpoints | 7 | S29, S31 | TODO | | |
+| T4.4 | Permission-aware hybrid search backend | 5 | S24 | DONE | ai/claude-t4.4-search | #39 (f328b1d) |
+| T4.6 | Search API, demo seed loader, debug API | 6 | S25–S26 | DONE | ai/claude-t4.6-search-api | #41 (4dadd27) |
+| T5.3 | RAG profiles, model policies & `/query` orchestration | 7 | S27–S28 | IN PROGRESS (part 1 REVIEW; part 2 = C1) | ai/claude-t5.3-profiles | #48 |
+| T5.4 | SSE streaming, evidence status, conflicts + evidence endpoints | 7 | S29, S31 | IN PROGRESS (part 1 REVIEW; part 2 = C1, conflicts cut) | ai/claude-t5.4-evidence | #49 |
 | T6.1 | Free-tier accounts & deployable backend image | 9 | S32 | TODO | | |
 | T6.3 | MVP staging deployment | 9 | S33 | TODO | | |
 
@@ -56,7 +83,7 @@
 | T3.4 | Content-security scanner & structure-aware chunker | 4 | S19 | DONE | ai/codex-t3.4-content-chunking | #35 (e36b5da) |
 | T4.1 | Embedding providers | 4 | S22 | DONE | ai/codex-t4.1-embedding-providers | #36 (a25389f) |
 | T5.1 | Reranker, context packer & source aliases | 5 | S27 | DONE | ai/codex-t5.1-reranker-context | #37 (990fe38) |
-| T5.2 | LLM gateway, prompts, abstention & citation validator | 5 | S28 | REVIEW | ai/codex-t5.2-grounded-generation | #40 |
+| T5.2 | LLM gateway, prompts, abstention & citation validator | 5 | S28 | DONE | ai/codex-t5.2-grounded-generation | #40 (9926e98) |
 | T4.8 | Retrieval debugger UI | 6 | S26 | TODO | | |
 | T5.5 | Ask workspace UI | 7 | S30 | TODO | | |
 | T5.7 | Evidence rail, source viewer & feedback UI | 8 | S31 | TODO | | |
@@ -65,19 +92,19 @@
 
 | ID | Task | Wave | Session | Status | Branch | PR |
 |---|---|---|---|---|---|---|
-| T4.5 | Demo corpus file generator | 0 | S25 | REVIEW | ai/cline-t4.5-deterministic | #32 (was #12) |
+| T4.5 | Demo corpus file generator | 0 | S25 | DONE | ai/cline-t4.5-deterministic | #32 (was #12) |
 | T1.8 | `scripts/get_token.py` | 0 | S07 | DONE | ai/cline-t4.5-demo-corpus | #12 |
-| T4.3 | RRF fusion module | 1 | S24 | REVIEW | ai/cline-t4.3-rrf-fusion | #16 |
-| T1.5 | Command palette, shortcuts, status center | 2 | S11 | TODO | | |
-| T1.6 | Access pages: Members & Groups | 2 | S11 | TODO | | |
-| T1.7 | Playwright E2E harness + first journeys | 2 | S11 | TODO | | |
-| T2.5 | Knowledge library & upload UI | 3 | S15 | TODO | | |
-| T2.6 | `scripts/upload_file.py` | 4 | S13 | REVIEW | ai/cline-t2.6-upload-script | |
-| T3.7 | Ingestion UI: pipeline, diagnostics, reader/inspect, approvals | 4 | S21 | TODO | | |
-| T5.6 | Answer-state components, copy & feedback controls | 5 | S31 | TODO | | |
-| T4.7 | Search UI + demo journeys | 6 | S25 | TODO | | |
-| T6.2 | Staging smoke script, Playwright smoke & keep-warm | 8 | S33 | TODO | | |
-| QA | Local QA pass at each gate (G1–G5, M1) | per gate | – | – | | |
+| T4.3 | RRF fusion module | 1 | S24 | DONE | ai/cline-t4.3-rrf-fusion | #16 |
+| T1.5 | Command palette, shortcuts, status center | 2 | S11 | → Claude C4 (navigation only) | | |
+| T1.6 | Access pages: Members & Groups | 2 | S11 | → Claude C4 | | |
+| T1.7 | Playwright E2E harness + first journeys | 2 | S11 | CUT (DV-008) | | |
+| T2.5 | Knowledge library & upload UI | 3 | S15 | → Codex X1 | | |
+| T2.6 | `scripts/upload_file.py` | 4 | S13 | DONE | ai/cline-t2.6-upload-script | #33 (95d0240) |
+| T3.7 | Ingestion UI: pipeline, diagnostics, reader/inspect, approvals | 4 | S21 | → Codex X1 (lean) | | |
+| T5.6 | Answer-state components, copy & feedback controls | 5 | S31 | → Codex X2 (slim; copy formatters cut) | | |
+| T4.7 | Search UI + demo journeys | 6 | S25 | → Codex X3 (journeys cut) | | |
+| T6.2 | Staging smoke script, Playwright smoke & keep-warm | 8 | S33 | → Claude C3 (`smoke.py` only) | | |
+| QA | Local QA pass at each gate (G1–G5, M1) | per gate | – | CUT (final walk-through by Claude) | | |
 
 ---
 
