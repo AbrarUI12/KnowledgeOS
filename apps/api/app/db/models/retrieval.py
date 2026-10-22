@@ -154,3 +154,25 @@ class Citation(Base):
     page_start: Mapped[int | None]
     page_end: Mapped[int | None]
     valid: Mapped[bool] = mapped_column(server_default="true")
+
+
+class Feedback(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "feedback"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["query_run_id", "organization_id"],
+            ["query_runs.id", "query_runs.organization_id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+    organization_id: Mapped[uuid.UUID] = _org_fk()
+    query_run_id: Mapped[uuid.UUID]
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    rating: Mapped[str] = mapped_column(String(8))
+    reason_code: Mapped[str | None] = mapped_column(String(64))
+    comment: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

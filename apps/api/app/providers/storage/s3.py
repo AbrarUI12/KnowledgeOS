@@ -10,7 +10,12 @@ from botocore.config import Config as BotoConfig
 from botocore.exceptions import BotoCoreError, ClientError
 
 from app.core.config import Settings
-from app.providers.storage.base import ObjectInfo, ObjectStoreError, PresignedUpload
+from app.providers.storage.base import (
+    ObjectInfo,
+    ObjectStoreError,
+    PresignedDownload,
+    PresignedUpload,
+)
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -110,6 +115,26 @@ class S3ObjectStore:
             url=url,
             headers={"Content-Type": content_type},
             expires_at=datetime.now(UTC) + timedelta(seconds=expires_in_seconds),
+        )
+
+    async def presign_get(
+        self, bucket: str, key: str, *, expires_in_seconds: int = 300, filename: str | None = None
+    ) -> PresignedDownload:
+        _validate_location(bucket, key)
+        if not 1 <= expires_in_seconds <= _MAX_PRESIGN_SECONDS:
+            raise ValueError("expires_in_seconds must be between 1 and 604800")
+        params: dict[str, str] = {"Bucket": bucket, "Key": key}
+        if filename:
+            safe = "".join(c for c in filename if c.isprintable() and c not in '"\\')[:200]
+            params["ResponseContentDisposition"] = f'inline; filename="{safe}"'
+        try:
+            url = self._presign_client.generate_presigned_url(
+                "get_object", Params=params, ExpiresIn=expires_in_seconds, HttpMethod="GET"
+            )
+        except (BotoCoreError, ClientError, ValueError) as exc:
+            raise _error("presign GET", bucket, key, exc) from exc
+        return PresignedDownload(
+            url=url, expires_at=datetime.now(UTC) + timedelta(seconds=expires_in_seconds)
         )
 
     async def head(self, bucket: str, key: str) -> ObjectInfo | None:

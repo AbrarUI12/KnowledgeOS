@@ -4,6 +4,7 @@ from app.providers.storage.base import (
     ObjectInfo,
     ObjectStore,
     ObjectStoreError,
+    PresignedDownload,
     PresignedUpload,
 )
 from app.providers.storage.keys import (
@@ -19,6 +20,7 @@ __all__ = [
     "ObjectInfo",
     "ObjectStore",
     "ObjectStoreError",
+    "PresignedDownload",
     "PresignedUpload",
     "S3ObjectStore",
     "canonical_artifact_key",

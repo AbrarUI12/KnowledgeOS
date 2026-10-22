@@ -7,7 +7,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from urllib.parse import quote
 
-from app.providers.storage.base import ObjectInfo, ObjectStoreError, PresignedUpload
+from app.providers.storage.base import (
+    ObjectInfo,
+    ObjectStoreError,
+    PresignedDownload,
+    PresignedUpload,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +42,18 @@ class InMemoryObjectStore:
             url=f"memory://{path}",
             headers={"Content-Type": content_type},
             expires_at=expires_at,
+        )
+
+    async def presign_get(
+        self, bucket: str, key: str, *, expires_in_seconds: int = 300, filename: str | None = None
+    ) -> PresignedDownload:
+        _validate_location(bucket, key)
+        if expires_in_seconds <= 0:
+            raise ValueError("expires_in_seconds must be positive")
+        path = f"{quote(bucket, safe='')}/{quote(key, safe='/')}"
+        return PresignedDownload(
+            url=f"memory://{path}?get",
+            expires_at=datetime.now(UTC) + timedelta(seconds=expires_in_seconds),
         )
 
     async def head(self, bucket: str, key: str) -> ObjectInfo | None:
