@@ -176,17 +176,20 @@ async def _query_vector(
     embedder = deps.embedder
     if embedder is None:
         return None, None, per_kb, ["dense_unavailable"]
-    if not any(
+    compatible = [
         (g.embedding_model, g.embedding_dimension) == (embedder.model_id, embedder.dimension)
         for g in generations
-    ):
+    ]
+    if not any(compatible):
         return None, None, per_kb, ["dense_model_mismatch"]
+    # Some KBs on another model: dense still covers the compatible ones, the rest is lexical only.
+    degraded = [] if all(compatible) else ["dense_model_mismatch"]
     try:
         vector = await embedder.embed_query(query.text)
     except (EmbeddingUnavailableError, ValueError) as exc:
         logger.warning("search_query_embedding_failed", error_type=type(exc).__name__)
         return None, None, per_kb, ["dense_unavailable"]
-    return tuple(vector), embedder.model_id, per_kb, []
+    return tuple(vector), embedder.model_id, per_kb, degraded
 
 
 async def _snippets(

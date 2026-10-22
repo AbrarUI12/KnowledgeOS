@@ -82,8 +82,9 @@ DEV_PASSWORDS = {
 }
 
 
-def get_token(username: str) -> str:
-    """Perform a password grant and return the access token."""
+def get_token(username: str, *, quiet: bool = False) -> str:
+    """Perform a password grant and return the access token. `quiet` (for scripts that only
+    need the value, e.g. seed_demo.py) prints nothing, so tokens never reach logs."""
     import httpx
 
     issuer = ENV.get("OIDC_ISSUER", "http://localhost:8080/realms/knowledgeos")
@@ -122,6 +123,8 @@ def get_token(username: str) -> str:
     )
     resp.raise_for_status()
     token = resp.json()["access_token"]
+    if quiet:
+        return token
 
     # Print with brief summary
 
