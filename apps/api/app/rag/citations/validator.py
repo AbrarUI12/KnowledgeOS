@@ -16,6 +16,7 @@ from app.rag.types import EvidenceItem, SourceAlias
 _GROUP = re.compile(r"[\[\uff3b]([^\]\n\uff3d]{0,200})[\]\uff3d]")
 _OPEN = re.compile(r"[\[\uff3b]")
 _VALID = re.compile(r"S[1-9][0-9]*(?:\s*,\s*S[1-9][0-9]*)*")
+_ALIAS = re.compile(r"S[1-9][0-9]*")
 
 
 @dataclass(frozen=True)
@@ -41,7 +42,7 @@ def validate_citations(
         return CitationValidation(("validation_limit",))
     registry: dict[str, SourceAlias] = {}
     for item in evidence:
-        if item.source.alias in registry:
+        if not _ALIAS.fullmatch(item.source.alias) or item.source.alias in registry:
             return CitationValidation(("invalid_source_map",))
         if hashlib.sha256(item.content.encode()).hexdigest() != item.source.content_hash:
             return CitationValidation(("tampered_evidence",))

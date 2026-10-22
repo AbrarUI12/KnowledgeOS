@@ -59,10 +59,11 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T5.2 draft #40: fail-closed citation identity/hash/syntax validation implemented; 18 targeted tests, lint and strict types pass. Prompt/adapter/gateway/abstention and live LLM test remain. Ollama installed but offline. #38 re-review PASS; #39 generation-switch HIGH reproduced and posted (19 tests + diagnostic).
+- **Current task:** T5.2 draft #40: bounded compatible adapter/fake, explicit provider configs, allowlisted retry/stream gateway, real Redis quotas, versioned untrusted prompt, abstention/correction and citation validation implemented. Final combined checks and real Ollama poisoned-evidence test in progress (isolated container/port 11534; own model cache). #39 fixes re-reviewed PASS (16 tests); #41 PASS with three MEDIUM follow-ups (eight API/seed tests).
 - **Last finished:** T5.1 #37 merged (990fe38), MEDIUM fixes included; combined checks 532 backend / 105 frontend / nine snapshots and all CI green. T3.4 #35 merged (e36b5da); T4.1 #36 (a25389f), T3.3 #28 (6e725fb), T3.2 #26 (0c1f49f), T1.4 #17 (961cb0a) merged.
 - **Blockers:** none
 - **Recent:**
+  - 2026-10-22 · T5.2 · first combined checks green (619 backend / 105 frontend / nine snapshots); subsequent gateway/config/Redis tests green separately. Final rerun includes all additions. No new dependency, contract, database or route changes.
   - 2026-10-12 · T2.2 · S3/MinIO/B2 + in-memory ObjectStore providers and safe key helpers; explicit S3 timeouts/retries · PR #14 (merged)
   - 2026-10-12 · T2.3 · strict file validator, valid-format fixtures, ClamAV/Noop scanners · PR #10
 
@@ -621,3 +622,4 @@ All deviations (DV-001…) now live in **[`docs/DECISIONS.md`](docs/DECISIONS.md
 | Workers (reconciler) | Sweep interval and staleness; crash-demo stage delay (local/test only) | `RECONCILE_INTERVAL_SECONDS`, `RECONCILE_STALE_SECONDS`, `APPROVAL_REMINDER_SECONDS`, `INGESTION_DEBUG_STAGE_DELAY_SECONDS`, `INGESTION_CONTRACT_FAKES` | all (delay, fakes: local/test) | S20 (T3.6) |
 | Embeddings | Provider and exact model recorded on new index generations (no substitution); model cache; `openai_compatible` endpoint | `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION`, `EMBEDDING_BATCH_SIZE`, `EMBEDDING_DEVICE`, `EMBEDDING_BASE_URL`, `EMBEDDING_API_KEY` (secret), `EMBEDDING_IS_EXTERNAL`, `HF_HOME`, `HF_TOKEN` (optional secret) | all | S22 (T4.2) |
 | *(more rows added as sessions introduce services: Neon, B2, Auth0, HF, Vercel, Groq, Gemini, Langfuse, Grafana Cloud, Google Drive OAuth)* | | | | |
+| Generation libraries | Explicit provider model, endpoint, key, real account limits and shared quota label; no implicit model or external fallback | `OLLAMA_MODEL`, `OLLAMA_BASE_URL`, `OLLAMA_RPM`, `OLLAMA_TPM`, `OLLAMA_RPD`; `GROQ_API_KEY`, `GROQ_MODEL`, `GROQ_RPM`, `GROQ_TPM`, `GROQ_RPD`; `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_RPM`, `GEMINI_TPM`, `GEMINI_RPD`; `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `OPENROUTER_RPM`, `OPENROUTER_TPM`, `OPENROUTER_RPD`; optional `<PROVIDER>_BASE_URL`, `<PROVIDER>_QUOTA_GROUP`; `KOS_LLM_TEST` (manual/nightly only) | all (test opt-in: local/CI); `OLLAMA_NO_CLOUD=1` required on local-only Ollama server | S28 (T5.2) |
