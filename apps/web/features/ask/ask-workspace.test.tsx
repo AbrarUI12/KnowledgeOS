@@ -62,7 +62,7 @@ it("streams an answer, renders untrusted markup inertly, and opens its cited pas
   );
   await screen.findByRole("option", { name: "People" });
   await user.type(screen.getByLabelText("Question"), "How much leave?");
-  await user.click(screen.getByRole("button", { name: "Ask", exact: true }));
+  await user.click(screen.getByRole("button", { name: /^Ask$/ }));
   await screen.findByText("Answer complete");
   expect(view.container.querySelector("img")).toBeNull();
   await user.click(screen.getByRole("button", { name: "Inspect source S1" }));
