@@ -140,6 +140,14 @@ class Settings(BaseSettings):
     embedding_api_key: SecretStr | None = None
     embedding_is_external: bool = False  # True if text leaves the deployment (model policy)
 
+    # Reranking (T5.1 provider, T5.3 pipeline; plan §19). A local int8 ONNX cross-encoder; the
+    # artifact comes from `python -m app.providers.rerankers.prepare` (offline preparation).
+    reranker_model: str = "BAAI/bge-reranker-v2-m3"
+    reranker_backend: Literal["onnx", "torch"] = "onnx"
+    reranker_onnx_file: str | None = None  # e.g. onnx/model_quint8_avx2.onnx
+    reranker_cache_folder: str | None = None
+    reranker_timeout_seconds: float = Field(default=5.0, gt=0, le=60)
+
     # Search (T4.6). Query runs always store a hash of the normalized query; its text only when
     # retention allows (plan §7.8). Off by default: privacy first.
     retain_query_text: bool = False

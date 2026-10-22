@@ -71,3 +71,108 @@ class RetrievalHit(Base):
     fusion_score: Mapped[float | None] = mapped_column(Float)
     rerank_score: Mapped[float | None] = mapped_column(Float)
     selected_for_context: Mapped[bool] = mapped_column(server_default="false")
+
+
+class RagProfile(UUIDPrimaryKeyMixin, Base):
+    """Immutable versioned profile (migration 0012); `organization_id` None = system preset."""
+
+    __tablename__ = "rag_profiles"
+
+    organization_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    name: Mapped[str] = mapped_column(String(64))
+    version: Mapped[int]
+    config_json: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+
+
+class ModelPolicy(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "model_policies"
+
+    organization_id: Mapped[uuid.UUID] = _org_fk()
+    knowledge_base_id: Mapped[uuid.UUID | None]
+    local_only: Mapped[bool] = mapped_column(server_default="false")
+    allowed_providers_json: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, server_default=text("'{}'::jsonb")
+    )
+    max_external_classification: Mapped[str] = mapped_column(String(16), server_default="internal")
+    generation_models: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default="{}")
+    reranker_model: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Answer(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "answers"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["query_run_id", "organization_id"],
+            ["query_runs.id", "query_runs.organization_id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+    organization_id: Mapped[uuid.UUID] = _org_fk()
+    query_run_id: Mapped[uuid.UUID]
+    answer_markdown: Mapped[str | None] = mapped_column(Text)
+    abstained: Mapped[bool] = mapped_column(server_default="false")
+    abstain_reason: Mapped[str | None] = mapped_column(String(64))
+    evidence_status: Mapped[str | None] = mapped_column(String(32))
+    model: Mapped[str | None] = mapped_column(Text)
+    input_tokens: Mapped[int | None]
+    output_tokens: Mapped[int | None]
+    usage_estimated: Mapped[bool] = mapped_column(server_default="false")
+    estimated_cost_usd: Mapped[float | None] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+
+
+class Citation(Base):
+    __tablename__ = "citations"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["answer_id", "organization_id"],
+            ["answers.id", "answers.organization_id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+    answer_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    source_alias: Mapped[str] = mapped_column(String(8), primary_key=True)
+    organization_id: Mapped[uuid.UUID] = _org_fk()
+    chunk_id: Mapped[uuid.UUID]
+    document_version_id: Mapped[uuid.UUID]
+    page_start: Mapped[int | None]
+    page_end: Mapped[int | None]
+    valid: Mapped[bool] = mapped_column(server_default="true")
+
+
+class Feedback(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "feedback"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["query_run_id", "organization_id"],
+            ["query_runs.id", "query_runs.organization_id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+    organization_id: Mapped[uuid.UUID] = _org_fk()
+    query_run_id: Mapped[uuid.UUID]
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    rating: Mapped[str] = mapped_column(String(8))
+    reason_code: Mapped[str | None] = mapped_column(String(64))
+    comment: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

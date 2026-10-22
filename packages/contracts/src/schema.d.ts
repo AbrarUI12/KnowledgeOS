@@ -51,7 +51,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Chunk Context */
+        /**
+         * Get Chunk Context
+         * @description A cited passage with its neighbors in the same section, authorized exactly like search
+         *     (404 for anything the caller couldn't retrieve).
+         */
         get: operations["documents_get_chunk_context"];
         put?: never;
         post?: never;
@@ -152,7 +156,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Document Content Url */
+        /**
+         * Get Document Content Url
+         * @description A five-minute signed link to the version's trusted original (source viewer). Needs read
+         *     access to the content: 404 if the document isn't visible, 403 if it's visible but not
+         *     readable, 409 if the original hasn't been scanned and promoted.
+         */
         get: operations["documents_get_document_content_url"];
         put?: never;
         post?: never;
@@ -722,7 +731,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create Feedback */
+        /**
+         * Create Feedback
+         * @description Thumbs up/down with an optional reason code and comment on your own run; giving feedback
+         *     again replaces it.
+         */
         post: operations["query_runs_create_feedback"];
         delete?: never;
         options?: never;
