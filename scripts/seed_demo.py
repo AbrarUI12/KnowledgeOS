@@ -72,6 +72,25 @@ EMAILS = {
 TERMINAL = {"READY", "FAILED_PERMANENT", "QUARANTINED", "CANCELLED", "PENDING_APPROVAL"}
 
 TokenFor = Callable[[str], str]
+
+
+class CachedTokens:
+    """Tokens per dev user, fetched once and re-fetched after a 401 (a long `--wait` can outlive
+    an access token). Values are never printed."""
+
+    def __init__(self, fetch: TokenFor) -> None:
+        self._fetch = fetch
+        self._cache: dict[str, str] = {}
+
+    def __call__(self, who: str) -> str:
+        if who not in self._cache:
+            self._cache[who] = self._fetch(who)
+        return self._cache[who]
+
+    def refresh(self, who: str) -> None:
+        self._cache.pop(who, None)
+
+
 PutObject = Callable[[dict[str, Any], bytes], Awaitable[None]]
 
 
@@ -117,10 +136,15 @@ class Seeder:
     async def call(
         self, method: str, path: str, who: str, org: str | None = None, **kwargs: Any
     ) -> Any:
-        headers = {"Authorization": f"Bearer {self.token_for(who)}"}
-        if org:
-            headers["X-Organization-Id"] = self.orgs[org]
-        response = await self.client.request(method, f"/v1{path}", headers=headers, **kwargs)
+        for attempt in range(2):
+            headers = {"Authorization": f"Bearer {self.token_for(who)}"}
+            if org:
+                headers["X-Organization-Id"] = self.orgs[org]
+            response = await self.client.request(method, f"/v1{path}", headers=headers, **kwargs)
+            refresh = getattr(self.token_for, "refresh", None)
+            if response.status_code != 401 or attempt or refresh is None:
+                break
+            refresh(who)  # expired token: fetch a new one and retry once
         if response.status_code >= 400:
             raise RuntimeError(f"{method} {path} as {who}: {response.status_code} {response.text}")
         return response.json() if response.content else None
@@ -305,20 +329,13 @@ class Seeder:
         return states
 
 
-def _get_token() -> TokenFor:
+def _get_token() -> CachedTokens:
     spec = importlib.util.spec_from_file_location("get_token", ROOT / "scripts" / "get_token.py")
     if spec is None or spec.loader is None:
         raise RuntimeError("scripts/get_token.py not found")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    cache: dict[str, str] = {}
-
-    def token_for(who: str) -> str:
-        if who not in cache:
-            cache[who] = module.get_token(who)
-        return cache[who]
-
-    return token_for
+    return CachedTokens(lambda who: module.get_token(who, quiet=True))
 
 
 async def seed(api: str, wait: bool) -> int:
