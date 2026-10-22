@@ -9,6 +9,7 @@ import { useTheme } from "next-themes";
 import { useRef, useState, type ReactNode } from "react";
 
 import { EvidenceRail } from "@/components/shell/evidence-rail";
+import { CommandPalette } from "@/components/shell/command-palette";
 import { navigation } from "@/components/shell/navigation";
 import { usePreference } from "@/components/shell/use-preference";
 import { getMe, queryKeys, type Me } from "@/lib/api/client";
@@ -54,6 +55,7 @@ export function AppShell({
     );
   return (
     <div className="flex h-dvh flex-col bg-canvas">
+      <CommandPalette organizationSlug={organizationSlug} permissions={membership.permissions} />
       <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line bg-surface-0 px-4">
         <label className="flex items-center gap-3">
           <span className="hidden font-semibold sm:inline">KnowledgeOS</span>
