@@ -60,10 +60,11 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T5.2 #40 reviewed PASS by Claude. Review hardening rejects model-authored Markdown links, remote images, URLs and raw HTML before answers can be returned or persisted. Focused security tests: 40 passed; lint and strict types green. Post-main full run: 667 passed / 4 skipped with one existing 20 ms reranker timing failure that passed immediately in isolation; fresh CI is the merge gate.
-- **Last finished:** T5.1 #37 merged (990fe38), MEDIUM fixes included; combined checks 532 backend / 105 frontend / nine snapshots and all CI green. T3.4 #35 merged (e36b5da); T4.1 #36 (a25389f), T3.3 #28 (6e725fb), T3.2 #26 (0c1f49f), T1.4 #17 (961cb0a) merged.
+- **Current task:** X1 knowledge library, upload, and lean ingestion/Inspect UI is in review (#51). Frontend tests (108), lint, types, formatting, and CI frontend/Docker/secret jobs are green; backend CI is pending.
+- **Last finished:** T5.2 #40 merged (9926e98), including fail-closed rejection of model-authored links/images/URLs/HTML. Reviewed and merged paused-Cline T2.6 #33 (95d0240). Reviewed Claude #48 PASS (two MEDIUM follow-ups), #49 CHANGES REQUESTED (one HIGH archive-access finding), and #50 PASS.
 - **Blockers:** none
 - **Recent:**
+  - 2026-10-23 · X1 · PR #51: permission-aware library route; create/select KB; presigned multi-file XHR upload with progress; live pipeline polling; safe failures and retry; approve/reject; lean Inspect for scan findings, chunks, and timeline. No dependency, contract, database, or backend changes.
   - 2026-10-23 · T5.2 · Claude review PASS; added fail-closed generated-link/image/URL/HTML validation and correction guidance with regression coverage. No dependency, contract, database or route changes.
   - 2026-10-22 · T5.2 · 903ba1f implementation; final serial full checks green after one native Windows Qwen subprocess crash (unchanged isolated rerun also passed). Four standard-suite skips: two POSIX, opt-in crash, new manual LLM test (separately forced and passed). Redis daily-cap assertion independently verified after refilling minute buckets, including midnight-safe wait bounds. No dependency, contract, database or route changes.
   - 2026-10-12 · T2.2 · S3/MinIO/B2 + in-memory ObjectStore providers and safe key helpers; explicit S3 timeouts/retries · PR #14 (merged)
