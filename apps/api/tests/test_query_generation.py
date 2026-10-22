@@ -2,8 +2,10 @@
 filters and evidence status. No Docker, no network."""
 
 import uuid
+from typing import Any, cast
 
 import pytest
+from redis.asyncio import Redis
 
 from app.api.errors import ServiceUnavailable
 from app.domain.enums import EvidenceStatus
@@ -23,6 +25,7 @@ from tests.support import make_settings
 from tests.test_citation_validator import item
 
 pytestmark = pytest.mark.unit
+REDIS = cast(Redis, object())  # never used: build_generator only stores it in the throttle
 GROQ = {
     "GROQ_API_KEY": "test-key-not-real",
     "GROQ_MODEL": "llama-test",
@@ -69,7 +72,7 @@ async def test_extractive_fake_cites_the_first_source_or_abstains() -> None:
 
 def test_generation_needs_configuration() -> None:
     with pytest.raises(ServiceUnavailable):
-        build_generator(make_settings(), object(), PolicyView(), len)  # type: ignore[arg-type]
+        build_generator(make_settings(), REDIS, PolicyView(), len)
 
 
 def test_external_models_need_explicit_permission_and_local_only_policies_block_them(
@@ -84,16 +87,16 @@ def test_external_models_need_explicit_permission_and_local_only_policies_block_
     )
 
     with pytest.raises(ServiceUnavailable):  # external, but LLM_ALLOW_EXTERNAL is off
-        build_generator(groq, object(), PolicyView(), len)  # type: ignore[arg-type]
-    gateway = build_generator(allowed, object(), PolicyView(), len).provider  # type: ignore[arg-type]
+        build_generator(groq, REDIS, PolicyView(), len)
+    gateway = build_generator(allowed, REDIS, PolicyView(), len).provider
     assert isinstance(gateway, LLMGateway)
     assert gateway.is_external
     with pytest.raises(ServiceUnavailable):  # a local-only KB never reaches Groq
-        build_generator(allowed, object(), PolicyView(local_only=True), len)  # type: ignore[arg-type]
-    local = build_generator(with_fallback, object(), PolicyView(local_only=True), len).provider  # type: ignore[arg-type]
+        build_generator(allowed, REDIS, PolicyView(local_only=True), len)
+    local = build_generator(with_fallback, REDIS, PolicyView(local_only=True), len).provider
     assert (local.provider_id, local.model_id, local.is_external) == ("ollama", "qwen3:8b", False)
-    pinned = build_generator(  # type: ignore[arg-type]
-        with_fallback, object(), PolicyView(generation_models=("qwen3:8b",)), len
+    pinned = build_generator(
+        with_fallback, REDIS, PolicyView(generation_models=("qwen3:8b",)), len
     ).provider
     assert pinned.provider_id == "ollama"
 
@@ -174,7 +177,7 @@ async def test_closing_the_stream_cancels_generation_and_records_a_cancelled_run
         rerank_ms=None,
         started=time.perf_counter(),
     )
-    stream = query.events(prepared, None)  # type: ignore[arg-type]
+    stream = query.events(prepared, cast(Any, None))
     names = []
     async for name, _ in stream:
         names.append(name)
