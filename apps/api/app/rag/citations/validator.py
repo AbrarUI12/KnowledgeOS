@@ -17,6 +17,10 @@ _GROUP = re.compile(r"[\[\uff3b]([^\]\n\uff3d]{0,200})[\]\uff3d]")
 _OPEN = re.compile(r"[\[\uff3b]")
 _VALID = re.compile(r"S[1-9][0-9]*(?:\s*,\s*S[1-9][0-9]*)*")
 _ALIAS = re.compile(r"S[1-9][0-9]*")
+_MARKDOWN_LINK = re.compile(r"]\s{0,3}(?:\(|\[)")
+_REFERENCE_DEFINITION = re.compile(r"(?m)^[ \t]{0,3}\[[^\]\n]{0,200}]:")
+_URI = re.compile(r"(?i)(?:\b(?:https?|ftp|mailto|data|javascript):|\bwww\.)")
+_RAW_HTML = re.compile(r"<\s*/?\s*[a-zA-Z][^>]{0,1000}>")
 
 
 @dataclass(frozen=True)
@@ -48,6 +52,17 @@ def validate_citations(
             return CitationValidation(("tampered_evidence",))
         registry[item.source.alias] = item.source
     errors: set[str] = set()
+    # Answers may contain Markdown formatting, but never model-authored links, images or raw HTML.
+    # Besides preventing misleading source links, this blocks remote-image URL fetches from being
+    # used as an exfiltration channel when a poisoned document influences the model.
+    if (
+        "![" in text
+        or _MARKDOWN_LINK.search(text)
+        or _REFERENCE_DEFINITION.search(text)
+        or _URI.search(text)
+        or _RAW_HTML.search(text)
+    ):
+        errors.add("untrusted_link")
     names: dict[str, None] = {}
     covered: set[int] = set()
     for match in _GROUP.finditer(text):

@@ -131,6 +131,7 @@ async def generate_grounded(
                     "failed citation validation. Use only these exact source aliases: "
                     + ", ".join(item.source.alias for item in selected)
                     + ". Cite each factual paragraph with [S#] or [S#, S#]. Never invent metadata. "
+                    "Do not include links, images, URLs, or raw HTML. "
                     "If unsupported, output exactly " + template.abstention_marker + "."
                 ),
             ),
