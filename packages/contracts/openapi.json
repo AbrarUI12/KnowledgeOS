@@ -2378,7 +2378,20 @@
                 "type": "null"
               }
             ],
+            "description": "Set when the run searched exactly one knowledge base",
             "title": "Index Generation Id"
+          },
+          "index_generation_ids": {
+            "additionalProperties": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "description": "Knowledge base id → the active generation searched",
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "title": "Index Generation Ids",
+            "type": "object"
           },
           "principal_summary": {
             "description": "e.g. '3 groups, role member'. Never lists unauthorized documents",
@@ -2410,7 +2423,6 @@
         },
         "required": [
           "rag_profile_version",
-          "index_generation_id",
           "embedding_model",
           "reranker_model",
           "generation_model",
@@ -2445,9 +2457,25 @@
             "type": "string"
           },
           "knowledge_base_id": {
-            "format": "uuid",
-            "title": "Knowledge Base Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when the run searched exactly one knowledge base",
+            "title": "Knowledge Base Id"
+          },
+          "knowledge_base_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Knowledge Base Ids",
+            "type": "array"
           },
           "query_type": {
             "anyOf": [
@@ -2482,7 +2510,6 @@
         },
         "required": [
           "id",
-          "knowledge_base_id",
           "status",
           "created_at"
         ],
@@ -2639,6 +2666,17 @@
       },
       "SearchResponse": {
         "properties": {
+          "debug": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QueryRunDebug"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only with debug=true (retrieval.debug); same as the query run's"
+          },
           "degraded": {
             "default": false,
             "title": "Degraded",
@@ -6525,7 +6563,7 @@
     },
     "/v1/knowledge-bases/{kb_id}/search": {
       "post": {
-        "description": "Authorized hybrid search without generation (`query.execute`).",
+        "description": "Authorized hybrid search without generation (`query.execute`). 404 if the KB isn't\nvisible, 403 if it's visible but its content isn't readable. `debug=true` (needs\n`retrieval.debug`) adds the run's branch ranks and scores.",
         "operationId": "search_search_knowledge_base",
         "parameters": [
           {
@@ -8189,7 +8227,7 @@
     },
     "/v1/query-runs/{query_run_id}": {
       "get": {
-        "description": "Run summary; the `debug` section is included only with `retrieval.debug`.",
+        "description": "Run summary for the person who ran it; anyone else gets 404 unless they hold\n`retrieval.debug`, which also adds the `debug` section (hits the viewer can't read hidden).",
         "operationId": "query_runs_get_query_run",
         "parameters": [
           {
@@ -8400,7 +8438,7 @@
     },
     "/v1/search": {
       "post": {
-        "description": "Hybrid search across several KBs the caller may query.",
+        "description": "Hybrid search across several KBs the caller may query (each checked as above).",
         "operationId": "search_search",
         "parameters": [
           {

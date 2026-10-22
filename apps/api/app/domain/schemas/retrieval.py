@@ -47,6 +47,9 @@ class SearchResponse(BaseModel):
     query_run_id: uuid.UUID
     hits: list[SearchHit]
     degraded: bool = False
+    debug: "QueryRunDebug | None" = Field(
+        default=None, description="Only with debug=true (retrieval.debug); same as the query run's"
+    )
 
 
 # ----------------------------------------------------------------------------- query (RAG)
@@ -129,7 +132,10 @@ class QueryRunOut(BaseModel):
     """Basic view for everyone who can see the run; `debug` only with retrieval.debug."""
 
     id: uuid.UUID
-    knowledge_base_id: uuid.UUID
+    knowledge_base_id: uuid.UUID | None = Field(
+        default=None, description="Set when the run searched exactly one knowledge base"
+    )
+    knowledge_base_ids: list[uuid.UUID] = Field(default_factory=list)
     query_type: str | None = None
     status: str
     created_at: datetime
@@ -140,7 +146,12 @@ class QueryRunOut(BaseModel):
 
 class QueryRunDebug(BaseModel):
     rag_profile_version: str | None
-    index_generation_id: uuid.UUID | None
+    index_generation_id: uuid.UUID | None = Field(
+        default=None, description="Set when the run searched exactly one knowledge base"
+    )
+    index_generation_ids: dict[uuid.UUID, uuid.UUID] = Field(
+        default_factory=dict, description="Knowledge base id → the active generation searched"
+    )
     embedding_model: str | None
     reranker_model: str | None
     generation_model: str | None
@@ -153,6 +164,7 @@ class QueryRunDebug(BaseModel):
 
 
 QueryRunOut.model_rebuild()
+SearchResponse.model_rebuild()
 
 
 # ----------------------------------------------------------------------------- SSE events

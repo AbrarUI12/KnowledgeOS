@@ -38,7 +38,7 @@
 | T3.6 | Ingestion reliability & recovery | 4 | S20 | DONE | ai/claude-t3.6-reliability | #34 (a09b48e) |
 | T4.2 | Index generations (DB) + chunk indexing & ACL materialization | 5 | S22–S23 | DONE | ai/claude-t4.2-indexing | #38 (d3bdda3) |
 | T4.4 | Permission-aware hybrid search backend | 5 | S24 | REVIEW | ai/claude-t4.4-search | #39 (on #38) |
-| T4.6 | Search API, demo seed loader, debug API | 6 | S25–S26 | TODO | | |
+| T4.6 | Search API, demo seed loader, debug API | 6 | S25–S26 | REVIEW | ai/claude-t4.6-search-api | #41 (on #39) |
 | T5.3 | RAG profiles, model policies & `/query` orchestration | 7 | S27–S28 | TODO | | |
 | T5.4 | SSE streaming, evidence status, conflicts + evidence endpoints | 7 | S29, S31 | TODO | | |
 | T6.1 | Free-tier accounts & deployable backend image | 9 | S32 | TODO | | |
