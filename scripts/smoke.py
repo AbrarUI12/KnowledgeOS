@@ -66,7 +66,7 @@ def expect(response: httpx.Response, *codes: int) -> Any:
     return response.json() if response.content else None
 
 
-def run(api: str, token: str, issuer: str | None, timeout: float) -> None:
+def run(api: str, token: str, issuer: str | None, timeout: float, create_org: bool) -> None:
     client = httpx.Client(base_url=api.rstrip("/"), timeout=60)
     auth = {"Authorization": f"Bearer {token}"}
 
@@ -86,8 +86,21 @@ def run(api: str, token: str, issuer: str | None, timeout: float) -> None:
     step("who am I")
     me = expect(client.get("/v1/me", headers=auth), 200)
     memberships = [m for m in me["memberships"] if "kb.create" in m["permissions"]]
+    if not memberships and create_org:  # a fresh database: the smoke user founds an org
+        slug = CODE.lower()
+        expect(
+            client.post(
+                "/v1/organizations", json={"name": f"Smoke {CODE}", "slug": slug}, headers=auth
+            ),
+            201,
+        )
+        me = expect(client.get("/v1/me", headers=auth), 200)
+        memberships = [m for m in me["memberships"] if "kb.create" in m["permissions"]]
     if not memberships:
-        raise SmokeFailure("the smoke user needs a membership that can create knowledge bases")
+        raise SmokeFailure(
+            "the smoke user needs a membership that can create knowledge bases "
+            "(or pass --create-org on an empty database)"
+        )
     org = memberships[0]["organization_id"]
     headers = auth | {"X-Organization-Id": org}
     ok(memberships[0]["organization_slug"])
@@ -187,10 +200,13 @@ def main() -> int:
     parser.add_argument("--issuer", help="OIDC issuer to check discovery for")
     parser.add_argument("--user", default="alice", help="local dev user (when no token is given)")
     parser.add_argument("--timeout", type=float, default=600, help="seconds to wait for READY")
+    parser.add_argument(
+        "--create-org", action="store_true", help="found an org if the user has none"
+    )
     arguments = parser.parse_args()
     token = os.environ.get("KOS_SMOKE_TOKEN") or local_token(arguments.user)
     try:
-        run(arguments.api, token, arguments.issuer, arguments.timeout)
+        run(arguments.api, token, arguments.issuer, arguments.timeout, arguments.create_org)
     except (SmokeFailure, httpx.HTTPError) as exc:
         print(f"SMOKE FAILED: {exc}", file=sys.stderr)
         return 1
