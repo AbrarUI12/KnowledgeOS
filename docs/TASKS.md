@@ -55,8 +55,8 @@
 | T3.3 | Office/tabular formats, OCR & normalization library | 3 | S18 | DONE | ai/codex-t3.3-office-normalize | #28 (6e725fb) |
 | T3.4 | Content-security scanner & structure-aware chunker | 4 | S19 | DONE | ai/codex-t3.4-content-chunking | #35 (e36b5da) |
 | T4.1 | Embedding providers | 4 | S22 | DONE | ai/codex-t4.1-embedding-providers | #36 (a25389f) |
-| T5.1 | Reranker, context packer & source aliases | 5 | S27 | REVIEW | ai/codex-t5.1-reranker-context | #37 |
-| T5.2 | LLM gateway, prompts, abstention & citation validator | 5 | S28 | TODO | | |
+| T5.1 | Reranker, context packer & source aliases | 5 | S27 | DONE | ai/codex-t5.1-reranker-context | #37 (990fe38) |
+| T5.2 | LLM gateway, prompts, abstention & citation validator | 5 | S28 | REVIEW | ai/codex-t5.2-grounded-generation | #40 |
 | T4.8 | Retrieval debugger UI | 6 | S26 | TODO | | |
 | T5.5 | Ask workspace UI | 7 | S30 | TODO | | |
 | T5.7 | Evidence rail, source viewer & feedback UI | 8 | S31 | TODO | | |
