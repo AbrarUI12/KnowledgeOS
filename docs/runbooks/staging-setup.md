@@ -45,12 +45,27 @@ Done when readiness is green against the real Neon, B2 and Auth0, and an upload 
 
 ## 5. Deploy (C3)
 
-- **Space:**
-  1. Push the image to GHCR.
-  2. The Space repo holds only a `Dockerfile` with `FROM ghcr.io/<owner>/knowledgeos-space:<tag>` and a `README.md` front matter (`sdk: docker`, `app_port: 7860`).
-  3. Every value from `infra/space/staging.env.example` goes into Space **Variables/Secrets**.
-- **Vercel:** `AUTH_*` values, the Auth0 issuer and client, and the public API base URL (= Space URL). Its production deployment acts as staging for now.
-- **Seed:** `scripts/seed_demo.py` against the staging API with the Auth0 demo users.
+1. **Image:**
+   - Actions → "Space image" → Run workflow. It pushes `ghcr.io/abrarui12/knowledgeos-space:<sha>` and `:staging`.
+   - After the first push, set the GHCR package to **public** (Package settings → visibility), so the free Space can pull it without a token.
+2. **Space repo:**
+   - copy [`infra/space/Dockerfile`](../../infra/space/Dockerfile) (`FROM` the GHCR tag) and [`infra/space/README.md`](../../infra/space/README.md) (`sdk: docker`, `app_port: 7860`);
+   - put every value from `infra/space/staging.env.example` into Space **Variables / Secrets**;
+   - the Space builds in seconds and boots: migrations, then all processes.
+3. **Vercel:**
+   - project root `apps/web`;
+   - `AUTH_*` values with the Auth0 issuer, client id and secret, the audience = the Auth0 API identifier, and `NEXT_PUBLIC_API_URL` = the Space URL;
+   - its production deployment acts as staging for now;
+   - add the Vercel URL to the Space's `WEB_ORIGINS` and to B2 CORS.
+4. **Seed:** sign in once as each demo user so they exist in Auth0, then run:
+   ```bash
+   KOS_TOKEN_ALICE=… KOS_TOKEN_BOB=… KOS_TOKEN_HANA=… KOS_TOKEN_CAROL=…      uv --directory apps/api run python ../../scripts/seed_demo.py --api https://<space>.hf.space --wait
+   ```
+   Tokens come from the Auth0 API test console or a signed-in browser session; they're never printed.
+5. **Smoke:**
+   ```bash
+   KOS_SMOKE_TOKEN=… uv --directory apps/api run python ../../scripts/smoke.py      --api https://<space>.hf.space --issuer https://<tenant>.<region>.auth0.com/
+   ```
 
 ## Limits to keep in mind
 

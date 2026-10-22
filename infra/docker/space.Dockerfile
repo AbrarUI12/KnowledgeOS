@@ -18,7 +18,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       redis-server clamav clamav-daemon clamav-freshclam supervisor \
  && rm -rf /var/lib/apt/lists/* \
- && mkdir -p /var/lib/clamav /run/clamav /models/reranker /models/docling /app/scripts \
+ && mkdir -p /var/lib/clamav /run/clamav /models/docling /app/scripts \
  && sed -i \
       -e 's|^LocalSocket |# LocalSocket |' \
       -e 's|^Foreground .*|Foreground true|' \
@@ -39,12 +39,12 @@ COPY --chown=app:app --chmod=755 infra/docker/space/entrypoint.sh /usr/local/bin
 
 USER app
 # Signatures and model weights at build time, so a cold start doesn't re-download gigabytes.
-# The reranker's full-precision download is only an export input: kept out of the layer.
+# Reranker: the same bge-reranker-v2-m3, already exported to int8 ONNX by onnx-community
+# (exporting it during the build needs more memory than Docker/CI runners have).
 RUN freshclam --foreground --stdout
 RUN python /app/scripts/download_models.py --output-dir /models/hf/hub \
  && python /app/scripts/download_docling_models.py --output-dir /models/docling
-RUN python -m app.providers.rerankers.prepare --cache-folder /tmp/reranker-src --output /models/reranker \
- && rm -rf /tmp/reranker-src
+RUN python -c "from huggingface_hub import snapshot_download; snapshot_download('onnx-community/bge-reranker-v2-m3-ONNX', cache_dir='/models/hf/hub', allow_patterns=['*.json', '*.txt', '*.model', 'onnx/model_int8.onnx'])"
 
 # Space defaults; secrets and account-specific values come from Space variables and secrets
 # (infra/space/staging.env.example lists them).
@@ -56,9 +56,9 @@ ENV ENVIRONMENT=staging \
     CLAMAV_PORT=3310 \
     EMBEDDING_PROVIDER=sentence_transformers \
     EMBEDDING_DEVICE=cpu \
-    RERANKER_MODEL=/models/reranker \
+    RERANKER_MODEL=onnx-community/bge-reranker-v2-m3-ONNX \
     RERANKER_BACKEND=onnx \
-    RERANKER_ONNX_FILE=onnx/model_qint8_avx2.onnx \
+    RERANKER_ONNX_FILE=onnx/model_int8.onnx \
     DOCLING_ARTIFACTS_PATH=/models/docling \
     DOCLING_OCR=false
 
