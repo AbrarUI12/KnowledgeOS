@@ -81,9 +81,13 @@ async def test_real_redis_refills_buckets_and_resets_only_previous_utc_days(
             },
         )
         await throttle.reserve("account", 10, limits)
+        # Refill ONLY the minute buckets while keeping today's RPD counter exhausted. This
+        # proves the daily cap independently and remains correct within a minute of midnight.
+        seconds, micros = await redis.time()
+        await redis.hset(throttle.key("account"), "time", seconds * 1000 + micros // 1000 - 60_000)
         with pytest.raises(LLMRateLimitedError) as exc:
             await throttle.reserve("account", 1, limits)
         assert exc.value.retry_after_seconds is not None
-        assert exc.value.retry_after_seconds > 60  # same-day RPD cap still applies
+        assert 0 < exc.value.retry_after_seconds <= 86_400
     finally:
         await redis.aclose()

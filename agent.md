@@ -59,11 +59,11 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** T5.2 draft #40: bounded compatible adapter/fake, explicit provider configs, allowlisted retry/stream gateway, real Redis quotas, versioned untrusted prompt, abstention/correction and citation validation implemented. Final combined checks and real Ollama poisoned-evidence test in progress (isolated container/port 11534; own model cache). #39 fixes re-reviewed PASS (16 tests); #41 PASS with three MEDIUM follow-ups (eight API/seed tests).
+- **Current task:** T5.2 #40 in REVIEW: compatible adapter/fake/configs, policy-bound gateway, real Redis quotas, grounded prompt, abstention/correction and citation integrity. Final checks GREEN: 640 backend / 105 frontend / nine snapshots, lint/strict types and explicit web typecheck. Forced real Qwen3:8b poisoned-evidence + no-answer test PASS (110.07 s); temporary local-only Ollama container stopped, own model cache retained. #39 fixes PASS (16 tests); #41 PASS with three MEDIUM follow-ups (eight tests).
 - **Last finished:** T5.1 #37 merged (990fe38), MEDIUM fixes included; combined checks 532 backend / 105 frontend / nine snapshots and all CI green. T3.4 #35 merged (e36b5da); T4.1 #36 (a25389f), T3.3 #28 (6e725fb), T3.2 #26 (0c1f49f), T1.4 #17 (961cb0a) merged.
 - **Blockers:** none
 - **Recent:**
-  - 2026-10-22 · T5.2 · first combined checks green (619 backend / 105 frontend / nine snapshots); subsequent gateway/config/Redis tests green separately. Final rerun includes all additions. No new dependency, contract, database or route changes.
+  - 2026-10-22 · T5.2 · 903ba1f implementation; final serial full checks green after one native Windows Qwen subprocess crash (unchanged isolated rerun also passed). Four standard-suite skips: two POSIX, opt-in crash, new manual LLM test (separately forced and passed). Redis daily-cap assertion independently verified after refilling minute buckets, including midnight-safe wait bounds. No dependency, contract, database or route changes.
   - 2026-10-12 · T2.2 · S3/MinIO/B2 + in-memory ObjectStore providers and safe key helpers; explicit S3 timeouts/retries · PR #14 (merged)
   - 2026-10-12 · T2.3 · strict file validator, valid-format fixtures, ClamAV/Noop scanners · PR #10
 
