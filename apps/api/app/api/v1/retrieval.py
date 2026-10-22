@@ -24,6 +24,7 @@ from app.domain.schemas.retrieval import (
     SearchRequest,
     SearchResponse,
 )
+from app.services import evidence
 from app.services import search as search_service
 
 router = APIRouter(responses=ERRORS)
@@ -99,6 +100,12 @@ async def get_query_run(
     status_code=status.HTTP_201_CREATED,
 )
 async def create_feedback(
-    org: OrgIdHeader, ctx: OrgContext, query_run_id: uuid.UUID, body: FeedbackCreate
+    org: OrgIdHeader,
+    ctx: OrgContext,
+    session: DbSession,
+    query_run_id: uuid.UUID,
+    body: FeedbackCreate,
 ) -> FeedbackOut:
-    stub("T5.4")
+    """Thumbs up/down with an optional reason code and comment on your own run; giving feedback
+    again replaces it."""
+    return await evidence.give_feedback(session, ctx, query_run_id, body)

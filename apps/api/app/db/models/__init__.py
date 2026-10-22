@@ -31,6 +31,7 @@ from app.db.models.knowledge import (
 from app.db.models.retrieval import (
     Answer,
     Citation,
+    Feedback,
     ModelPolicy,
     QueryRun,
     RagProfile,
@@ -47,6 +48,7 @@ __all__ = [
     "Document",
     "DocumentAcl",
     "DocumentVersion",
+    "Feedback",
     "Group",
     "GroupMembership",
     "IdempotencyKey",
