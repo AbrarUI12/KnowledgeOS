@@ -154,7 +154,8 @@ def run(api: str, token: str, issuer: str | None, timeout: float, create_org: bo
             state = job["state"]
             if state == "READY":
                 break
-            if state in {"FAILED", "QUARANTINED", "CANCELLED", "PENDING_APPROVAL"}:
+            # FAILED_RETRYABLE retries on its own; keep waiting for one of these final states.
+            if state in {"FAILED_PERMANENT", "QUARANTINED", "CANCELLED", "PENDING_APPROVAL"}:
                 raise SmokeFailure(f"ingestion ended in {state}: {job.get('error_detail_safe')}")
             time.sleep(5)
         else:
@@ -188,8 +189,14 @@ def run(api: str, token: str, issuer: str | None, timeout: float, create_org: bo
         ok(f"{answer['evidence_status']}, {len(answer['citations'])} citation(s)")
     finally:
         step("archive the smoke knowledge base")
-        client.delete(f"/v1/knowledge-bases/{kb}", headers=headers)
-        ok()
+        archived = client.delete(f"/v1/knowledge-bases/{kb}", headers=headers)
+        if archived.status_code != 204:
+            problem = f"archiving KB {kb} returned {archived.status_code}; archive it by hand"
+            if sys.exc_info()[0] is None:  # don't mask the failure that got us here
+                raise SmokeFailure(problem)
+            print(f"  warning: {problem}", file=sys.stderr)
+        else:
+            ok()
 
 
 def main() -> int:
