@@ -399,7 +399,9 @@ class FakeSearchBackend:
         return HybridSearchResult(
             dense=await self.dense_search(request),
             lexical=await self.lexical_search(request),
-            index_generation_id=self.generation_id,
+            index_generation_ids=dict.fromkeys(
+                request.scope.knowledge_base_ids, self.generation_id
+            ),
         )
 
     async def neighbors(

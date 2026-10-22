@@ -40,10 +40,11 @@
 
 ### Claude: architect · security/DB/integration · reviewer
 - **Worktree / ports:** `D:\projects\kos-claude` · API 8000 · web 3000
-- **Current task:** T4.2 in REVIEW (#38; live 1024-d check once Codex's T4.1 #36 merges); next T4.4 hybrid search (stacked on #38)
+- **Current task:** T4.2 (#38) and T4.4 (stacked on #38) in REVIEW; next T4.6 search API + seed loader + debug API
 - **Last finished:** T3.6 ingestion reliability (2026-10-14, #34, merge a09b48e; ADR-004 reconciler addendum approved by the user)
 - **Blockers:** none
 - **Recent:**
+  - 2026-10-14 · T4.4 · PostgresSearchBackend: one chunk-only authorization predicate (org, KBs, active generation + version via semi-joins, live docs, children, ACL tokens) for every query; dense HNSW iterative scan in a materialized CTE limited to the request's embedding model; lexical per-language websearch tsquery + ts_rank_cd + identifier boost + title-trigram fallback; concurrent branches on two connections with degraded flags; neighbors; whitelisted filters; one-time inferred-filter relaxation; contract change (embedding_model, index_generation_ids) approved by the user; Hypothesis brute-force predicate test; filtered HNSW recall@10 = 1.0 on 5k chunks
   - 2026-10-14 · T4.2 · migration 0010 (vector(1024) + HNSW, weighted tsvector per detected language, identifiers, access_principals, GIN/B-tree/trigram indexes); EMBEDDING (in-org reuse, exact-model guard, no fallback), INDEXING (full text + ACL tokens under a shared KB lock), VERIFYING (completeness + HNSW self-query); acl.changed sync + acl_propagated_at; index-generations API; Hypothesis ACL matrix
   - 2026-10-14 · T3.6 · reconciler (stranded jobs, abandoned uploads, approval reminders) as the dispatcher role with column-limited grants (migration 0008, ADR-004 extension); crash-counted attempts; job timeline; retry/cancel/reindex/inspect APIs; weighted progress; READY sets the active version; live docker-kill crash test passes
   - 2026-10-14 · merged T2.1 (#25), T2.4 (#27), T3.1 (#30), T3.5 (#31); finished and opened Cline's T2.6 (#33)
