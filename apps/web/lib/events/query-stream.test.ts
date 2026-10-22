@@ -2,6 +2,26 @@ import { describe, expect, it } from "vitest";
 import { initialQueryState, queryReducer, readQueryStream } from "./query-stream";
 
 describe("query stream", () => {
+  it("finishes at a terminal event without waiting for the connection to close", async () => {
+    let cancelled = false;
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(
+            new TextEncoder().encode(
+              'event: error\ndata: {"code":"failed","message":"Unavailable"}\n\n',
+            ),
+          );
+        },
+        cancel() {
+          cancelled = true;
+        },
+      }),
+      { headers: { "Content-Type": "text/event-stream" } },
+    );
+    await readQueryStream(response, () => {});
+    expect(cancelled).toBe(true);
+  });
   it("ignores events after cancellation and resets for the next question", () => {
     let state = queryReducer(initialQueryState, { event: "start" });
     state = queryReducer(state, { event: "answer_delta", data: { text: "Partial" } });

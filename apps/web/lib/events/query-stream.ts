@@ -82,6 +82,10 @@ export async function readQueryStream(response: Response, receive: (event: Query
         receive({ event, data: JSON.parse(payload) } as QueryEvent);
         terminal = event === "done" || event === "error";
       }
+      if (terminal) {
+        await reader.cancel();
+        break;
+      }
       if (done) break;
     }
     if (!terminal) throw new Error("The answer stream ended before completion. Please retry.");
