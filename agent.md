@@ -40,8 +40,8 @@
 
 ### Claude: architect · security/DB/integration · reviewer
 - **Worktree / ports:** `D:\projects\kos-claude` · API 8000 · web 3000
-- **Current task:** fast-track C1 (`/query` + SSE); T5.3 part 1 (#48) and T5.4 part 1 (#49) in REVIEW
-- **Last finished:** T4.6 search API, seed loader, debug API, G4 gate on the real libraries (2026-10-23, #41, merge 4dadd27); T4.4 (#39, f328b1d); T4.2 (#38, d3bdda3)
+- **Current task:** C2 #58 (image verified locally; awaiting Codex review) · #60 classification limit · C3 staging deploy blocked on the user's free-tier accounts
+- **Last finished:** C1 `/query` + SSE (#55, 53fba10), T5.4 part 1 (#49, dbf2b0a), T5.3 part 1 (#48, 6bd9e2f), T4.6 (#41, 4dadd27). G4 gate green on main 2026-10-23; local end-to-end smoke green; G5 waits for Groq (local RAM too small for a 9B model + Docling)
 - **Blockers:** none
 - **Recent:**
   - 2026-10-14 · T4.4 · PostgresSearchBackend: one chunk-only authorization predicate (org, KBs, active generation + version via semi-joins, live docs, children, ACL tokens) for every query; dense HNSW iterative scan in a materialized CTE limited to the request's embedding model; lexical per-language websearch tsquery + ts_rank_cd + identifier boost + title-trigram fallback; concurrent branches on two connections with degraded flags; neighbors; whitelisted filters; one-time inferred-filter relaxation; contract change (embedding_model, index_generation_ids) approved by the user; Hypothesis brute-force predicate test; filtered HNSW recall@10 = 1.0 on 5k chunks

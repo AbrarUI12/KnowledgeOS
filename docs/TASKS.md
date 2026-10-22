@@ -66,10 +66,10 @@ The user's call (D-015, DV-008): **M1 live staging within 3–5 days, Claude and
 | T4.2 | Index generations (DB) + chunk indexing & ACL materialization | 5 | S22–S23 | DONE | ai/claude-t4.2-indexing | #38 (d3bdda3) |
 | T4.4 | Permission-aware hybrid search backend | 5 | S24 | DONE | ai/claude-t4.4-search | #39 (f328b1d) |
 | T4.6 | Search API, demo seed loader, debug API | 6 | S25–S26 | DONE | ai/claude-t4.6-search-api | #41 (4dadd27) |
-| T5.3 | RAG profiles, model policies & `/query` orchestration | 7 | S27–S28 | IN PROGRESS (part 1 REVIEW; part 2 = C1) | ai/claude-t5.3-profiles | #48 |
-| T5.4 | SSE streaming, evidence status, conflicts + evidence endpoints | 7 | S29, S31 | IN PROGRESS (part 1 REVIEW; part 2 = C1, conflicts cut) | ai/claude-t5.4-evidence | #49 |
-| T6.1 | Free-tier accounts & deployable backend image | 9 | S32 | TODO | | |
-| T6.3 | MVP staging deployment | 9 | S33 | TODO | | |
+| T5.3 | RAG profiles, model policies & `/query` orchestration | 7 | S27–S28 | DONE (classification limit follow-up #60 in REVIEW) | ai/claude-t5.3-profiles, ai/claude-c1-query | #48 (6bd9e2f), #55 (53fba10) |
+| T5.4 | SSE streaming, evidence status, conflicts + evidence endpoints | 7 | S29, S31 | DONE (conflicts cut, DV-008; validated delivery, DV-009) | ai/claude-t5.4-evidence, ai/claude-c1-query | #49 (dbf2b0a), #55 (53fba10) |
+| T6.1 | Free-tier accounts & deployable backend image | 9 | S32 | REVIEW (image verified locally; accounts pending, user) | ai/claude-c2-space-image | #58 |
+| T6.3 | MVP staging deployment | 9 | S33 | BLOCKED (free-tier accounts); `scripts/smoke.py` ready in #58 and green on the local stack | | |
 
 ### Codex
 
