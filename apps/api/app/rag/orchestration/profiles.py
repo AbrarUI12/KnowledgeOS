@@ -8,7 +8,7 @@ UPDATE or DELETE on `rag_profiles`), so every query run can name exactly the set
 import uuid
 from dataclasses import dataclass
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,6 +43,13 @@ class RagProfileConfig(BaseModel):
     query_decomposition: bool = False
     abstain_min_rerank_score: float = 0.0  # placeholder until calibrated (Session 41)
     prompt_version: str = "grounded_answer/v1"
+
+    @model_validator(mode="after")
+    def _a_branch_counts(self) -> "RagProfileConfig":
+        # Both weights at zero would give every fused hit score 0: order collapses to the id.
+        if self.dense_weight <= 0 and self.lexical_weight <= 0:
+            raise ValueError("at least one of dense_weight and lexical_weight must be positive")
+        return self
 
     def fusion(self) -> FusionConfig:
         return FusionConfig(
