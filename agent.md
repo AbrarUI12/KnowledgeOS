@@ -60,8 +60,8 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** X1 knowledge library, upload, and lean ingestion/Inspect UI is in review (#51). Frontend tests (108), lint, types, formatting, and CI frontend/Docker/secret jobs are green; backend CI is pending.
-- **Last finished:** T5.2 #40 merged (9926e98), including fail-closed rejection of model-authored links/images/URLs/HTML. Reviewed and merged paused-Cline T2.6 #33 (95d0240). Reviewed Claude #48 PASS (two MEDIUM follow-ups), #49 CHANGES REQUESTED (one HIGH archive-access finding), and #50 PASS.
+- **Current task:** X2 #56 live login/stream verified; X3 #64, Auth0 #62, library/admin follow-ups #65, Next security patch #66, and demo polish #67 await Claude review and CI.
+- **Last finished:** X1 #51 merged (3a63d8a); C4 Members/Groups/palette #59 merged (2311e60). Backend reviews #55, #58, #60, #63 PASS; targeted suites 27, 18, 22, and 29 tests passed respectively.
 - **Blockers:** none
 - **Recent:**
   - 2026-10-23 · X1 · PR #51: permission-aware library route; create/select KB; presigned multi-file XHR upload with progress; live pipeline polling; safe failures and retry; approve/reject; lean Inspect for scan findings, chunks, and timeline. No dependency, contract, database, or backend changes.
