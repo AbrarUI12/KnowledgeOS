@@ -136,6 +136,11 @@ class Settings(BaseSettings):
     embedding_dimension: int = Field(default=1024, ge=1)
     embedding_batch_size: int = Field(default=16, ge=1, le=512)
     embedding_device: Literal["cpu", "cuda", "auto"] = "cpu"
+
+    # Docling (T3.2): pre-downloaded layout/OCR assets (scripts/download_docling_models.py) for
+    # offline images; None = Docling's own cache. OCR off saves minutes per scanned page on CPU.
+    docling_artifacts_path: str | None = None
+    docling_ocr: bool = True
     embedding_base_url: str | None = None  # openai_compatible endpoint (TEI, Infinity, Ollama)
     embedding_api_key: SecretStr | None = None
     embedding_is_external: bool = False  # True if text leaves the deployment (model policy)

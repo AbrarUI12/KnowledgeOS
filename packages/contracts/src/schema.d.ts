@@ -402,7 +402,8 @@ export interface paths {
         };
         /**
          * List Ingestion Jobs
-         * @description Jobs of a KB's documents the caller can see, oldest first; filter with repeated `state`.
+         * @description Jobs of a KB's documents the caller can see, oldest first (`sort=-created_at`: newest
+         *     first, so a page of recent documents finds its latest jobs); filter with repeated `state`.
          */
         get: operations["ingestion_list_ingestion_jobs"];
         put?: never;
@@ -3839,6 +3840,7 @@ export interface operations {
                 cursor?: string | null;
                 limit?: number;
                 state?: components["schemas"]["IngestionState"][] | null;
+                sort?: "created_at" | "-created_at";
             };
             header: {
                 /** @description Organization the request acts in. Required for org-scoped resources that aren't under /v1/organizations/{org_id}. The caller must be an active member (otherwise 404). */

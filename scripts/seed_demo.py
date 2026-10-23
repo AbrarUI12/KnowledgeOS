@@ -4,6 +4,8 @@ synthetic corpus from T4.5, all through the public API, exactly as a real client
 Usage (local stack: `make up-full`, `make migrate`, `make api`; workers ingest the uploads):
     uv --directory apps/api run python ../../scripts/seed_demo.py [--api URL] [--wait]
     make seed
+Staging: set KOS_TOKEN_ALICE, KOS_TOKEN_BOB, KOS_TOKEN_HANA, KOS_TOKEN_CAROL (tokens for the
+Auth0 demo users; never printed) and pass --api https://<space>.hf.space.
 
 What it builds (idempotent: existing orgs, members, groups, KBs and same-titled documents are
 reused, so it can run again after a partial failure):
@@ -21,6 +23,7 @@ import argparse
 import asyncio
 import importlib.util
 import json
+import os
 import sys
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -329,7 +332,18 @@ class Seeder:
         return states
 
 
+def _env_token(who: str) -> str:
+    """Staging: tokens per demo user from KOS_TOKEN_<NAME> (e.g. Auth0 tokens fetched by hand);
+    a token that expires can't be refreshed here, so a 401 retry fails loudly."""
+    token = os.environ.get(f"KOS_TOKEN_{who.upper()}")
+    if not token:
+        raise RuntimeError(f"KOS_TOKEN_{who.upper()} is not set")
+    return token
+
+
 def _get_token() -> CachedTokens:
+    if any(name.startswith("KOS_TOKEN_") for name in os.environ):
+        return CachedTokens(_env_token)
     spec = importlib.util.spec_from_file_location("get_token", ROOT / "scripts" / "get_token.py")
     if spec is None or spec.loader is None:
         raise RuntimeError("scripts/get_token.py not found")

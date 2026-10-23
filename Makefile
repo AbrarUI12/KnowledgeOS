@@ -10,7 +10,7 @@ API_PORT ?= 8000
 WEB_PORT ?= 3000
 
 # openapi: regenerate packages/contracts/openapi.json (T1.0 contract)
-.PHONY: openapi help install lint format typecheck test test-unit test-int migrate migration api web hooks env up up-full down reset logs ps psql infra-check demo-corpus worker dispatcher seed gate-g4 gate-g5
+.PHONY: openapi help install lint format typecheck test test-unit test-int migrate migration api web hooks env up up-full down reset logs ps psql infra-check demo-corpus worker dispatcher seed gate-g4 gate-g5 space-build space-run space-smoke
 
 help:
 	@echo "install    Install backend (uv) and frontend (pnpm) dependencies + git hooks"
@@ -126,3 +126,19 @@ demo-corpus:
 
 infra-check:
 	$(UV) run python ../../scripts/check_infra.py
+
+# ---------------------------------------------------------------- staging image (S32, fast-track C2)
+SPACE_IMAGE ?= knowledgeos-space:local
+SPACE_ENV ?= .env.staging
+
+space-build: ## Build the all-in-one HF Space image (worker image first)
+	docker build -f infra/docker/backend.Dockerfile --target worker -t knowledgeos-worker:local .
+	docker build -f infra/docker/space.Dockerfile --build-arg BACKEND_IMAGE=knowledgeos-worker:local -t $(SPACE_IMAGE) .
+
+space-run: ## Run the Space image locally against the real free-tier services ($(SPACE_ENV))
+	docker run --rm --name kos-space -p 7860:7860 --env-file $(SPACE_ENV) $(SPACE_IMAGE)
+
+space-smoke: ## Start the Space image detached and wait until /health/ready is green
+	-docker rm -f kos-space >/dev/null 2>&1
+	docker run -d --name kos-space -p 7860:7860 --env-file $(SPACE_ENV) $(SPACE_IMAGE)
+	$(UV) run python ../../scripts/wait_ready.py http://localhost:7860 --timeout 600

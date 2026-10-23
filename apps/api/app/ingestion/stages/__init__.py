@@ -24,6 +24,7 @@ stages and persistence then run end to end before every real library has merged.
 import asyncio
 import importlib
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
 import structlog
@@ -99,6 +100,11 @@ def _discover() -> dict[str, Any] | None:
             logger.info("ingestion_component_missing", component=name)
             return None
     return found
+
+
+def _docling(settings: Settings, parser: Any) -> Any:
+    path = settings.docling_artifacts_path
+    return parser(artifacts_path=Path(path) if path else None, ocr=settings.docling_ocr)
 
 
 def _extra_parsers() -> list[Any]:
@@ -211,7 +217,10 @@ def _real_stages(settings: Settings, store: ObjectStore) -> dict[IngestionState,
         settings=settings,
         store=store,
         malware_scanner=scanner,
-        parsers=(components["parser"](), *(() if fakes else _extra_parsers())),
+        parsers=(
+            components["parser"]() if fakes else _docling(settings, components["parser"]),
+            *(() if fakes else _extra_parsers()),
+        ),
         normalize=components["normalize"],
         content_scanner=components["content_scanner"](),
         chunker=components["chunker"](),

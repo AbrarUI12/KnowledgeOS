@@ -43,6 +43,8 @@ class PolicyView:
 
     local_only: bool = False
     generation_models: tuple[str, ...] = ()
+    # The highest document classification an external model may see (plan §25.2).
+    max_external_classification: str = "internal"
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,7 +69,9 @@ async def model_policy(session: AsyncSession, kb: KnowledgeBase) -> PolicyView:
     row = next((r for r in rows if r.knowledge_base_id == kb.id), None) or next(iter(rows), None)
     if row is None:
         return PolicyView()
-    return PolicyView(row.local_only, tuple(row.generation_models or ()))
+    return PolicyView(
+        row.local_only, tuple(row.generation_models or ()), row.max_external_classification
+    )
 
 
 def message_counter(count: TokenCounter) -> MessageTokenCounter:
