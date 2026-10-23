@@ -118,6 +118,7 @@ export function GroupsPage({
               {message(remove.error)}
             </p>
           )}
+          <Button onClick={() => setRemoving(null)}>Cancel</Button>
           <Button variant="danger" disabled={remove.isPending} onClick={() => remove.mutate()}>
             Delete group
           </Button>
