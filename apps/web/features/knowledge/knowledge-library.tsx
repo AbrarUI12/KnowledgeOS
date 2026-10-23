@@ -273,6 +273,7 @@ export function KnowledgeLibrary({
                     ref={fileInput}
                     className="sr-only"
                     type="file"
+                    aria-label="Upload documents"
                     multiple
                     accept={ACCEPTED_FILES}
                     onChange={(event) => void handleFiles(event.target.files)}
