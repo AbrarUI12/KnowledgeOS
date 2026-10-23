@@ -70,7 +70,7 @@ export async function listIngestionJobs(
   const { data, error, response } = await client.GET("/v1/knowledge-bases/{kb_id}/ingestion-jobs", {
     params: {
       path: { kb_id: knowledgeBaseId },
-      query: { limit: 200 },
+      query: { limit: 200, sort: "-created_at" },
       header: header(organizationId),
     },
   });

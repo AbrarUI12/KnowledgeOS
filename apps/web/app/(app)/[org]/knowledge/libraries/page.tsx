@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { KnowledgeLibrary } from "@/components/knowledge/knowledge-library";
+import { KnowledgeLibrary } from "@/features/knowledge/knowledge-library";
 import { authenticatedMe } from "@/lib/auth/server";
 
 export default async function KnowledgeLibraryPage({

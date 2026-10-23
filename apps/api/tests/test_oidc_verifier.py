@@ -65,6 +65,47 @@ async def test_valid_token_is_accepted(http: httpx.AsyncClient, key: SigningKey)
     assert result.email == "alice@example.test"
 
 
+NS = "https://knowledgeos.test/"
+
+
+@respx.mock
+async def test_namespaced_profile_claims_fill_missing_standard_ones(
+    http: httpx.AsyncClient, key: SigningKey
+) -> None:
+    # Auth0 access tokens: no email/name unless a post-login Action adds them under a namespace.
+    respx.get(DISCOVERY_URL).respond(json=discovery())
+    respx.get(JWKS_URL).respond(json=jwks(key))
+    token = make_token(
+        key,
+        sub="auth0|bob",
+        extra={
+            "email": None,
+            "name": None,
+            f"{NS}email": "bob@acme.test",
+            f"{NS}email_verified": True,
+            f"{NS}name": "Bob",
+        },
+    )
+    result = await verifier(http, oidc_claim_namespace=NS).verify(token)
+    assert (result.email, result.name) == ("bob@acme.test", "Bob")
+    assert result.claims["email_verified"] is True
+
+
+@respx.mock
+async def test_standard_claims_win_and_namespace_is_ignored_unless_configured(
+    http: httpx.AsyncClient, key: SigningKey
+) -> None:
+    respx.get(DISCOVERY_URL).respond(json=discovery())
+    respx.get(JWKS_URL).respond(json=jwks(key))
+    extra = {f"{NS}email": "other@acme.test", f"{NS}email_verified": True}
+    token = make_token(key, sub="alice", extra=extra)
+    with_ns = await verifier(http, oidc_claim_namespace=NS).verify(token)
+    assert with_ns.email == "alice@example.test"
+    unset = await verifier(http).verify(make_token(key, extra={"email": None, **extra}))
+    assert unset.email is None
+    assert "email_verified" not in unset.claims
+
+
 @respx.mock
 async def test_audience_list_containing_ours_is_accepted(
     http: httpx.AsyncClient, key: SigningKey

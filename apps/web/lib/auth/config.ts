@@ -1,12 +1,10 @@
 import NextAuth from "next-auth";
 
 import { refreshAccessToken } from "@/lib/auth/refresh";
+import { providerConfiguration } from "@/lib/auth/provider";
 
 export const { handlers, auth, signIn, signOut } = NextAuth(() => {
-  const issuer = process.env.OIDC_ISSUER ?? "http://localhost:8080/realms/knowledgeos";
-  const clientId = process.env.OIDC_WEB_CLIENT_ID ?? "knowledgeos-web";
-  const clientSecret = process.env.OIDC_WEB_CLIENT_SECRET;
-  if (!clientSecret) throw new Error("OIDC_WEB_CLIENT_SECRET must be configured");
+  const { issuer, clientId, clientSecret, authorization } = providerConfiguration(process.env);
   return {
     session: { strategy: "jwt" },
     pages: { signIn: "/signin", signOut: "/signout", error: "/signin" },
@@ -18,7 +16,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
         issuer,
         clientId,
         clientSecret,
-        authorization: { params: { scope: "openid profile email" } },
+        authorization,
         checks: ["pkce", "state", "nonce"],
       },
     ],
