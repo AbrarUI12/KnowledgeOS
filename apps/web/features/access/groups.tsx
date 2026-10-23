@@ -107,6 +107,7 @@ export function GroupsPage({
         <DialogContent>
           <DialogTitle>Delete {removing?.name}?</DialogTitle>
           <DialogDescription>Members lose access granted through this group.</DialogDescription>
+          <Button onClick={() => setRemoving(null)}>Cancel</Button>
           {remove.error && <p role="alert">{message(remove.error)}</p>}
           <Button variant="danger" disabled={remove.isPending} onClick={() => remove.mutate()}>
             Delete group
