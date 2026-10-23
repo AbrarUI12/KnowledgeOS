@@ -16,6 +16,21 @@
 | **Vercel** | Hobby account linked to the GitHub repo (project root `apps/web`) | staging URL |
 | **Groq** (+ optional Gemini) | API key | key, a model id, your account's RPM/TPM/RPD limits |
 
+### Auth0: put the email in access tokens (≈5 min)
+
+Auth0 access tokens carry no `email`, but the API needs a verified email to accept invitations (the demo seed adds Bob, Hana and Carol that way). In **Actions → Library → Build custom → Login / Post Login**, create `knowledgeos-profile-claims`:
+
+```js
+exports.onExecutePostLogin = async (event, api) => {
+  const ns = "https://knowledgeos.dev/";
+  api.accessToken.setCustomClaim(`${ns}email`, event.user.email);
+  api.accessToken.setCustomClaim(`${ns}email_verified`, event.user.email_verified);
+  api.accessToken.setCustomClaim(`${ns}name`, event.user.name);
+};
+```
+
+Deploy it, add it to the **Login** trigger, and set `OIDC_CLAIM_NAMESPACE=https://knowledgeos.dev/` in the Space. Then mark each demo user's email as verified: users created in the dashboard start unverified (Management API `PATCH /api/v2/users/{id}` with `{"email_verified": true}`, or the API Explorer).
+
 ## 2. Database roles (Neon, ≈5 min)
 
 1. Open the Neon SQL editor on the `staging` branch as the default role.

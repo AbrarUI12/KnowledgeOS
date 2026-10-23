@@ -97,6 +97,14 @@ class Settings(BaseSettings):
         default=30, ge=0, description="Rate limit for JWKS refreshes triggered by unknown key IDs"
     )
     oidc_http_timeout_seconds: float = 5.0
+    oidc_claim_namespace: str | None = Field(
+        default=None,
+        description=(
+            "Prefix of profile claims an IdP adds under a namespace (Auth0 access tokens carry no "
+            "email; a post-login Action adds `<ns>email`, `<ns>email_verified`, `<ns>name`). "
+            "Used only when the standard claim is absent."
+        ),
+    )
     user_last_seen_write_interval_seconds: int = 300
 
     # Organizations (T1.3)

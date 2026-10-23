@@ -48,6 +48,7 @@ class OIDCVerifier:
         self._cache_seconds = settings.oidc_jwks_cache_seconds
         self._min_refresh_seconds = settings.oidc_jwks_min_refresh_seconds
         self._configured_jwks_url = settings.oidc_jwks_url
+        self._claim_namespace = settings.oidc_claim_namespace or None
         self._http = http
         self._keys: dict[str, PyJWK] = {}
         self._fetched_at = 0.0
@@ -89,6 +90,11 @@ class OIDCVerifier:
         subject = claims.get("sub")
         if not isinstance(subject, str) or not subject.strip():
             raise TokenInvalidError("token has no subject")
+        if self._claim_namespace:
+            # Signed by our issuer like every other claim; standard claims still win.
+            for claim in ("email", "email_verified", "name"):
+                if claims.get(claim) is None and f"{self._claim_namespace}{claim}" in claims:
+                    claims[claim] = claims[f"{self._claim_namespace}{claim}"]
         email = claims.get("email")
         name = claims.get("name") or claims.get("preferred_username")
         return VerifiedToken(
