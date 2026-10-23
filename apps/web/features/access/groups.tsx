@@ -77,11 +77,17 @@ export function GroupsPage({
           </Button>
         </form>
       )}
-      {create.error && <p role="alert">{message(create.error)}</p>}
+      {create.error && (
+        <p role="alert" className="text-danger">
+          {message(create.error)}
+        </p>
+      )}
       {groups.isPending ? (
         <p role="status">Loading groups…</p>
       ) : groups.error ? (
-        <p role="alert">{message(groups.error)}</p>
+        <p role="alert" className="text-danger">
+          {message(groups.error)}
+        </p>
       ) : (
         <ul className="divide-y divide-line rounded-panel border border-line bg-surface-0">
           {groups.data.map((group) => (
@@ -107,8 +113,12 @@ export function GroupsPage({
         <DialogContent>
           <DialogTitle>Delete {removing?.name}?</DialogTitle>
           <DialogDescription>Members lose access granted through this group.</DialogDescription>
+          {remove.error && (
+            <p role="alert" className="text-danger">
+              {message(remove.error)}
+            </p>
+          )}
           <Button onClick={() => setRemoving(null)}>Cancel</Button>
-          {remove.error && <p role="alert">{message(remove.error)}</p>}
           <Button variant="danger" disabled={remove.isPending} onClick={() => remove.mutate()}>
             Delete group
           </Button>
@@ -187,7 +197,9 @@ function GroupMembers({
           </ul>
         )}
         {(members.error || people.error || change.error) && (
-          <p role="alert">{message(members.error || people.error || change.error)}</p>
+          <p role="alert" className="text-danger">
+            {message(members.error || people.error || change.error)}
+          </p>
         )}
       </DialogContent>
     </Dialog>
