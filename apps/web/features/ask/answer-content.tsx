@@ -16,6 +16,12 @@ function citationMarkers() {
           return [child];
         }
         return child.value
+          .replace(/\[(S[1-9][0-9]*(?:,\s*S[1-9][0-9]*)+)\]/g, (_, aliases: string) =>
+            aliases
+              .split(/,\s*/)
+              .map((alias) => `[${alias}]`)
+              .join(" "),
+          )
           .split(/(\[S[1-9][0-9]*\])/g)
           .filter(Boolean)
           .map((text) =>
