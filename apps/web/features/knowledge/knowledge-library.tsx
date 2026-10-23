@@ -110,7 +110,7 @@ export function KnowledgeLibrary({
   const [newLibraryName, setNewLibraryName] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [classification, setClassification] = useState<Classification>("internal");
-  const [uploads, setUploads] = useState<UploadProgress[]>([]);
+  const [uploads, setUploads] = useState<(UploadProgress & { id: string })[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const libraries = useQuery({
@@ -139,7 +139,8 @@ export function KnowledgeLibrary({
   });
   const latestJobs = useMemo(() => {
     const byDocument = new Map<string, IngestionJob>();
-    for (const job of jobs.data?.items ?? []) byDocument.set(job.document_id, job);
+    for (const job of jobs.data?.items ?? [])
+      if (!byDocument.has(job.document_id)) byDocument.set(job.document_id, job);
     return byDocument;
   }, [jobs.data]);
 
@@ -160,11 +161,9 @@ export function KnowledgeLibrary({
   async function handleFiles(files: FileList | null) {
     if (!client || !effectiveLibraryId || !files) return;
     for (const file of Array.from(files)) {
+      const id = crypto.randomUUID();
       const update = (progress: UploadProgress) =>
-        setUploads((current) => [
-          ...current.filter((item) => item.filename !== progress.filename),
-          progress,
-        ]);
+        setUploads((current) => [...current.filter((item) => item.id !== id), { ...progress, id }]);
       try {
         await uploadDocument(client, effectiveLibraryId, file, classification, update);
       } catch (error) {
@@ -274,6 +273,7 @@ export function KnowledgeLibrary({
                     ref={fileInput}
                     className="sr-only"
                     type="file"
+                    aria-label="Upload documents"
                     multiple
                     accept={ACCEPTED_FILES}
                     onChange={(event) => void handleFiles(event.target.files)}
@@ -448,7 +448,13 @@ function DocumentTable({
   );
 }
 
-function UploadQueue({ uploads, dismiss }: { uploads: UploadProgress[]; dismiss: () => void }) {
+function UploadQueue({
+  uploads,
+  dismiss,
+}: {
+  uploads: (UploadProgress & { id: string })[];
+  dismiss: () => void;
+}) {
   return (
     <section
       aria-label="Uploads"
@@ -462,7 +468,7 @@ function UploadQueue({ uploads, dismiss }: { uploads: UploadProgress[]; dismiss:
       </div>
       <ul className="space-y-3">
         {uploads.map((upload) => (
-          <li key={upload.filename}>
+          <li key={upload.id}>
             <div className="mb-1 flex justify-between gap-3 text-sm">
               <span className="truncate">{upload.filename}</span>
               <span className={upload.state === "failed" ? "text-danger" : "text-ink-secondary"}>

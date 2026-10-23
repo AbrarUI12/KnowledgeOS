@@ -38,7 +38,20 @@ export function CommandPalette({
   );
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent>
+      <DialogContent
+        onKeyDown={(event) => {
+          if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+          const links = Array.from(
+            event.currentTarget.querySelectorAll<HTMLAnchorElement>("nav a"),
+          );
+          if (!links.length) return;
+          event.preventDefault();
+          const current = links.indexOf(document.activeElement as HTMLAnchorElement);
+          links[
+            (current + (event.key === "ArrowDown" ? 1 : -1) + links.length) % links.length
+          ].focus();
+        }}
+      >
         <DialogTitle>Go to</DialogTitle>
         <DialogDescription>Find a workspace page. Use Tab to choose a result.</DialogDescription>
         <Input
