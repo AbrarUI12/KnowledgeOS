@@ -207,7 +207,9 @@ export function SearchWorkspace({
           {context.isPending ? (
             <p role="status">Loading passage…</p>
           ) : context.error ? (
-            <p role="alert">{context.error.message}</p>
+            <p role="alert" className="text-danger">
+              {context.error.message}
+            </p>
           ) : (
             <blockquote className="whitespace-pre-wrap border-l-2 border-accent p-4">
               {context.data?.content}

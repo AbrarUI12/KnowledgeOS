@@ -53,7 +53,9 @@ export function CommandPalette({
         }}
       >
         <DialogTitle>Go to</DialogTitle>
-        <DialogDescription>Find a workspace page. Use Tab to choose a result.</DialogDescription>
+        <DialogDescription>
+          Find a workspace page. Use arrow keys or Tab to choose a result, then Enter to open it.
+        </DialogDescription>
         <Input
           aria-label="Find a page"
           value={query}
