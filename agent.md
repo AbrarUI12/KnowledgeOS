@@ -40,7 +40,7 @@
 
 ### Claude: architect · security/DB/integration · reviewer
 - **Worktree / ports:** `D:\projects\kos-claude` · API 8000 · web 3000
-- **Current task:** C2 #58 (image verified locally; awaiting Codex review) · #60 classification limit · C3 staging deploy blocked on the user's free-tier accounts
+- **Current task:** C3 staging deploy, blocked on the user's accounts and Groq key. Image `ghcr.io/abrarui12/knowledgeos-space:staging` published; local smoke green on main 14cd98b (2026-10-23); M1 checklist in docs/runbooks/staging-setup.md §6
 - **Last finished:** C1 `/query` + SSE (#55, 53fba10), T5.4 part 1 (#49, dbf2b0a), T5.3 part 1 (#48, 6bd9e2f), T4.6 (#41, 4dadd27). G4 gate green on main 2026-10-23; local end-to-end smoke green; G5 waits for Groq (local RAM too small for a 9B model + Docling)
 - **Blockers:** none
 - **Recent:**

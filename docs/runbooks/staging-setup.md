@@ -69,7 +69,7 @@ Done when readiness is green against the real Neon, B2 and Auth0, and an upload 
    - the Space builds in seconds and boots: migrations, then all processes.
 3. **Vercel:**
    - project root `apps/web`;
-   - `AUTH_*` values with the Auth0 issuer, client id and secret, the audience = the Auth0 API identifier, and `NEXT_PUBLIC_API_URL` = the Space URL;
+   - `AUTH_PROVIDER=auth0`, `AUTH_AUTH0_ID`, `AUTH_AUTH0_SECRET`, `AUTH_AUTH0_ISSUER` (with trailing slash), `OIDC_AUDIENCE` = the Auth0 API identifier, `AUTH_URL` = the Vercel origin, a fresh `AUTH_SECRET`, and `NEXT_PUBLIC_API_URL` = the Space URL (details: [`apps/web/docs/staging-auth.md`](../../apps/web/docs/staging-auth.md));
    - its production deployment acts as staging for now;
    - add the Vercel URL to the Space's `WEB_ORIGINS` and to B2 CORS.
 4. **Seed:** sign in once as each demo user so they exist in Auth0, then run:
@@ -81,6 +81,23 @@ Done when readiness is green against the real Neon, B2 and Auth0, and an upload 
    ```bash
    KOS_SMOKE_TOKEN=… uv --directory apps/api run python ../../scripts/smoke.py      --api https://<space>.hf.space --issuer https://<tenant>.<region>.auth0.com/
    ```
+
+## 6. M1 acceptance (day 5, Claude)
+
+Tick every line, then record the evidence in agent.md §6 and tag `M1`.
+
+- [ ] `scripts/smoke.py` green against the Space (step 5).
+- [ ] **G5 gate:** `make gate-g5` with `KOS_GATE_LLM=groq` and the staging `GROQ_*` values in `.env` (runs here, not on the Space) (G4 already passed on main, 2026-10-23).
+- [ ] **Browser, on the Vercel URL:**
+  - Alice signs in → Home → Library shows the seeded HR KB documents as `READY`;
+  - Search `HR-142-B` → exact match highlighted → preview opens the passage;
+  - Ask "What changed in parental leave in 2026?" → streamed answer with `[S#]` → the citation opens the exact passage, and "Open original document" downloads from B2;
+  - Upload a new file → it reaches `READY` in the library.
+- [ ] **Isolation:**
+  - Bob doesn't see HR Confidential in search or ask (Demo 5);
+  - Carol (Globex) gets 404 for Acme URLs and never sees Acme sources (Demo 6).
+- [ ] An unanswerable question abstains; the poisoned demo document's instructions aren't followed.
+- [ ] README "Live demo" link; agent.md §4.8 filled; `docs/TASKS.md` T6.1/T6.3 → DONE.
 
 ## Limits to keep in mind
 
