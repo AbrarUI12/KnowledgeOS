@@ -84,9 +84,9 @@ The user's call (D-015, DV-008): **M1 live staging within 3–5 days, Claude and
 | T4.1 | Embedding providers | 4 | S22 | DONE | ai/codex-t4.1-embedding-providers | #36 (a25389f) |
 | T5.1 | Reranker, context packer & source aliases | 5 | S27 | DONE | ai/codex-t5.1-reranker-context | #37 (990fe38) |
 | T5.2 | LLM gateway, prompts, abstention & citation validator | 5 | S28 | DONE | ai/codex-t5.2-grounded-generation | #40 (9926e98) |
-| T4.8 | Retrieval debugger UI | 6 | S26 | REVIEW | ai/codex-x3-search | #64 (lean M1) |
-| T5.5 | Ask workspace UI | 7 | S30 | TODO | | |
-| T5.7 | Evidence rail, source viewer & feedback UI | 8 | S31 | TODO | | |
+| T4.8 | Retrieval debugger UI | 6 | S26 | DONE | ai/codex-x3-search | #64 |
+| T5.5 | Ask workspace UI | 7 | S30 | IN PROGRESS | ai/codex-x2-ask-evidence | #56 |
+| T5.7 | Evidence rail, source viewer & feedback UI | 8 | S31 | IN PROGRESS | ai/codex-x2-ask-evidence | #56 |
 
 ### Cline
 
