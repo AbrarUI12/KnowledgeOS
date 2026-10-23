@@ -60,7 +60,7 @@
 
 ### Codex: libraries · frontend foundation · Ask experience · reviews Claude
 - **Worktree / ports:** `D:\projects\kos-codex` · API 8100 · web 3100
-- **Current task:** X2 #56 live login/stream verified; X3 #64, Auth0 #62, library/admin follow-ups #65, Next security patch #66, and demo polish #67 await Claude review and CI.
+- **Current task:** Final review LOW sweep #69; X2 #56, X3 #64, Auth0 #62, library/admin follow-ups #65, Next security patch #66, and demo polish #67 are merged after Claude PASS and green CI. Fresh-source cited browser flow, local smoke, 118 frontend tests and four-page axe checks passed. Awaiting account/key-dependent staging work in Claude's lane.
 - **Last finished:** X1 #51 merged (3a63d8a); C4 Members/Groups/palette #59 merged (2311e60). Backend reviews #55, #58, #60, #63 PASS; targeted suites 27, 18, 22, and 29 tests passed respectively.
 - **Blockers:** none
 - **Recent:**

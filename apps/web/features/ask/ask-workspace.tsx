@@ -177,7 +177,7 @@ export function AskWorkspace({
       {state.text && (
         <article
           aria-label="Answer"
-          className="prose-reading whitespace-pre-wrap rounded-panel border border-line bg-surface-0 p-6"
+          className="prose-reading rounded-panel border border-line bg-surface-0 p-6"
         >
           <AnswerContent
             text={state.text}
@@ -257,7 +257,9 @@ function Evidence({
       {context.isPending ? (
         <p role="status">Loading passage…</p>
       ) : context.error ? (
-        <p role="alert">Source unavailable: {context.error.message}</p>
+        <p role="alert" className="text-danger">
+          Source unavailable: {context.error.message}
+        </p>
       ) : (
         <blockquote className="whitespace-pre-wrap border-l-2 border-accent p-3 text-sm">
           {surrounding && context.data?.before?.join("\n\n")}
