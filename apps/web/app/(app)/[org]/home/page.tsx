@@ -48,6 +48,14 @@ export default async function Home({ params }: { params: Promise<{ org: string }
           ))}
         </nav>
       )}
+      {!query && (
+        <Link
+          className="mt-8 block rounded-panel border border-line bg-surface-0 p-5 text-accent"
+          href={`/${org}/knowledge/libraries`}
+        >
+          Browse libraries
+        </Link>
+      )}
     </div>
   );
 }

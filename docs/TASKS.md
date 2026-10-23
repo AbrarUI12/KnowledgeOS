@@ -85,8 +85,8 @@ The user's call (D-015, DV-008): **M1 live staging within 3–5 days, Claude and
 | T5.1 | Reranker, context packer & source aliases | 5 | S27 | DONE | ai/codex-t5.1-reranker-context | #37 (990fe38) |
 | T5.2 | LLM gateway, prompts, abstention & citation validator | 5 | S28 | DONE | ai/codex-t5.2-grounded-generation | #40 (9926e98) |
 | T4.8 | Retrieval debugger UI | 6 | S26 | DONE | ai/codex-x3-search | #64 |
-| T5.5 | Ask workspace UI | 7 | S30 | IN PROGRESS | ai/codex-x2-ask-evidence | #56 |
-| T5.7 | Evidence rail, source viewer & feedback UI | 8 | S31 | IN PROGRESS | ai/codex-x2-ask-evidence | #56 |
+| T5.5 | Ask workspace UI | 7 | S30 | DONE | ai/codex-x2-ask-evidence | #56 |
+| T5.7 | Evidence rail, source viewer & feedback UI | 8 | S31 | DONE | ai/codex-x2-ask-evidence | #56 |
 
 ### Cline
 
@@ -102,7 +102,7 @@ The user's call (D-015, DV-008): **M1 live staging within 3–5 days, Claude and
 | T2.6 | `scripts/upload_file.py` | 4 | S13 | DONE | ai/cline-t2.6-upload-script | #33 (95d0240) |
 | T3.7 | Ingestion UI: pipeline, diagnostics, reader/inspect, approvals | 4 | S21 | → Codex X1 (lean) | | |
 | T5.6 | Answer-state components, copy & feedback controls | 5 | S31 | → Codex X2 (slim; copy formatters cut) | | |
-| T4.7 | Search UI + demo journeys | 6 | S25 | REVIEW (journeys cut) | ai/codex-x3-search | #64 |
+| T4.7 | Search UI + demo journeys | 6 | S25 | DONE (journeys cut) | ai/codex-x3-search | #64 |
 | T6.2 | Staging smoke script, Playwright smoke & keep-warm | 8 | S33 | → Claude C3 (`smoke.py` only) | | |
 | QA | Local QA pass at each gate (G1–G5, M1) | per gate | – | CUT (final walk-through by Claude) | | |
 
