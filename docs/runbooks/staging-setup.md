@@ -11,7 +11,7 @@
 |---|---|---|
 | **Neon** | Project `knowledgeos`, branch `staging` (Postgres 17) | host, database name |
 | **Backblaze B2** | Private buckets `kos-staging-quarantine`, `kos-staging-trusted`, `kos-staging-artifacts`; one application key restricted to those three buckets | S3 endpoint `https://s3.<region>.backblazeb2.com`, region, key id, key |
-| **Auth0** | Tenant; an **API** (identifier = e.g. `https://api.knowledgeos.dev`, RS256); a **Regular Web Application** for the web app (callback `https://<vercel-app>/api/auth/callback/auth0`); refresh-token rotation on; RBAC off; demo users `alice`, `bob`, `hana`, `carol` with the seed emails | issuer `https://<tenant>.<region>.auth0.com/`, API identifier, app client id + secret |
+| **Auth0** | Tenant; an **API** (identifier = e.g. `https://api.knowledgeos.dev`, RS256); a **Regular Web Application** for the web app (callback `https://<vercel-app>/api/auth/callback/oidc` (Auth.js keeps the provider id `oidc`; Vercel env: [apps/web/docs/staging-auth.md](../../apps/web/docs/staging-auth.md))); refresh-token rotation on; RBAC off; demo users `alice`, `bob`, `hana`, `carol` with the seed emails | issuer `https://<tenant>.<region>.auth0.com/`, API identifier, app client id + secret |
 | **Hugging Face** | A **public** Docker Space `knowledgeos-api-staging` (CPU basic, free) | Space URL `https://<user>-knowledgeos-api-staging.hf.space` |
 | **Vercel** | Hobby account linked to the GitHub repo (project root `apps/web`) | staging URL |
 | **Groq** (+ optional Gemini) | API key | key, a model id, your account's RPM/TPM/RPD limits |
