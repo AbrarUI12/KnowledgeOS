@@ -11,13 +11,17 @@ import type { components } from "@knowledgeos/contracts";
 export function SearchWorkspace({
   organizationId,
   canDebug,
+  initialQuery = "",
+  initialLibrary = "",
 }: {
   organizationId: string;
   canDebug: boolean;
+  initialQuery?: string;
+  initialLibrary?: string;
 }) {
   const { data: session } = useSession();
-  const [query, setQuery] = useState("");
-  const [kb, setKb] = useState("");
+  const [query, setQuery] = useState(initialQuery);
+  const [kb, setKb] = useState(initialLibrary);
   const [debug, setDebug] = useState(false);
   const [selected, setSelected] = useState<components["schemas"]["SearchHit"] | null>(null);
   const token = session?.accessToken;
@@ -83,7 +87,13 @@ export function SearchWorkspace({
         onSubmit={(event) => {
           event.preventDefault();
           setSelected(null);
-          if (query.trim() && libraries.data?.length) search.mutate();
+          if (query.trim() && libraries.data?.length) {
+            const url = new URL(window.location.href);
+            url.searchParams.set("q", query.trim());
+            url.searchParams.set("kb", kb || libraries.data[0].id);
+            window.history.replaceState(null, "", url);
+            search.mutate();
+          }
         }}
       >
         <select
@@ -137,7 +147,21 @@ export function SearchWorkspace({
             {search.data.hits.length} results
             {search.data.degraded ? " · Retrieval degraded: some sources may be missing" : ""}
           </p>
-          <ul className="divide-y divide-line rounded-panel border border-line bg-surface-0">
+          <ul
+            className="divide-y divide-line rounded-panel border border-line bg-surface-0"
+            onKeyDown={(event) => {
+              if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
+              const buttons = Array.from(
+                event.currentTarget.querySelectorAll<HTMLButtonElement>("button"),
+              );
+              if (!buttons.length) return;
+              event.preventDefault();
+              const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+              buttons[
+                (index + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length
+              ].focus();
+            }}
+          >
             {search.data.hits.map((hit) => (
               <li key={hit.chunk_id} className="p-5">
                 <button
