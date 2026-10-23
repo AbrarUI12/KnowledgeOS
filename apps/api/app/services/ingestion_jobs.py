@@ -85,8 +85,14 @@ async def list_jobs(
     states: list[IngestionState] | None,
     cursor: str | None,
     limit: int,
+    newest_first: bool = False,
 ) -> Page[IngestionJobOut]:
     kb, kb_acl = await load_kb(session, ctx, kb_id)
+    order = (
+        (IngestionJob.created_at.desc(), IngestionJob.id.desc())
+        if newest_first
+        else (IngestionJob.created_at, IngestionJob.id)
+    )
     limit = page_limit(limit)
     query = (
         select(IngestionJob.id, IngestionJob.created_at)
@@ -95,13 +101,14 @@ async def list_jobs(
         .where(
             IngestionJob.organization_id == ctx.organization_id, Document.knowledge_base_id == kb.id
         )
-        .order_by(IngestionJob.created_at, IngestionJob.id)
+        .order_by(*order)
     )
     if not can_manage(ctx, kb_acl):
         query = query.where(document_readable(ctx))
     if states:
         query = query.where(IngestionJob.state.in_([s.value for s in states]))
-    if (clause := after_cursor(IngestionJob.created_at, IngestionJob.id, cursor)) is not None:
+    clause = after_cursor(IngestionJob.created_at, IngestionJob.id, cursor, descending=newest_first)
+    if clause is not None:
         query = query.where(clause)
     rows = list((await session.execute(query.limit(limit + 1))).all())
     items = [await get_ingestion_job(session, ctx, row.id) for row in rows[:limit]]

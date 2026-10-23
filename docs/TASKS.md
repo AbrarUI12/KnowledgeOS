@@ -28,10 +28,10 @@ The user's call (D-015, DV-008): **M1 live staging within 3–5 days, Claude and
 | 1 | **C1** `/query` + SSE (T5.3 part 2 + slim T5.4 part 2): normalize → search → rerank → pack → `generate_grounded` → validate → persist answers/citations/selected hits; SSE per `docs/api/sse-events.md`; evidence status (no conflicts); strip non-citation links/images server-side; transaction closed before generation; `test_gate_g5.py` | T5.2 merged (#40); review #48, #49. **X1** knowledge library + upload + lean ingestion (T2.5 + T3.7): KB list, document table with live pipeline status, retry, approve/reject, lean Inspect (chunks, scan findings, timeline) | Create the free accounts: Hugging Face, Neon, Backblaze B2, Auth0, Vercel, Groq key |
 | 2 | **C2** deployable image (T6.1): `infra/docker/space.Dockerfile`, supervisord, `staging` settings, Neon roles by SQL, B2 buckets + CORS, Auth0, `make space-smoke` | **X2** Ask workspace + evidence rail (T5.5 + T5.7 + slim T5.6): streaming answer, `[S#]` → chunk context and source link, abstention/degraded banners, feedback buttons | Enter secrets in HF and Vercel |
 | 3 | **C3** staging deploy (T6.3, manual `make deploy-staging`): HF Space, Vercel, Neon migrations, demo seed; `scripts/smoke.py` (T6.2 API part) | **X3** search UI + retrieval debugger (T4.7 + T4.8, lean) | |
-| 4 | **C4** lean admin pages (T1.6 + T1.5 navigation-only palette + approvals queue); staging integration fixes | Integration fixes on staging; review C3/C4 | Try the live demo |
+| 4 | ~~C4~~ → Codex (2026-10-23, starter `ai/claude-c4-access-pages`); approvals live in X1's Inspect; staging integration fixes, jobs `sort` param, gate runs | Integration fixes on staging; review C3/C4 | Try the live demo |
 | 5 | Final verification → tags `gate-G5`, `M1`; README "Live demo" link | Buffer, fixes | |
 
-**Reassigned from Cline:** T2.5, T3.7 → Codex X1 · T5.6 (slim) → Codex X2 · T4.7 → Codex X3 · T1.5 (navigation only), T1.6 → Claude C4 · T6.2 → `smoke.py` in Claude C3 (the Playwright parts are cut) · T1.7 cut. T2.6 merged (#33).
+**Reassigned from Cline:** T2.5, T3.7 → Codex X1 · T5.6 (slim) → Codex X2 · T4.7 → Codex X3 · T1.5 (navigation only), T1.6 → Claude C4, then handed to Codex with a starter (frontend is Codex's) · T6.2 → `smoke.py` in Claude C3 (the Playwright parts are cut) · T1.7 cut. T2.6 merged (#33).
 
 ---
 
@@ -66,10 +66,10 @@ The user's call (D-015, DV-008): **M1 live staging within 3–5 days, Claude and
 | T4.2 | Index generations (DB) + chunk indexing & ACL materialization | 5 | S22–S23 | DONE | ai/claude-t4.2-indexing | #38 (d3bdda3) |
 | T4.4 | Permission-aware hybrid search backend | 5 | S24 | DONE | ai/claude-t4.4-search | #39 (f328b1d) |
 | T4.6 | Search API, demo seed loader, debug API | 6 | S25–S26 | DONE | ai/claude-t4.6-search-api | #41 (4dadd27) |
-| T5.3 | RAG profiles, model policies & `/query` orchestration | 7 | S27–S28 | IN PROGRESS (part 1 REVIEW; part 2 = C1) | ai/claude-t5.3-profiles | #48 |
-| T5.4 | SSE streaming, evidence status, conflicts + evidence endpoints | 7 | S29, S31 | IN PROGRESS (part 1 REVIEW; part 2 = C1, conflicts cut) | ai/claude-t5.4-evidence | #49 |
-| T6.1 | Free-tier accounts & deployable backend image | 9 | S32 | TODO | | |
-| T6.3 | MVP staging deployment | 9 | S33 | TODO | | |
+| T5.3 | RAG profiles, model policies & `/query` orchestration | 7 | S27–S28 | DONE (classification limit follow-up #60 in REVIEW) | ai/claude-t5.3-profiles, ai/claude-c1-query | #48 (6bd9e2f), #55 (53fba10) |
+| T5.4 | SSE streaming, evidence status, conflicts + evidence endpoints | 7 | S29, S31 | DONE (conflicts cut, DV-008; validated delivery, DV-009) | ai/claude-t5.4-evidence, ai/claude-c1-query | #49 (dbf2b0a), #55 (53fba10) |
+| T6.1 | Free-tier accounts & deployable backend image | 9 | S32 | REVIEW (image verified locally; accounts pending, user) | ai/claude-c2-space-image | #58 |
+| T6.3 | MVP staging deployment | 9 | S33 | BLOCKED (free-tier accounts); `scripts/smoke.py` ready in #58 and green on the local stack | | |
 
 ### Codex
 

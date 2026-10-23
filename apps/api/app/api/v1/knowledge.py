@@ -2,7 +2,7 @@
 T2.1, T2.4, T3.5, T3.6, T4.2, T5.4)."""
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, Request, status
 
@@ -401,10 +401,18 @@ async def list_ingestion_jobs(
     cursor: Cursor = None,
     limit: Limit = 50,
     state: Annotated[list[IngestionState] | None, Query()] = None,
+    sort: Annotated[Literal["created_at", "-created_at"], Query()] = "created_at",
 ) -> Page[IngestionJobOut]:
-    """Jobs of a KB's documents the caller can see, oldest first; filter with repeated `state`."""
+    """Jobs of a KB's documents the caller can see, oldest first (`sort=-created_at`: newest
+    first, so a page of recent documents finds its latest jobs); filter with repeated `state`."""
     return await ingestion_jobs.list_jobs(
-        session, ctx, kb_id, states=state, cursor=cursor, limit=limit
+        session,
+        ctx,
+        kb_id,
+        states=state,
+        cursor=cursor,
+        limit=limit,
+        newest_first=sort == "-created_at",
     )
 
 
