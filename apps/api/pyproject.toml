@@ -5,7 +5,7 @@ description = "KnowledgeOS backend: multi-tenant, permission-aware RAG platform 
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "docling==2.138.0",
+    "docling==2.142.0",
     "torch>=2.4.0",
     "torchvision>=0.19.0",
     "alembic>=1.20.0",
