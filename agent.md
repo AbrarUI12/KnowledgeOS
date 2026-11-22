@@ -1,6 +1,8 @@
 # agent.md — KnowledgeOS Handoff & Progress Log
 
-> **This is the single source of truth for "where are we?"**
+> **Historical engineering log (last status snapshot: October 2026).** The maintainer reported the core KnowledgeOS implementation complete on 2026-11-23. The dated sprint and staging entries below are preserved as written and should not be interpreted as a current deployment status. No public hosted backend was independently verified in this documentation update. See [README.md](README.md) for the current overview.
+
+> **This file preserves the development timeline and handoffs.**
 > Any developer or AI agent picking up this project reads this file first. Since 2026-10-12 three agents work in parallel (Claude, Codex, Cline): **task assignment and status live in `docs/TASKS.md`**, the working rules in `docs/AGENT_WORKFLOW.md`, and shared context in `docs/AI_CONTEXT.md`.
 
 ---

@@ -1,6 +1,8 @@
 # Tasks: Milestone M1 (first live deployment)
 
-> Who does what, in which order, and the current status, from Session 07 to Session 33 (staging deployment).
+> **Historical task snapshot (October 2026):** The maintainer reported the core implementation complete on 2026-11-23. The original M1 task states below, including staging/account blockers, remain unchanged as an engineering record; they do not confirm or rule out the availability of a later hosted deployment. See [README.md](../README.md) for the current overview.
+>
+> Original task owners, sequence and recorded status from Session 07 to Session 33 (staging deployment).
 > Rules for working on these tasks: [`docs/AGENT_WORKFLOW.md`](AGENT_WORKFLOW.md). Detailed spec of each task: the referenced **session.md** section (its "Tasks" list is the scope, its "Done when" is the bar).
 
 **Milestone:** M1: live MVP on staging (Vercel + HF Space + Neon + B2 + Auth0) · **Status:** IN PROGRESS

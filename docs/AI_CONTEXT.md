@@ -9,9 +9,9 @@
 
 **Budget: $0.** Every service is a free tier or an open model (see `docs/DECISIONS.md` D-001).
 
-## Current milestone
+## Project status
 
-**M1: first live deployment (staging)**, i.e. session.md Sessions 07–33 / Sprints 1–6. The work is split between three agents in [`docs/TASKS.md`](TASKS.md).
+**Core implementation: completed (maintainer report, 2026-11-23).** The application code includes the ingestion, retrieval, grounded-answer and web workflows. The M1 task board records a historical October 2026 snapshot; at that time, public staging required external account setup. A live hosted environment has not been independently verified in this documentation update. See [the repository README](../README.md) for the current overview and [`docs/TASKS.md`](TASKS.md) for the historical work log.
 
 ## Where things are documented
 
@@ -30,7 +30,7 @@
 
 ## Technology stack
 
-| Layer | Local development | Deployed ($0) |
+| Layer | Local development | Intended staging deployment ($0) |
 |---|---|---|
 | Frontend | Next.js 16 (App Router), React 19, TypeScript strict, Tailwind 4, shadcn/Radix restyled, Motion, TanStack Query, Auth.js | Vercel Hobby |
 | Backend | Python 3.12, FastAPI, Pydantic 2, SQLAlchemy 2 async, Alembic, structlog, Celery | One Hugging Face Docker Space (supervisord) |

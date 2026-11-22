@@ -64,19 +64,17 @@ const stack = [
 ] as const;
 
 const milestones = [
-  { label: "Contracts, OIDC auth, tenant RLS, org/member/group APIs", status: "done" },
-  { label: "Object storage, file-safety validation, malware scanning", status: "done" },
-  { label: "Hybrid-search fusion (RRF) and synthetic demo corpus", status: "done" },
-  { label: "Frontend foundation: auth, typed API client, app shell", status: "progress" },
-  { label: "Ingestion pipeline: parsing, chunking, embedding, indexing", status: "next" },
-  { label: "Grounded answers with streaming citations", status: "next" },
-  { label: "Live staging deployment (M1)", status: "next" },
+  { label: "OIDC authentication, tenant RLS and organization access APIs", status: "done" },
+  { label: "Presigned uploads, file-safety validation and malware scanning", status: "done" },
+  { label: "Document parsing, OCR, chunking, embeddings and indexing", status: "done" },
+  { label: "Permission-aware hybrid search, fusion and reranking", status: "done" },
+  { label: "Grounded answers, streamed citations and source inspection", status: "done" },
+  { label: "Authenticated frontend, access controls and interactive preview", status: "done" },
+  { label: "Container image and staging deployment instructions", status: "done" },
 ] as const;
 
 const statusBadge = {
   done: { text: "Done", className: "bg-success-soft text-success" },
-  progress: { text: "In progress", className: "bg-warning-soft text-warning" },
-  next: { text: "Planned", className: "bg-surface-2 text-ink-secondary" },
 } as const;
 
 export default function Home() {
@@ -101,7 +99,7 @@ export default function Home() {
       <main id="main-content" className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
         <section className="flex flex-col gap-6 py-16 sm:py-24">
           <Badge className="bg-accent-soft text-accent">
-            Portfolio project · in active development
+            Completed portfolio project
           </Badge>
           <h1 className="max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">
             KnowledgeOS
@@ -128,8 +126,8 @@ export default function Home() {
             </a>
           </div>
           <p className="text-sm text-ink-tertiary">
-            The demo runs on placeholder data in your browser. The live backend (API, workers,
-            models) is being deployed as milestone M1.
+            The interactive preview uses fictional, in-browser data. The authenticated
+            API and background workers are separate; a public deployment is not verified here.
           </p>
         </section>
 
@@ -182,7 +180,7 @@ export default function Home() {
           <div>
             <h2 className="mb-6 flex items-center gap-2 text-2xl font-semibold tracking-tight">
               <Database aria-hidden className="size-5 text-accent" />
-              Build status
+              Implementation status
             </h2>
             <ul className="flex flex-col gap-2">
               {milestones.map(({ label, status }) => (
@@ -198,8 +196,8 @@ export default function Home() {
               ))}
             </ul>
             <p className="mt-4 text-sm text-ink-tertiary">
-              Built by a three-agent team (Claude Code, Codex, Cline) with cross-agent code review,
-              contract-first interfaces and a 200+ test suite running against real PostgreSQL.
+              Built with contract-first interfaces, cross-agent code review and automated tests.
+              These badges describe implementation, not verified availability of a hosted backend.
             </p>
           </div>
         </section>
